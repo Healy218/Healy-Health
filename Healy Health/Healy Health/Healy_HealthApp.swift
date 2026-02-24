@@ -8,7 +8,11 @@
 import SwiftUI
 
 @main
-struct Healy_HealthApp: App {
+struct HealyHealthApp: App {
+    init() {
+        NotificationManager.shared.requestAuthorization()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
