@@ -6,4 +6,6 @@ struct CompletedWorkout: Identifiable, Codable {
     var dayName: String
     var focus: String
     var exercises: [Exercise]
+    var routineId: UUID?
+    var workoutId: UUID?
 }

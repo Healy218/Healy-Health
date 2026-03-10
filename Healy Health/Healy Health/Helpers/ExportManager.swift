@@ -5,13 +5,21 @@ class ExportManager {
     static let shared = ExportManager()
     
     func generateJSONData() -> URL? {
-        let schedule = WorkoutSchedule.shared.fullSchedule
+        struct AppExportData: Codable {
+            let routines: [Routine]
+            let completedWorkouts: [CompletedWorkout]
+        }
+        
+        let exportData = AppExportData(
+            routines: RoutineStore.shared.routines,
+            completedWorkouts: RoutineStore.shared.completedWorkouts
+        )
         
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
         
         do {
-            let data = try encoder.encode(schedule)
+            let data = try encoder.encode(exportData)
             let tempDirectory = FileManager.default.temporaryDirectory
             let fileURL = tempDirectory.appendingPathComponent("HealyHealth_Export.json")
             
@@ -20,6 +28,28 @@ class ExportManager {
         } catch {
             print("Failed to export data: \(error)")
             return nil
+        }
+    }
+    
+    // Import Functionality
+    func importJSONData(from url: URL) -> Bool {
+        guard let data = try? Data(contentsOf: url) else { return false }
+        
+        struct AppExportData: Codable {
+            let routines: [Routine]
+            let completedWorkouts: [CompletedWorkout]
+        }
+        
+        do {
+            let decoded = try JSONDecoder().decode(AppExportData.self, from: data)
+            RoutineStore.shared.routines = decoded.routines
+            RoutineStore.shared.completedWorkouts = decoded.completedWorkouts
+            RoutineStore.shared.saveRoutines()
+            RoutineStore.shared.saveHistory()
+            return true
+        } catch {
+            print("Failed to import data: \(error)")
+            return false
         }
     }
 }

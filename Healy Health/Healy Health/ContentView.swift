@@ -9,10 +9,14 @@ import SwiftUI
 
 struct ContentView: View {
     init() {
+        // Fix #9: Safe font unwrapping
+        let navFont = UIFont(name: "ChalkboardSE-Regular", size: 20) ?? .systemFont(ofSize: 20)
+        let navLargeFont = UIFont(name: "ChalkboardSE-Regular", size: 34) ?? .systemFont(ofSize: 34)
+        
         let appearance = UINavigationBarAppearance()
         appearance.configureWithTransparentBackground()
-        appearance.titleTextAttributes = [.font: UIFont(name: "ChalkboardSE-Regular", size: 20)!, .foregroundColor: UIColor.white]
-        appearance.largeTitleTextAttributes = [.font: UIFont(name: "ChalkboardSE-Regular", size: 34)!, .foregroundColor: UIColor.white]
+        appearance.titleTextAttributes = [.font: navFont, .foregroundColor: UIColor.white]
+        appearance.largeTitleTextAttributes = [.font: navLargeFont, .foregroundColor: UIColor.white]
         
         UINavigationBar.appearance().standardAppearance = appearance
         UINavigationBar.appearance().compactAppearance = appearance
@@ -22,7 +26,6 @@ struct ContentView: View {
         // Tab Bar Appearance
         let tabAppearance = UITabBarAppearance()
         tabAppearance.configureWithOpaqueBackground()
-        // Use systemBlue so it exactly matches the SwiftUI `Color.blue`
         tabAppearance.backgroundColor = .systemBlue
         let itemAppearance = UITabBarItemAppearance()
         itemAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.white.withAlphaComponent(0.6)]
@@ -35,26 +38,42 @@ struct ContentView: View {
         UITabBar.appearance().scrollEdgeAppearance = tabAppearance
     }
 
+    // Fix #4: Use @EnvironmentObject instead of @ObservedObject
+    @EnvironmentObject var store: RoutineStore
+
     var body: some View {
-        TabView {
-            ExerciseLibraryView()
-                .tabItem {
-                    Label("Exercises", systemImage: "list.bullet.clipboard")
-                }
+        TabView(selection: $store.selectedTab) {
+            NavigationStack {
+                RoutinesView()
+            }
+            .tabItem {
+                Label("Routines", systemImage: "list.bullet.clipboard")
+            }
+            .tag(0)
             
             NavigationStack {
-                MainScheduleView()
+                ActiveWorkoutView()
             }
             .tabItem {
                 Label("Workout", systemImage: "dumbbell.fill")
             }
+            .tag(1)
             
             NavigationStack {
-                HistoryView()
+                SummaryView()
             }
             .tabItem {
-                Label("History", systemImage: "clock.fill")
+                Label("Summary", systemImage: "chart.bar.fill")
             }
+            .tag(2)
+            
+            NavigationStack {
+                SettingsView()
+            }
+            .tabItem {
+                Label("Settings", systemImage: "gearshape.fill")
+            }
+            .tag(3)
         }
         .environment(\.font, Font.custom("ChalkboardSE-Regular", size: 17))
         .accentColor(.white)

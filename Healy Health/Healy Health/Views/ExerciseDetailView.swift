@@ -2,8 +2,31 @@ import SwiftUI
 import Combine
 
 struct ExerciseDetailView: View {
-    @Binding var exercise: Exercise
-    var onSave: () -> Void
+    @EnvironmentObject var store: RoutineStore
+    let routineId: UUID
+    let workoutId: UUID
+    let exerciseId: UUID
+    
+    private var exerciseBinding: Binding<Exercise>? {
+        guard let rIndex = store.routines.firstIndex(where: { $0.id == routineId }),
+              let wIndex = store.routines[rIndex].workouts.firstIndex(where: { $0.id == workoutId }),
+              let eIndex = store.routines[rIndex].workouts[wIndex].exercises.firstIndex(where: { $0.id == exerciseId }) else {
+            return nil
+        }
+        return Binding(
+            get: { store.routines[rIndex].workouts[wIndex].exercises[eIndex] },
+            set: {
+                store.routines[rIndex].workouts[wIndex].exercises[eIndex] = $0
+                store.saveRoutines()
+            }
+        )
+    }
+    
+    // We'll use a local copy for the UI to prevent constant binding lookups if needed, or just unwrap it
+    // Let's create a computed property for safety
+    private var exercise: Exercise? {
+        exerciseBinding?.wrappedValue
+    }
     
     @Environment(\.presentationMode) var presentationMode
     @Environment(\.scenePhase) var scenePhase
@@ -27,102 +50,72 @@ struct ExerciseDetailView: View {
             // Background
             Color.blue.ignoresSafeArea()
             
-            VStack {
-                // Header
-                Text(exercise.name)
-                    .font(.title2)
-                    .foregroundColor(.white)
-                    .padding(.top)
-                
-                // Set History List
-                List {
-                    Section(header: Text("History").foregroundColor(.white)) {
-                        if exercise.logs.isEmpty {
-                            Text("No sets completed yet.")
-                                .foregroundColor(.gray)
-                        } else {
-                            ForEach(exercise.logs) { log in
-                                HStack {
-                                    Text("Set \(exercise.logs.firstIndex(where: { $0.id == log.id })! + 1)")
-                                        .fontWeight(.bold)
-                                    Spacer()
-                                    Text("\(log.reps) reps @ \(String(format: "%.1f", log.weight)) lbs")
+            if let exercise = exercise {
+                VStack {
+                    // Header
+                    Text(exercise.name)
+                        .font(.title2)
+                        .foregroundColor(.white)
+                        .padding(.top)
+                    
+                    // Set History List
+                    List {
+                        Section(header: Text("History").foregroundColor(.white)) {
+                            if exercise.logs.isEmpty {
+                                Text("No sets completed yet.")
+                                    .foregroundColor(.gray)
+                            } else {
+                                ForEach(exercise.logs) { log in
+                                    HStack {
+                                        Text("Set \(exercise.logs.firstIndex(where: { $0.id == log.id })! + 1)")
+                                            .fontWeight(.bold)
+                                        Spacer()
+                                        Text("\(log.reps) reps @ \(String(format: "%.1f", log.weight)) lbs")
+                                    }
+                                    .foregroundColor(.black)
+                                    .listRowBackground(Color.white)
                                 }
-                                .foregroundColor(.black)
-                                .listRowBackground(Color.white)
                             }
                         }
                     }
-                }
-                .scrollContentBackground(.hidden)
-                .frame(maxHeight: 200)
-                
-                // Current Set Input
-                if !timerActive {
-                    VStack(spacing: 20) {
-                        Text("Set \(exercise.logs.count + 1)")
-                            .font(.title)
-                            .foregroundColor(.white)
-                        
-                        HStack(spacing: 20) {
-                            VStack {
-                                Text("Weight (lbs)")
-                                    .foregroundColor(.white)
-                                TextField("0", text: $weightInput)
-                                    .keyboardType(.decimalPad)
-                                    .padding()
-                                    .background(Color.white)
-                                    .foregroundColor(.black)
-                                    .cornerRadius(10)
-                            }
-                            
-                            VStack {
-                                Text("Reps")
-                                    .foregroundColor(.white)
-                                TextField("0", text: $repsInput)
-                                    .keyboardType(.numberPad)
-                                    .padding()
-                                    .background(Color.white)
-                                    .foregroundColor(.black)
-                                    .cornerRadius(10)
-                            }
-                        }
-                        .padding(.horizontal)
-                        
-                        // Timer Settings (Only show when not active)
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Auto-Start Timer Duration:")
-                                .foregroundColor(.white)
-                                .font(.caption)
-                            
-                            HStack(spacing: 12) {
-                                TimerPresetButton(duration: 120, label: "2:00", selectedDuration: $selectedDuration)
-                                TimerPresetButton(duration: 150, label: "2:30", selectedDuration: $selectedDuration)
-                                TimerPresetButton(duration: 180, label: "3:00", selectedDuration: $selectedDuration)
-                                
-                                Button(action: { showCustomTimerAlert = true }) {
-                                    Text("Custom")
-                                        .font(.caption)
-                                        .fontWeight(.bold)
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 12)
-                                        .background(isCustomDuration ? Color.white : Color.blue.opacity(0.5))
-                                        .foregroundColor(isCustomDuration ? .blue : .white)
-                                        .cornerRadius(8)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(Color.white, lineWidth: 1)
-                                        )
+                    .scrollContentBackground(.hidden)
+                    .frame(maxHeight: 200)
+                    
+                    // Fix #5: Use extracted subviews
+                    if !timerActive {
+                        SetInputView(
+                            setNumber: exercise.logs.count + 1,
+                            weightInput: $weightInput,
+                            repsInput: $repsInput,
+                            selectedDuration: $selectedDuration,
+                            showCustomTimerAlert: $showCustomTimerAlert,
+                            isCustomDuration: isCustomDuration,
+                            onLogSet: logSet
+                        )
+                    } else {
+                        RestTimerDisplayView(
+                            timeRemaining: timeRemaining,
+                            nextSetNumber: exercise.logs.count + 1,
+                            onSkip: skipRest,
+                            onAddTime: {
+                                if let endTime = timerEndTime {
+                                    timerEndTime = endTime.addingTimeInterval(30)
+                                    NotificationManager.shared.cancelTimer()
+                                    updateTimerDisplay()
+                                    NotificationManager.shared.scheduleTimer(seconds: timeRemaining)
                                 }
                             }
-                        }
-                        .padding(.horizontal)
-
-                        
-                        Button(action: logSet) {
-                            Text("Log Set")
+                        )
+                    }
+                    
+                    Spacer()
+                    
+                    // Footer Actions
+                    if exercise.logs.count >= 3 {
+                        Button(action: finishExercise) {
+                            Text("Finish Exercise")
                                 .font(.headline)
-                                .foregroundColor(.blue)
+                                .foregroundColor(.green)
                                 .padding()
                                 .frame(maxWidth: .infinity)
                                 .background(Color.white)
@@ -130,80 +123,32 @@ struct ExerciseDetailView: View {
                         }
                         .padding(.horizontal)
                     }
-                    .padding(.vertical)
-                } else {
-                    // Rest Timer View
-                    VStack(spacing: 20) {
-                        Text("Rest Timer")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        
-                        Text(timeString(time: timeRemaining))
-                            .font(.system(size: 60, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white)
-                        
-                        Button(action: skipRest) {
-                            Text("Skip Rest & Start Set \(exercise.logs.count + 1)")
-                                .foregroundColor(.blue)
-                                .padding()
-                                .background(Color.white)
-                                .cornerRadius(10)
-                        }
-                        
-                        Button(action: {
-                            // Add 30 seconds
-                            if let endTime = timerEndTime {
-                                timerEndTime = endTime.addingTimeInterval(30)
-                                NotificationManager.shared.cancelTimer()
-                                updateTimerDisplay() // Recalculate remaining
-                                NotificationManager.shared.scheduleTimer(seconds: timeRemaining)
-                            }
-                        }) {
-                             Text("+30s")
-                                .foregroundColor(.white)
-                                .padding(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.white, lineWidth: 1)
-                                )
-                        }
+                    
+                    Button(action: { presentationMode.wrappedValue.dismiss() }) {
+                        Text("Skip / Back")
+                            .foregroundColor(.white.opacity(0.8))
                     }
-                    .padding()
-                    .background(Color.white.opacity(0.1))
-                    .cornerRadius(20)
-                    .padding()
+                    .padding(.bottom)
                 }
-                
-                Spacer()
-                
-                // Footer Actions
-                if exercise.logs.count >= 3 {
-                    Button(action: finishExercise) {
-                        Text("Finish Exercise")
-                            .font(.headline)
-                            .foregroundColor(.green)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.white)
-                            .cornerRadius(10)
+            } else {
+                VStack {
+                    Text("Exercise Not Found")
+                        .foregroundColor(.white)
+                    Button("Back") {
+                        presentationMode.wrappedValue.dismiss()
                     }
-                    .padding(.horizontal)
                 }
-                
-                Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                    Text("Skip / Back")
-                        .foregroundColor(.white.opacity(0.8))
-                }
-                .padding(.bottom)
             }
         }
         .onAppear {
-            if let lastLog = exercise.logs.last {
-                weightInput = String(format: "%.0f", lastLog.weight)
-                repsInput = String(format: "%d", lastLog.reps)
-            } else {
-                weightInput = String(format: "%.0f", exercise.currentWeight)
-                repsInput = ""
+            if let exercise = self.exercise {
+                if let lastLog = exercise.logs.last {
+                    weightInput = String(format: "%.0f", lastLog.weight)
+                    repsInput = String(format: "%d", lastLog.reps)
+                } else {
+                    weightInput = String(format: "%.0f", exercise.currentWeight)
+                    repsInput = ""
+                }
             }
         }
         .onReceive(timer) { _ in
@@ -237,16 +182,16 @@ struct ExerciseDetailView: View {
 
     func logSet() {
         guard let weight = Double(weightInput), let reps = Int(repsInput) else { return }
+        guard let binding = exerciseBinding else { return }
         
         let newLog = SetLog(weight: weight, reps: reps, completedDate: Date())
-        exercise.logs.append(newLog)
+        binding.wrappedValue.logs.append(newLog)
         
-        exercise.currentWeight = weight
-        
-        onSave()
+        binding.wrappedValue.currentWeight = weight
+        store.saveRoutines()
         
         // Start Timer if not finished 5 sets (adjustable)
-        if exercise.logs.count < 5 {
+        if binding.wrappedValue.logs.count < 5 {
             startTimer()
         }
         
@@ -272,7 +217,9 @@ struct ExerciseDetailView: View {
             timeRemaining = 0
             timerActive = false
             timerEndTime = nil
-            // Haptics or sound could go here
+            // Fix #12: Haptic feedback on timer completion
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
         }
     }
     
@@ -283,43 +230,10 @@ struct ExerciseDetailView: View {
     }
     
     func finishExercise() {
-        exercise.isCompleted = true
+        exerciseBinding?.wrappedValue.isCompleted = true
+        store.saveRoutines()
         NotificationManager.shared.cancelTimer() // Ensure no lingering timer
-        onSave()
         presentationMode.wrappedValue.dismiss()
     }
     
-    func timeString(time: TimeInterval) -> String {
-        let totalSeconds = Int(ceil(time))
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%02d:%02d", minutes, seconds)
-    }
-}
-
-struct TimerPresetButton: View {
-    let duration: Double
-    let label: String
-    @Binding var selectedDuration: Double
-    
-    var isSelected: Bool {
-        return selectedDuration == duration
-    }
-    
-    var body: some View {
-        Button(action: { selectedDuration = duration }) {
-            Text(label)
-                .font(.caption)
-                .fontWeight(.bold)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .background(isSelected ? Color.white : Color.blue.opacity(0.5))
-                .foregroundColor(isSelected ? .blue : .white)
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.white, lineWidth: 1)
-                )
-        }
-    }
 }

@@ -1,8 +1,8 @@
 import Foundation
 
-struct WorkoutDay: Identifiable, Codable {
+struct Workout: Identifiable, Codable {
     var id = UUID()
-    var dayName: String // e.g., "Monday"
+    var name: String // e.g., "Pull Day"
     var focus: String   // e.g., "Push - Chest/Shoulders/Tris"
     var exercises: [Exercise]
 }
