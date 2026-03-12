@@ -92,7 +92,7 @@ enum AppTheme: String, CaseIterable, Codable {
     // Whether this is a "style" theme (not a colour)
     var isStyle: Bool {
         switch self {
-        case .light, .dark, .systemBlue: return true
+        case .light, .dark: return true
         default: return false
         }
     }
@@ -111,6 +111,6 @@ class ThemeManager: ObservableObject {
 
     private init() {
         let saved = UserDefaults.standard.string(forKey: Self.key) ?? ""
-        self.current = AppTheme(rawValue: saved) ?? .systemBlue
+        self.current = AppTheme(rawValue: saved) ?? .light
     }
 }

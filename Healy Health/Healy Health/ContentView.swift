@@ -5,17 +5,16 @@ struct ContentView: View {
     @EnvironmentObject var themeManager: ThemeManager
 
     init() {
-        // Font setup — appearance colors are applied dynamically via applyAppearance()
+        // Font setup only — colors are applied dynamically via applyAppearance()
         let navFont = UIFont(name: "ChalkboardSE-Regular", size: 20) ?? .systemFont(ofSize: 20)
         let navLargeFont = UIFont(name: "ChalkboardSE-Regular", size: 34) ?? .systemFont(ofSize: 34)
         let navAppearance = UINavigationBarAppearance()
         navAppearance.configureWithTransparentBackground()
-        navAppearance.titleTextAttributes = [.font: navFont, .foregroundColor: UIColor.white]
-        navAppearance.largeTitleTextAttributes = [.font: navLargeFont, .foregroundColor: UIColor.white]
+        navAppearance.titleTextAttributes = [.font: navFont]
+        navAppearance.largeTitleTextAttributes = [.font: navLargeFont]
         UINavigationBar.appearance().standardAppearance = navAppearance
         UINavigationBar.appearance().compactAppearance = navAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
-        UINavigationBar.appearance().tintColor = .white
     }
 
     var body: some View {
@@ -37,7 +36,7 @@ struct ContentView: View {
                 .tag(3)
         }
         .environment(\.font, Font.custom("ChalkboardSE-Regular", size: 17))
-        .accentColor(.white)
+        .accentColor(themeManager.current.onPrimaryText)
         .onAppear { applyAppearance(for: themeManager.current) }
         .onChange(of: themeManager.current) { _, newTheme in
             applyAppearance(for: newTheme)
