@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RoutineDetailView: View {
     @EnvironmentObject var store: RoutineStore
+    @EnvironmentObject var themeManager: ThemeManager
     var routine: Routine
 
     @State private var showingAddWorkout = false
@@ -10,51 +11,51 @@ struct RoutineDetailView: View {
     @State private var showingEditRoutine = false
     @State private var editRoutineName = ""
 
+    private var theme: AppTheme { themeManager.current }
+
     private var currentRoutine: Routine? {
         store.routines.first(where: { $0.id == routine.id })
     }
 
     var body: some View {
         ZStack {
-            Color.blue.edgesIgnoringSafeArea(.all)
+            theme.primaryColor.edgesIgnoringSafeArea(.all)
 
             VStack {
-                if let currentRoutine = currentRoutine {
-                    if currentRoutine.workouts.isEmpty {
+                if let cr = currentRoutine {
+                    if cr.workouts.isEmpty {
                         Text("No workouts yet.")
-                            .foregroundColor(.white)
+                            .foregroundColor(theme.onPrimaryText)
                             .padding()
                     } else {
                         List {
-                            ForEach(currentRoutine.workouts) { workout in
-                                NavigationLink(destination: WorkoutDetailView(routineId: currentRoutine.id, workout: workout)) {
+                            ForEach(cr.workouts) { workout in
+                                NavigationLink(destination: WorkoutDetailView(routineId: cr.id, workout: workout)) {
                                     VStack(alignment: .leading) {
                                         Text(workout.name)
                                             .font(.custom("ChalkboardSE-Regular", size: 20))
-                                            .foregroundColor(.black)
+                                            .foregroundColor(theme.rowText)
                                         if !workout.focus.isEmpty {
                                             Text(workout.focus)
                                                 .font(.custom("ChalkboardSE-Regular", size: 14))
-                                                .foregroundColor(Color(white: 0.3))
+                                                .foregroundColor(theme.secondaryRowText)
                                         }
-                                        if store.activeRoutineId == currentRoutine.id && store.activeWorkoutId == workout.id {
+                                        if store.activeRoutineId == cr.id && store.activeWorkoutId == workout.id {
                                             Text("Active Workout")
                                                 .font(.caption)
-                                                .foregroundColor(.blue)
+                                                .foregroundColor(theme.accentColor)
                                                 .padding(.top, 2)
                                         }
                                     }
                                     .padding(.vertical, 4)
                                 }
-                                .listRowBackground(Color.white)
+                                .listRowBackground(theme.rowBackground)
                                 .swipeActions(edge: .leading) {
                                     Button {
-                                        store.activeRoutineId = currentRoutine.id
+                                        store.activeRoutineId = cr.id
                                         store.activeWorkoutId = workout.id
                                         store.selectedTab = 1
-                                    } label: {
-                                        Label("Set Active", systemImage: "star.fill")
-                                    }
+                                    } label: { Label("Set Active", systemImage: "star.fill") }
                                     .tint(.green)
                                 }
                             }
@@ -68,22 +69,20 @@ struct RoutineDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Edit") {
-                        if let cr = currentRoutine {
-                            editRoutineName = cr.name
-                            showingEditRoutine = true
-                        }
+                        editRoutineName = currentRoutine?.name ?? ""
+                        showingEditRoutine = true
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(theme.onPrimaryText)
                 }
             }
             .safeAreaInset(edge: .bottom) {
                 Button(action: { showingAddWorkout = true }) {
                     Text("Add Workout")
                         .font(.headline)
-                        .foregroundColor(.blue)
+                        .foregroundColor(theme.accentColor)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.white)
+                        .background(theme.rowBackground)
                         .cornerRadius(12)
                         .shadow(radius: 5)
                 }
@@ -95,8 +94,7 @@ struct RoutineDetailView: View {
                 Button("Cancel", role: .cancel) { }
                 Button("Save") {
                     if !editRoutineName.isEmpty, let cr = currentRoutine {
-                        var updated = cr
-                        updated.name = editRoutineName
+                        var updated = cr; updated.name = editRoutineName
                         store.updateRoutine(updated)
                     }
                 }
@@ -104,17 +102,13 @@ struct RoutineDetailView: View {
             .alert("New Workout", isPresented: $showingAddWorkout) {
                 TextField("Workout Name", text: $newWorkoutName)
                 TextField("Focus (e.g. Push, Pull, Legs)", text: $newWorkoutFocus)
-                Button("Cancel", role: .cancel) {
-                    newWorkoutName = ""
-                    newWorkoutFocus = ""
-                }
+                Button("Cancel", role: .cancel) { newWorkoutName = ""; newWorkoutFocus = "" }
                 Button("Add") {
                     if !newWorkoutName.isEmpty, let cr = currentRoutine {
                         var updated = cr
                         updated.workouts.append(Workout(name: newWorkoutName, focus: newWorkoutFocus, exercises: []))
                         store.updateRoutine(updated)
-                        newWorkoutName = ""
-                        newWorkoutFocus = ""
+                        newWorkoutName = ""; newWorkoutFocus = ""
                     }
                 }
             }

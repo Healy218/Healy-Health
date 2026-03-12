@@ -2,21 +2,20 @@ import SwiftUI
 
 struct ExerciseSelectionView: View {
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var themeManager: ThemeManager
     @ObservedObject var exerciseManager = ExerciseManager.shared
     @State private var searchText = ""
 
     var presetCategory: ExerciseCategory = .weightlifting
-    // The handler to call when an exercise is fully configured and added
     var onAdd: (Exercise) -> Void
-    
+
+    private var theme: AppTheme { themeManager.current }
+
     var filteredExercises: [ExerciseTemplate] {
-        if searchText.isEmpty {
-            return exerciseManager.exercises
-        } else {
-            return exerciseManager.exercises.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-        }
+        searchText.isEmpty ? exerciseManager.exercises :
+            exerciseManager.exercises.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
-    
+
     var body: some View {
         NavigationStack {
             List {
@@ -28,39 +27,29 @@ struct ExerciseSelectionView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(template.name)
                                 .font(.headline)
-                                .foregroundColor(.black)
-                            
+                                .foregroundColor(theme.rowText)
                             HStack {
                                 if !template.primaryMuscleGroup.isEmpty {
                                     Text(template.primaryMuscleGroup)
-                                        .font(.caption)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.blue.opacity(0.1))
-                                        .foregroundColor(.blue)
-                                        .cornerRadius(8)
+                                        .font(.caption).padding(.horizontal, 8).padding(.vertical, 4)
+                                        .background(theme.accentColor.opacity(0.1)).foregroundColor(theme.accentColor).cornerRadius(8)
                                 }
-                                
                                 if !template.equipmentType.isEmpty {
                                     Text(template.equipmentType)
-                                        .font(.caption)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.gray.opacity(0.1))
-                                        .foregroundColor(.gray)
-                                        .cornerRadius(8)
+                                        .font(.caption).padding(.horizontal, 8).padding(.vertical, 4)
+                                        .background(Color.gray.opacity(0.1)).foregroundColor(.gray).cornerRadius(8)
                                 }
                             }
                         }
                         .padding(.vertical, 2)
                     }
-                    .listRowBackground(Color.white)
+                    .listRowBackground(theme.rowBackground)
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.blue.ignoresSafeArea())
+            .background(theme.primaryColor.ignoresSafeArea())
             .navigationTitle("Select Exercise")
-            .navigationBarItems(leading: Button("Cancel") { dismiss() })
+            .navigationBarItems(leading: Button("Cancel") { dismiss() }.foregroundColor(theme.onPrimaryText))
             .searchable(text: $searchText, prompt: "Search exercises")
         }
     }

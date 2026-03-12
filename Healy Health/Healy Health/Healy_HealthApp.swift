@@ -10,7 +10,8 @@ import SwiftUI
 @main
 struct HealyHealthApp: App {
     @StateObject private var store = RoutineStore.shared
-    
+    @StateObject private var themeManager = ThemeManager.shared
+
     init() {
         NotificationManager.shared.requestAuthorization()
     }
@@ -19,6 +20,7 @@ struct HealyHealthApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(store)
+                .environmentObject(themeManager)
         }
     }
 }

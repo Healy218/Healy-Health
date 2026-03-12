@@ -4,10 +4,13 @@ struct WorkoutDetailView: View {
     let routineId: UUID
     var workout: Workout
     @EnvironmentObject var store: RoutineStore
+    @EnvironmentObject var themeManager: ThemeManager
 
     @State private var showingEditWorkout = false
     @State private var editWorkoutName = ""
     @State private var editWorkoutFocus = ""
+
+    private var theme: AppTheme { themeManager.current }
 
     private var currentWorkout: Workout? {
         store.routines.first(where: { $0.id == routineId })?.workouts.first(where: { $0.id == workout.id })
@@ -15,7 +18,7 @@ struct WorkoutDetailView: View {
 
     var body: some View {
         ZStack {
-            Color.blue.edgesIgnoringSafeArea(.all)
+            theme.primaryColor.edgesIgnoringSafeArea(.all)
 
             ScrollView {
                 VStack(spacing: 16) {
@@ -36,7 +39,7 @@ struct WorkoutDetailView: View {
                         showingEditWorkout = true
                     }
                 }
-                .foregroundColor(.white)
+                .foregroundColor(theme.onPrimaryText)
             }
         }
         .alert("Edit Workout", isPresented: $showingEditWorkout) {
@@ -57,41 +60,35 @@ struct WorkoutDetailView: View {
 
     @ViewBuilder
     private func categoryCard(_ category: ExerciseCategory) -> some View {
-        let exerciseCount = currentWorkout?.exercises.filter { $0.category == category }.count ?? 0
+        let count = currentWorkout?.exercises.filter { $0.category == category }.count ?? 0
 
         NavigationLink(destination: CategoryExerciseListView(
-            routineId: routineId,
-            workoutId: workout.id,
-            category: category
+            routineId: routineId, workoutId: workout.id, category: category
         )) {
             HStack(spacing: 16) {
-                // Icon circle
                 ZStack {
                     Circle()
-                        .fill(Color.white.opacity(0.2))
+                        .fill(theme.onPrimaryText.opacity(0.15))
                         .frame(width: 52, height: 52)
                     Image(systemName: category.icon)
                         .font(.system(size: 22))
-                        .foregroundColor(.white)
+                        .foregroundColor(theme.onPrimaryText)
                 }
-
                 VStack(alignment: .leading, spacing: 4) {
                     Text(category.displayName)
                         .font(.custom("ChalkboardSE-Regular", size: 20))
-                        .foregroundColor(.white)
-                    Text(exerciseCount == 0 ? "Tap to add exercises" : "\(exerciseCount) exercise\(exerciseCount == 1 ? "" : "s")")
+                        .foregroundColor(theme.onPrimaryText)
+                    Text(count == 0 ? "Tap to add exercises" : "\(count) exercise\(count == 1 ? "" : "s")")
                         .font(.custom("ChalkboardSE-Regular", size: 14))
-                        .foregroundColor(.white.opacity(0.75))
+                        .foregroundColor(theme.onPrimaryText.opacity(0.7))
                 }
-
                 Spacer()
-
                 Image(systemName: "chevron.right")
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(theme.onPrimaryText.opacity(0.6))
                     .font(.system(size: 14, weight: .semibold))
             }
             .padding()
-            .background(Color.white.opacity(0.18))
+            .background(theme.onPrimaryText.opacity(0.12))
             .cornerRadius(16)
         }
         .buttonStyle(PlainButtonStyle())

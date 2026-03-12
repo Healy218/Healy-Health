@@ -2,17 +2,20 @@ import SwiftUI
 
 struct RoutinesView: View {
     @EnvironmentObject var store: RoutineStore
+    @EnvironmentObject var themeManager: ThemeManager
     @State private var showingAddRoutine = false
     @State private var newRoutineName = ""
-    
+
+    private var theme: AppTheme { themeManager.current }
+
     var body: some View {
         ZStack {
-            Color.blue.edgesIgnoringSafeArea(.all)
-            
+            theme.primaryColor.edgesIgnoringSafeArea(.all)
+
             VStack {
                 if store.routines.isEmpty {
                     Text("No routines yet.")
-                        .foregroundColor(.white)
+                        .foregroundColor(theme.onPrimaryText)
                         .padding()
                 } else {
                     List {
@@ -21,26 +24,25 @@ struct RoutinesView: View {
                                 VStack(alignment: .leading) {
                                     Text(routine.name)
                                         .font(.custom("ChalkboardSE-Regular", size: 20))
-                                        .foregroundColor(.black)
+                                        .foregroundColor(theme.rowText)
                                     Text("\(routine.workouts.count) Workout\(routine.workouts.count == 1 ? "" : "s")")
                                         .font(.custom("ChalkboardSE-Regular", size: 14))
-                                        .foregroundColor(Color(white: 0.3))
-                                    
+                                        .foregroundColor(theme.secondaryRowText)
                                     if store.activeRoutineId == routine.id {
                                         Text("Active Routine")
                                             .font(.caption)
-                                            .foregroundColor(.blue)
+                                            .foregroundColor(theme.accentColor)
                                             .padding(.top, 2)
                                     }
                                 }
                                 .padding(.vertical, 4)
                             }
-                            .listRowBackground(Color.white)
+                            .listRowBackground(theme.rowBackground)
                             .swipeActions(edge: .leading) {
                                 Button {
                                     store.activeRoutineId = routine.id
-                                    store.activeWorkoutId = nil // Reset since we're selecting the whole routine
-                                    store.selectedTab = 1 // Navigate to Workout tab
+                                    store.activeWorkoutId = nil
+                                    store.selectedTab = 1
                                 } label: {
                                     Label("Start", systemImage: "star.fill")
                                 }
@@ -49,24 +51,23 @@ struct RoutinesView: View {
                         }
                         .onDelete(perform: deleteRoutine)
                     }
-                    .scrollContentBackground(.hidden) // Removes default List background
+                    .scrollContentBackground(.hidden)
                 }
             }
             .navigationTitle("Your Routines")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                        .foregroundColor(.white)
+                    EditButton().foregroundColor(theme.onPrimaryText)
                 }
             }
             .safeAreaInset(edge: .bottom) {
                 Button(action: { showingAddRoutine = true }) {
                     Text("Add Routine")
                         .font(.headline)
-                        .foregroundColor(.blue)
+                        .foregroundColor(theme.accentColor)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.white)
+                        .background(theme.rowBackground)
                         .cornerRadius(12)
                         .shadow(radius: 5)
                 }
@@ -75,24 +76,18 @@ struct RoutinesView: View {
             }
             .alert("New Routine", isPresented: $showingAddRoutine) {
                 TextField("Routine Name", text: $newRoutineName)
-                Button("Cancel", role: .cancel) {
-                    newRoutineName = ""
-                }
+                Button("Cancel", role: .cancel) { newRoutineName = "" }
                 Button("Add") {
                     if !newRoutineName.isEmpty {
-                        let newRoutine = Routine(name: newRoutineName, workouts: [])
-                        store.addRoutine(newRoutine)
+                        store.addRoutine(Routine(name: newRoutineName, workouts: []))
                         newRoutineName = ""
                     }
                 }
             }
         }
     }
-    
+
     private func deleteRoutine(offsets: IndexSet) {
-        offsets.forEach { index in
-            let routine = store.routines[index]
-            store.deleteRoutine(routine)
-        }
+        offsets.forEach { store.deleteRoutine(store.routines[$0]) }
     }
 }
