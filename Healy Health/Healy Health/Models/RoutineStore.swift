@@ -65,7 +65,6 @@ class RoutineStore: ObservableObject {
     private func performMigration() {
         var migratedRoutines: [Routine] = []
         
-        let fileManager = FileManager.default
         let urlSchedule = getDocumentsDirectory().appendingPathComponent(legacyScheduleFileName)
         
         // 1. Migrate Main Schedule

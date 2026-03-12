@@ -3,23 +3,21 @@ import SwiftUI
 struct RoutineDetailView: View {
     @EnvironmentObject var store: RoutineStore
     var routine: Routine
-    
+
     @State private var showingAddWorkout = false
     @State private var newWorkoutName = ""
     @State private var newWorkoutFocus = ""
-    
     @State private var showingEditRoutine = false
     @State private var editRoutineName = ""
-    
-    // Compute current routine dynamically to reflect updates
+
     private var currentRoutine: Routine? {
         store.routines.first(where: { $0.id == routine.id })
     }
-    
+
     var body: some View {
         ZStack {
             Color.blue.edgesIgnoringSafeArea(.all)
-            
+
             VStack {
                 if let currentRoutine = currentRoutine {
                     if currentRoutine.workouts.isEmpty {
@@ -34,10 +32,11 @@ struct RoutineDetailView: View {
                                         Text(workout.name)
                                             .font(.custom("ChalkboardSE-Regular", size: 20))
                                             .foregroundColor(.black)
-                                        Text(workout.focus)
-                                            .font(.custom("ChalkboardSE-Regular", size: 14))
-                                            .foregroundColor(Color(white: 0.3))
-                                        
+                                        if !workout.focus.isEmpty {
+                                            Text(workout.focus)
+                                                .font(.custom("ChalkboardSE-Regular", size: 14))
+                                                .foregroundColor(Color(white: 0.3))
+                                        }
                                         if store.activeRoutineId == currentRoutine.id && store.activeWorkoutId == workout.id {
                                             Text("Active Workout")
                                                 .font(.caption)
@@ -52,7 +51,7 @@ struct RoutineDetailView: View {
                                     Button {
                                         store.activeRoutineId = currentRoutine.id
                                         store.activeWorkoutId = workout.id
-                                        store.selectedTab = 1 // Navigate to Workout tab
+                                        store.selectedTab = 1
                                     } label: {
                                         Label("Set Active", systemImage: "star.fill")
                                     }
@@ -69,8 +68,8 @@ struct RoutineDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Edit") {
-                        if let currentRoutine = currentRoutine {
-                            editRoutineName = currentRoutine.name
+                        if let cr = currentRoutine {
+                            editRoutineName = cr.name
                             showingEditRoutine = true
                         }
                     }
@@ -95,26 +94,25 @@ struct RoutineDetailView: View {
                 TextField("Routine Name", text: $editRoutineName)
                 Button("Cancel", role: .cancel) { }
                 Button("Save") {
-                    if !editRoutineName.isEmpty, let currentRoutine = currentRoutine {
-                        var updatedRoutine = currentRoutine
-                        updatedRoutine.name = editRoutineName
-                        store.updateRoutine(updatedRoutine)
+                    if !editRoutineName.isEmpty, let cr = currentRoutine {
+                        var updated = cr
+                        updated.name = editRoutineName
+                        store.updateRoutine(updated)
                     }
                 }
             }
             .alert("New Workout", isPresented: $showingAddWorkout) {
                 TextField("Workout Name", text: $newWorkoutName)
-                TextField("Focus (e.g. Legs)", text: $newWorkoutFocus)
+                TextField("Focus (e.g. Push, Pull, Legs)", text: $newWorkoutFocus)
                 Button("Cancel", role: .cancel) {
                     newWorkoutName = ""
                     newWorkoutFocus = ""
                 }
                 Button("Add") {
-                    if !newWorkoutName.isEmpty, let currentRoutine = currentRoutine {
-                        var updatedRoutine = currentRoutine
-                        let newWorkout = Workout(name: newWorkoutName, focus: newWorkoutFocus, exercises: [])
-                        updatedRoutine.workouts.append(newWorkout)
-                        store.updateRoutine(updatedRoutine)
+                    if !newWorkoutName.isEmpty, let cr = currentRoutine {
+                        var updated = cr
+                        updated.workouts.append(Workout(name: newWorkoutName, focus: newWorkoutFocus, exercises: []))
+                        store.updateRoutine(updated)
                         newWorkoutName = ""
                         newWorkoutFocus = ""
                     }
@@ -122,14 +120,12 @@ struct RoutineDetailView: View {
             }
         }
     }
-    
+
     private func deleteWorkout(offsets: IndexSet) {
-        if let currentRoutine = currentRoutine {
-            var updatedRoutine = currentRoutine
-            offsets.forEach { index in
-                updatedRoutine.workouts.remove(at: index)
-            }
-            store.updateRoutine(updatedRoutine)
+        if let cr = currentRoutine {
+            var updated = cr
+            updated.workouts.remove(atOffsets: offsets)
+            store.updateRoutine(updated)
         }
     }
 }

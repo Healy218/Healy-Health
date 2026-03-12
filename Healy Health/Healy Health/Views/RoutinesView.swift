@@ -22,7 +22,7 @@ struct RoutinesView: View {
                                     Text(routine.name)
                                         .font(.custom("ChalkboardSE-Regular", size: 20))
                                         .foregroundColor(.black)
-                                    Text("\(routine.workouts.count) Workouts")
+                                    Text("\(routine.workouts.count) Workout\(routine.workouts.count == 1 ? "" : "s")")
                                         .font(.custom("ChalkboardSE-Regular", size: 14))
                                         .foregroundColor(Color(white: 0.3))
                                     

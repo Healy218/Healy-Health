@@ -4,118 +4,96 @@ struct WorkoutDetailView: View {
     let routineId: UUID
     var workout: Workout
     @EnvironmentObject var store: RoutineStore
-    
-    @State private var showingExerciseLibrary = false
+
     @State private var showingEditWorkout = false
     @State private var editWorkoutName = ""
     @State private var editWorkoutFocus = ""
-    
+
     private var currentWorkout: Workout? {
         store.routines.first(where: { $0.id == routineId })?.workouts.first(where: { $0.id == workout.id })
     }
-    
+
     var body: some View {
         ZStack {
             Color.blue.edgesIgnoringSafeArea(.all)
-            
-            VStack {
-                if let currentWorkout = currentWorkout {
-                    if currentWorkout.exercises.isEmpty {
-                        Text("No exercises in this workout.")
-                            .foregroundColor(.white)
-                            .padding()
-                    } else {
-                        List {
-                            ForEach(currentWorkout.exercises) { exercise in
-                                NavigationLink(destination: EditExerciseView(
-                                    routineId: routineId,
-                                    workoutId: workout.id,
-                                    exerciseId: exercise.id)
-                                ) {
-                                    VStack(alignment: .leading) {
-                                        Text(exercise.name)
-                                            .font(.custom("ChalkboardSE-Regular", size: 18))
-                                            .foregroundColor(.black)
-                                        Text("\(exercise.targetSets) sets • \(exercise.targetReps) reps")
-                                            .font(.custom("ChalkboardSE-Regular", size: 14))
-                                            .foregroundColor(Color(white: 0.3))
-                                    }
-                                    .padding(.vertical, 4)
-                                }
-                                .listRowBackground(Color.white)
-                            }
-                            .onDelete(perform: deleteExercise)
-                        }
-                        .scrollContentBackground(.hidden)
+
+            ScrollView {
+                VStack(spacing: 16) {
+                    ForEach(ExerciseCategory.allCases, id: \.self) { category in
+                        categoryCard(category)
                     }
                 }
+                .padding()
             }
-            .navigationTitle(currentWorkout?.name ?? "Workout")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Edit") {
-                        if let currentWorkout = currentWorkout {
-                            editWorkoutName = currentWorkout.name
-                            editWorkoutFocus = currentWorkout.focus
-                            showingEditWorkout = true
-                        }
-                    }
-                    .foregroundColor(.white)
-                }
-            }
-            .safeAreaInset(edge: .bottom) {
-                Button(action: { showingExerciseLibrary = true }) {
-                    Text("Add Exercise")
-                        .font(.headline)
-                        .foregroundColor(.blue)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.white)
-                        .cornerRadius(12)
-                        .shadow(radius: 5)
-                }
-                .padding(.horizontal)
-                .padding(.bottom, 10)
-            }
-            .alert("Edit Workout", isPresented: $showingEditWorkout) {
-                TextField("Workout Name", text: $editWorkoutName)
-                TextField("Focus (e.g. Legs)", text: $editWorkoutFocus)
-                Button("Cancel", role: .cancel) { }
-                Button("Save") {
-                    if !editWorkoutName.isEmpty, let currentRoutine = store.routines.first(where: { $0.id == routineId }),
-                       let wIndex = currentRoutine.workouts.firstIndex(where: { $0.id == workout.id }) {
-                        var updatedRoutine = currentRoutine
-                        updatedRoutine.workouts[wIndex].name = editWorkoutName
-                        updatedRoutine.workouts[wIndex].focus = editWorkoutFocus
-                        store.updateRoutine(updatedRoutine)
+        }
+        .navigationTitle(currentWorkout?.name ?? "Workout")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Edit") {
+                    if let cw = currentWorkout {
+                        editWorkoutName = cw.name
+                        editWorkoutFocus = cw.focus
+                        showingEditWorkout = true
                     }
                 }
+                .foregroundColor(.white)
             }
-            .sheet(isPresented: $showingExerciseLibrary) {
-                ExerciseSelectionView(onAdd: { newExercise in
-                    if let currentRoutine = store.routines.first(where: { $0.id == routineId }),
-                       let wIndex = currentRoutine.workouts.firstIndex(where: { $0.id == workout.id }) {
-                        var updatedRoutine = currentRoutine
-                        updatedRoutine.workouts[wIndex].exercises.append(newExercise)
-                        store.updateRoutine(updatedRoutine)
-                    }
-                })
+        }
+        .alert("Edit Workout", isPresented: $showingEditWorkout) {
+            TextField("Workout Name", text: $editWorkoutName)
+            TextField("Focus (e.g. Legs)", text: $editWorkoutFocus)
+            Button("Cancel", role: .cancel) { }
+            Button("Save") {
+                guard !editWorkoutName.isEmpty,
+                      let routine = store.routines.first(where: { $0.id == routineId }),
+                      let wIndex = routine.workouts.firstIndex(where: { $0.id == workout.id }) else { return }
+                var updated = routine
+                updated.workouts[wIndex].name = editWorkoutName
+                updated.workouts[wIndex].focus = editWorkoutFocus
+                store.updateRoutine(updated)
             }
         }
     }
-    
-    private func deleteExercise(offsets: IndexSet) {
-        if let currentRoutine = store.routines.first(where: { $0.id == routineId }),
-           let wIndex = currentRoutine.workouts.firstIndex(where: { $0.id == workout.id }) {
-            var updatedRoutine = currentRoutine
-            var updatedWorkout = updatedRoutine.workouts[wIndex]
-            
-            offsets.forEach { index in
-                updatedWorkout.exercises.remove(at: index)
+
+    @ViewBuilder
+    private func categoryCard(_ category: ExerciseCategory) -> some View {
+        let exerciseCount = currentWorkout?.exercises.filter { $0.category == category }.count ?? 0
+
+        NavigationLink(destination: CategoryExerciseListView(
+            routineId: routineId,
+            workoutId: workout.id,
+            category: category
+        )) {
+            HStack(spacing: 16) {
+                // Icon circle
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.2))
+                        .frame(width: 52, height: 52)
+                    Image(systemName: category.icon)
+                        .font(.system(size: 22))
+                        .foregroundColor(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(category.displayName)
+                        .font(.custom("ChalkboardSE-Regular", size: 20))
+                        .foregroundColor(.white)
+                    Text(exerciseCount == 0 ? "Tap to add exercises" : "\(exerciseCount) exercise\(exerciseCount == 1 ? "" : "s")")
+                        .font(.custom("ChalkboardSE-Regular", size: 14))
+                        .foregroundColor(.white.opacity(0.75))
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.white.opacity(0.7))
+                    .font(.system(size: 14, weight: .semibold))
             }
-            
-            updatedRoutine.workouts[wIndex] = updatedWorkout
-            store.updateRoutine(updatedRoutine)
+            .padding()
+            .background(Color.white.opacity(0.18))
+            .cornerRadius(16)
         }
+        .buttonStyle(PlainButtonStyle())
     }
 }

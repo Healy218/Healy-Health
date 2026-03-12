@@ -4,7 +4,8 @@ struct ExerciseSelectionView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var exerciseManager = ExerciseManager.shared
     @State private var searchText = ""
-    
+
+    var presetCategory: ExerciseCategory = .weightlifting
     // The handler to call when an exercise is fully configured and added
     var onAdd: (Exercise) -> Void
     
@@ -20,7 +21,7 @@ struct ExerciseSelectionView: View {
         NavigationStack {
             List {
                 ForEach(filteredExercises) { template in
-                    NavigationLink(destination: ConfigureExerciseView(template: template, onAdd: { newExercise in
+                    NavigationLink(destination: ConfigureExerciseView(template: template, presetCategory: presetCategory, onAdd: { newExercise in
                         onAdd(newExercise)
                         dismiss()
                     })) {
