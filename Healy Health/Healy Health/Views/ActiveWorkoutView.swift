@@ -23,14 +23,12 @@ struct ActiveWorkoutView: View {
                         .foregroundColor(theme.onPrimaryText.opacity(0.5))
                         .padding()
                     Text("No Active Routine")
-                        .font(.custom("ChalkboardSE-Regular", size: 24))
-                        .bold()
+                        .font(.custom("ChalkboardSE-Regular", size: 24)).bold()
                         .foregroundColor(theme.onPrimaryText)
                     Text("Swipe right on a routine in the Routines tab to start it here.")
                         .font(.custom("ChalkboardSE-Regular", size: 16))
                         .foregroundColor(theme.onPrimaryText.opacity(0.8))
-                        .multilineTextAlignment(.center)
-                        .padding()
+                        .multilineTextAlignment(.center).padding()
                 }
             }
         }
@@ -39,20 +37,29 @@ struct ActiveWorkoutView: View {
     }
 }
 
+// MARK: - Routine workout list
+
 struct RoutineWorkoutListView: View {
     let routine: Routine
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
+    @State private var showFinishDialog = false
 
     private var theme: AppTheme { themeManager.current }
+    private var allDone: Bool {
+        !routine.workouts.isEmpty && routine.workouts.allSatisfy { $0.isCompleted }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
+            // Header
             VStack(spacing: 4) {
                 Text(routine.name)
-                    .font(.custom("ChalkboardSE-Regular", size: 24)).bold().foregroundColor(theme.onPrimaryText)
-                Text("Select a workout to begin")
-                    .font(.custom("ChalkboardSE-Regular", size: 14)).foregroundColor(theme.onPrimaryText.opacity(0.8))
+                    .font(.custom("ChalkboardSE-Regular", size: 24)).bold()
+                    .foregroundColor(theme.onPrimaryText)
+                Text(allDone ? "All workouts complete!" : "Select a workout to begin")
+                    .font(.custom("ChalkboardSE-Regular", size: 14))
+                    .foregroundColor(theme.onPrimaryText.opacity(0.8))
             }
             .padding().frame(maxWidth: .infinity).background(Color.black.opacity(0.2))
 
@@ -66,29 +73,60 @@ struct RoutineWorkoutListView: View {
             } else {
                 List {
                     ForEach(routine.workouts) { workout in
-                        Button { store.activeWorkoutId = workout.id } label: {
+                        Button {
+                            if !workout.isCompleted { store.activeWorkoutId = workout.id }
+                        } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(workout.name)
-                                        .font(.custom("ChalkboardSE-Regular", size: 20)).foregroundColor(theme.rowText)
+                                        .font(.custom("ChalkboardSE-Regular", size: 20))
+                                        .foregroundColor(workout.isCompleted ? theme.secondaryRowText : theme.rowText)
+                                        .strikethrough(workout.isCompleted, color: theme.secondaryRowText)
                                     Text(workout.focus)
-                                        .font(.custom("ChalkboardSE-Regular", size: 14)).foregroundColor(theme.secondaryRowText)
+                                        .font(.custom("ChalkboardSE-Regular", size: 14))
+                                        .foregroundColor(theme.secondaryRowText)
                                     Text("\(workout.exercises.count) exercises")
-                                        .font(.custom("ChalkboardSE-Regular", size: 12)).foregroundColor(theme.secondaryRowText)
+                                        .font(.custom("ChalkboardSE-Regular", size: 12))
+                                        .foregroundColor(theme.secondaryRowText)
                                 }
                                 Spacer()
-                                Image(systemName: "play.circle.fill").font(.title2).foregroundColor(theme.accentColor)
+                                Image(systemName: workout.isCompleted ? "checkmark.circle.fill" : "play.circle.fill")
+                                    .font(.title2)
+                                    .foregroundColor(workout.isCompleted ? .green : theme.accentColor)
                             }
                             .padding(.vertical, 8)
+                            .opacity(workout.isCompleted ? 0.6 : 1.0)
                         }
+                        .disabled(workout.isCompleted)
                         .listRowBackground(theme.rowBackground)
                     }
                 }
                 .scrollContentBackground(.hidden)
             }
+
+            // Complete Routine button — only shown when all workouts are done
+            if allDone {
+                Button(action: { showFinishDialog = true }) {
+                    Text("Complete Routine")
+                        .font(.custom("ChalkboardSE-Regular", size: 18)).bold()
+                        .foregroundColor(theme.accentColor)
+                        .padding().frame(maxWidth: .infinity)
+                        .background(theme.rowBackground).cornerRadius(14)
+                }
+                .padding()
+            }
+        }
+        .confirmationDialog("Routine Complete!", isPresented: $showFinishDialog, titleVisibility: .visible) {
+            Button("Repeat Next Week") { store.finishRoutine(startNew: false) }
+            Button("Choose New Routine") { store.finishRoutine(startNew: true) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Every workout in \"\(routine.name)\" is done. What would you like to do?")
         }
     }
 }
+
+// MARK: - Active workout session
 
 struct WorkoutSessionView: View {
     let routine: Routine
@@ -106,9 +144,11 @@ struct WorkoutSessionView: View {
         VStack(spacing: 0) {
             VStack(spacing: 4) {
                 Text(routine.name)
-                    .font(.custom("ChalkboardSE-Regular", size: 16)).foregroundColor(theme.onPrimaryText.opacity(0.8))
+                    .font(.custom("ChalkboardSE-Regular", size: 16))
+                    .foregroundColor(theme.onPrimaryText.opacity(0.8))
                 Text(workout.name)
-                    .font(.custom("ChalkboardSE-Regular", size: 24)).bold().foregroundColor(theme.onPrimaryText)
+                    .font(.custom("ChalkboardSE-Regular", size: 24)).bold()
+                    .foregroundColor(theme.onPrimaryText)
             }
             .padding().frame(maxWidth: .infinity).background(Color.black.opacity(0.2))
 
@@ -116,7 +156,8 @@ struct WorkoutSessionView: View {
                 if cw.exercises.isEmpty {
                     Spacer()
                     Text("No exercises added yet.")
-                        .font(.custom("ChalkboardSE-Regular", size: 18)).foregroundColor(theme.onPrimaryText)
+                        .font(.custom("ChalkboardSE-Regular", size: 18))
+                        .foregroundColor(theme.onPrimaryText)
                     Spacer()
                 } else {
                     List {
@@ -134,7 +175,8 @@ struct WorkoutSessionView: View {
             HStack(spacing: 12) {
                 Button(action: { store.activeWorkoutId = nil }) {
                     Text("Back to Routine")
-                        .font(.custom("ChalkboardSE-Regular", size: 16)).foregroundColor(theme.onPrimaryText)
+                        .font(.custom("ChalkboardSE-Regular", size: 16))
+                        .foregroundColor(theme.onPrimaryText)
                         .padding().frame(maxWidth: .infinity)
                         .background(Color.white.opacity(0.2)).cornerRadius(12)
                 }
@@ -151,25 +193,33 @@ struct WorkoutSessionView: View {
     }
 }
 
+// MARK: - Exercise row in active workout
+
 struct ActiveExerciseRowView: View {
     let exercise: Exercise
     @EnvironmentObject var themeManager: ThemeManager
 
     private var theme: AppTheme { themeManager.current }
     var setsCompleted: Int { exercise.logs.count }
-    var isFullyCompleted: Bool { exercise.isCompleted || (setsCompleted >= exercise.targetSets) }
+    var isFullyCompleted: Bool { exercise.isCompleted || setsCompleted >= exercise.targetSets }
 
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(exercise.name)
-                    .font(.custom("ChalkboardSE-Regular", size: 18)).foregroundColor(theme.rowText)
+                    .font(.custom("ChalkboardSE-Regular", size: 18))
+                    .foregroundColor(theme.rowText)
+                Text("\(exercise.targetReps) reps")
+                    .font(.custom("ChalkboardSE-Regular", size: 13))
+                    .foregroundColor(theme.secondaryRowText)
                 Text("\(setsCompleted)/\(exercise.targetSets) sets completed")
-                    .font(.custom("ChalkboardSE-Regular", size: 14)).foregroundColor(theme.secondaryRowText)
+                    .font(.custom("ChalkboardSE-Regular", size: 13))
+                    .foregroundColor(theme.secondaryRowText)
             }
             Spacer()
             Image(systemName: isFullyCompleted ? "checkmark.circle.fill" : "circle")
-                .foregroundColor(isFullyCompleted ? .green : .gray).font(.title2)
+                .foregroundColor(isFullyCompleted ? .green : .gray)
+                .font(.title2)
         }
         .padding(.vertical, 8)
     }

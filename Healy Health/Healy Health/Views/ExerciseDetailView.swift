@@ -39,6 +39,8 @@ struct ExerciseDetailView: View {
             if let exercise = exercise {
                 VStack {
                     Text(exercise.name).font(.title2).foregroundColor(theme.onPrimaryText).padding(.top)
+                    Text("Target: \(exercise.targetSets) sets × \(exercise.targetReps) reps")
+                        .font(.subheadline).foregroundColor(theme.onPrimaryText.opacity(0.7))
                     List {
                         Section(header: Text("History").foregroundColor(theme.onPrimaryText)) {
                             if exercise.logs.isEmpty {
@@ -58,7 +60,12 @@ struct ExerciseDetailView: View {
                     }
                     .scrollContentBackground(.hidden).frame(maxHeight: 200)
 
-                    if !timerActive {
+                    let maxSets = exercise.targetSets + 5
+                    if exercise.logs.count >= maxSets {
+                        Text("Maximum sets reached (\(maxSets))")
+                            .font(.caption).foregroundColor(theme.onPrimaryText.opacity(0.6))
+                            .padding(.top, 8)
+                    } else if !timerActive {
                         SetInputView(setNumber: exercise.logs.count + 1, weightInput: $weightInput, repsInput: $repsInput, selectedDuration: $selectedDuration, showCustomTimerAlert: $showCustomTimerAlert, isCustomDuration: isCustomDuration, onLogSet: logSet)
                     } else {
                         RestTimerDisplayView(timeRemaining: timeRemaining, nextSetNumber: exercise.logs.count + 1, onSkip: skipRest, onAddTime: {
@@ -71,7 +78,7 @@ struct ExerciseDetailView: View {
                         })
                     }
                     Spacer()
-                    if exercise.logs.count >= 3 {
+                    if exercise.logs.count >= exercise.targetSets {
                         Button(action: finishExercise) {
                             Text("Finish Exercise").font(.headline).foregroundColor(.green).padding().frame(maxWidth: .infinity).background(theme.onPrimaryText).cornerRadius(10)
                         }.padding(.horizontal)
@@ -106,10 +113,12 @@ struct ExerciseDetailView: View {
 
     func logSet() {
         guard let weight = Double(weightInput), let reps = Int(repsInput), let binding = exerciseBinding else { return }
+        let maxSets = binding.wrappedValue.targetSets + 5
+        guard binding.wrappedValue.logs.count < maxSets else { return }
         binding.wrappedValue.logs.append(SetLog(weight: weight, reps: reps, completedDate: Date()))
         binding.wrappedValue.currentWeight = weight
         store.saveRoutines()
-        if binding.wrappedValue.logs.count < 5 { startTimer() }
+        if binding.wrappedValue.logs.count < maxSets { startTimer() }
         repsInput = ""
     }
 

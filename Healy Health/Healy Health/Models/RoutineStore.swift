@@ -114,7 +114,7 @@ class RoutineStore: ObservableObject {
     }
     
     func finishWorkout(routine: Routine, workout: Workout) {
-        // Fix #1: Create history record with routine/workout IDs
+        // Record in history
         let finishedWorkout = CompletedWorkout(
             date: Date(),
             dayName: workout.name,
@@ -123,23 +123,35 @@ class RoutineStore: ObservableObject {
             routineId: routine.id,
             workoutId: workout.id
         )
-        
         completedWorkouts.insert(finishedWorkout, at: 0)
-        performSaveHistory() // Save history immediately (important data)
-        
-        // Reset the workout for next time
+        performSaveHistory()
+
+        // Mark this workout as completed within the routine (don't reset yet)
         if let rIndex = routines.firstIndex(where: { $0.id == routine.id }),
            let wIndex = routines[rIndex].workouts.firstIndex(where: { $0.id == workout.id }) {
-            for i in 0..<routines[rIndex].workouts[wIndex].exercises.count {
-                routines[rIndex].workouts[wIndex].exercises[i].isCompleted = false
-                routines[rIndex].workouts[wIndex].exercises[i].logs.removeAll()
-            }
-            performSaveRoutines() // Save routines immediately on finish
+            routines[rIndex].workouts[wIndex].isCompleted = true
+            performSaveRoutines()
         }
-        
-        // Fix #2: Clear active state after finishing
-        activeRoutineId = nil
+
+        // Return to the routine workout list
         activeWorkoutId = nil
+    }
+
+    /// Called when the user finishes the entire routine.
+    /// - Parameter startNew: if true, clears the active routine so they can pick a new one.
+    func finishRoutine(startNew: Bool) {
+        if let rIndex = routines.firstIndex(where: { $0.id == activeRoutineId }) {
+            for wIndex in routines[rIndex].workouts.indices {
+                routines[rIndex].workouts[wIndex].isCompleted = false
+                for eIndex in routines[rIndex].workouts[wIndex].exercises.indices {
+                    routines[rIndex].workouts[wIndex].exercises[eIndex].isCompleted = false
+                    routines[rIndex].workouts[wIndex].exercises[eIndex].logs.removeAll()
+                }
+            }
+            performSaveRoutines()
+        }
+        activeWorkoutId = nil
+        if startNew { activeRoutineId = nil }
     }
     
     func addRoutine(_ routine: Routine) {

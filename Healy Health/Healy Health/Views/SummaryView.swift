@@ -128,7 +128,7 @@ struct TopExerciseChartCard: View {
                 }
             }
             .padding()
-            .background(theme.onPrimaryText.opacity(0.08))
+            .background(theme == .light ? theme.onPrimaryText.opacity(0.08) : Color.clear)
             .cornerRadius(18)
         }
     }
@@ -155,6 +155,12 @@ struct ExerciseLineChart: View {
     let theme: AppTheme
     let height: CGFloat
 
+    // Light theme keeps existing accent-on-card-background style; all others use primaryColor on white.
+    private var isLight: Bool { theme == .light }
+    private var lineColor: Color { isLight ? theme.accentColor : theme.primaryColor }
+    private var fillColor: Color { isLight ? theme.accentColor.opacity(0.15) : theme.primaryColor.opacity(0.22) }
+    private var axisColor: Color { isLight ? theme.onPrimaryText.opacity(0.6) : Color(white: 0.45) }
+
     var body: some View {
         Chart(history) { point in
             LineMark(
@@ -162,31 +168,34 @@ struct ExerciseLineChart: View {
                 y: .value("Max Weight", point.maxWeight)
             )
             .interpolationMethod(.catmullRom)
-            .foregroundStyle(theme.accentColor)
+            .foregroundStyle(lineColor)
 
             AreaMark(
                 x: .value("Session", point.session),
                 y: .value("Max Weight", point.maxWeight)
             )
             .interpolationMethod(.catmullRom)
-            .foregroundStyle(theme.accentColor.opacity(0.15))
+            .foregroundStyle(fillColor)
 
             PointMark(
                 x: .value("Session", point.session),
                 y: .value("Max Weight", point.maxWeight)
             )
-            .foregroundStyle(theme.accentColor)
+            .foregroundStyle(lineColor)
         }
         .frame(height: height)
+        .padding()
+        .background(isLight ? Color.clear : Color.white)
+        .cornerRadius(14)
         .chartXAxis {
             AxisMarks(values: .automatic) { _ in
-                AxisValueLabel().foregroundStyle(theme.onPrimaryText.opacity(0.6))
+                AxisValueLabel().foregroundStyle(axisColor)
             }
         }
         .chartYAxis {
             AxisMarks { _ in
-                AxisGridLine()
-                AxisValueLabel().foregroundStyle(theme.onPrimaryText.opacity(0.6))
+                AxisGridLine().foregroundStyle(isLight ? Color(white: 0.75) : Color(white: 0.3))
+                AxisValueLabel().foregroundStyle(axisColor)
             }
         }
     }
@@ -273,7 +282,7 @@ struct ExerciseProgressView: View {
                             ExerciseLineChart(history: history, theme: theme, height: 220)
                         }
                         .padding()
-                        .background(theme.onPrimaryText.opacity(0.08))
+                        .background(theme == .light ? theme.onPrimaryText.opacity(0.08) : Color.clear)
                         .cornerRadius(18)
                         .padding(.horizontal)
                     }
