@@ -48,8 +48,18 @@ struct ExerciseSelectionView: View {
             }
             .scrollContentBackground(.hidden)
             .background(theme.primaryColor.ignoresSafeArea())
-            .navigationTitle("Select Exercise")
-            .navigationBarItems(leading: Button("Cancel") { dismiss() }.foregroundColor(theme.onPrimaryText))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Select Exercise")
+                        .font(.headline)
+                        .foregroundColor(theme.onPrimaryText)
+                }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(theme.onPrimaryText)
+                }
+            }
             .searchable(text: $searchText, prompt: "Search exercises")
         }
     }

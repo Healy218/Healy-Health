@@ -54,7 +54,7 @@ struct RoutinesView: View {
                     .scrollContentBackground(.hidden)
                 }
             }
-            .navigationTitle("Your Routines")
+            .navigationTitle("Routines")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     EditButton().foregroundColor(theme.onPrimaryText)
