@@ -6,7 +6,9 @@ import Charts
 struct ExerciseHistoryPoint: Identifiable {
     let id = UUID()
     let date: Date
+    let totalVolume: Double
     let maxWeight: Double
+    let estimatedOneRepMax: Double
     let session: Int
 }
 
@@ -17,6 +19,97 @@ struct ExerciseSummary: Identifiable {
 
 struct ExerciseLogData: Identifiable {
     let id: UUID; let name: String; let date: Date; let maxWeight: Double; let totalVolume: Double
+}
+
+enum ExerciseChartMetric: String, CaseIterable, Identifiable {
+    case volume
+    case topSet
+    case estimatedOneRepMax
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .volume:
+            return "Volume"
+        case .topSet:
+            return "Top Set"
+        case .estimatedOneRepMax:
+            return "Estimated 1RM"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .volume:
+            return "Volume = weight x reps across all logged sets"
+        case .topSet:
+            return "Top set = heaviest weight logged in a session"
+        case .estimatedOneRepMax:
+            return "Estimated 1RM uses the best set from the session"
+        }
+    }
+
+    var axisLabel: String {
+        switch self {
+        case .volume:
+            return "Volume"
+        case .topSet:
+            return "Top Set"
+        case .estimatedOneRepMax:
+            return "Estimated 1RM"
+        }
+    }
+
+    func value(for point: ExerciseHistoryPoint) -> Double {
+        switch self {
+        case .volume:
+            return point.totalVolume
+        case .topSet:
+            return point.maxWeight
+        case .estimatedOneRepMax:
+            return point.estimatedOneRepMax
+        }
+    }
+
+    func formattedValue(for point: ExerciseHistoryPoint) -> String {
+        switch self {
+        case .volume:
+            return "\(point.totalVolume.abbreviatedVolume) lb-reps"
+        case .topSet:
+            return "\(String(format: "%.0f", point.maxWeight)) lbs"
+        case .estimatedOneRepMax:
+            return "\(String(format: "%.0f", point.estimatedOneRepMax)) lbs"
+        }
+    }
+}
+
+private extension Exercise {
+    var totalVolume: Double {
+        logs.reduce(0) { partialResult, log in
+            partialResult + (log.weight * Double(log.reps))
+        }
+    }
+
+    var maxLoggedWeight: Double {
+        logs.map(\.weight).max() ?? 0
+    }
+
+    var estimatedOneRepMax: Double {
+        logs.map { log in
+            log.weight * (1 + (Double(log.reps) / 30.0))
+        }
+        .max() ?? 0
+    }
+}
+
+private extension Double {
+    var abbreviatedVolume: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = self >= 1000 ? 0 : 1
+        return formatter.string(from: NSNumber(value: self)) ?? String(format: "%.0f", self)
+    }
 }
 
 // MARK: - SummaryView
@@ -99,6 +192,7 @@ struct SummaryNavButton: View {
 struct TopExerciseChartCard: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
+    @AppStorage("preferredExerciseChartMetric") private var selectedMetricRawValue = ExerciseChartMetric.volume.rawValue
     private var theme: AppTheme { themeManager.current }
 
     private var topData: (name: String, history: [ExerciseHistoryPoint])? {
@@ -112,12 +206,36 @@ struct TopExerciseChartCard: View {
         return (topName, historyFor(topName))
     }
 
+    private var selectedMetric: ExerciseChartMetric {
+        get { ExerciseChartMetric(rawValue: selectedMetricRawValue) ?? .volume }
+        nonmutating set { selectedMetricRawValue = newValue.rawValue }
+    }
+
+    private var selectedMetricBinding: Binding<ExerciseChartMetric> {
+        Binding(
+            get: { selectedMetric },
+            set: { selectedMetric = $0 }
+        )
+    }
+
     var body: some View {
         if let top = topData {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Most Trained: \(top.name)")
-                    .font(.custom("ChalkboardSE-Regular", size: 15))
-                    .foregroundColor(theme.onPrimaryText.opacity(0.75))
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Most Trained: \(top.name)")
+                            .font(.custom("ChalkboardSE-Regular", size: 15))
+                            .foregroundColor(theme.onPrimaryText.opacity(0.75))
+
+                        Text(selectedMetric.subtitle)
+                            .font(.caption)
+                            .foregroundColor(theme.onPrimaryText.opacity(0.55))
+                    }
+
+                    Spacer()
+
+                    ExerciseChartMetricMenu(selection: selectedMetricBinding, theme: theme)
+                }
 
                 if top.history.count < 2 {
                     Text("Log more sessions to see progress")
@@ -125,7 +243,7 @@ struct TopExerciseChartCard: View {
                         .foregroundColor(theme.onPrimaryText.opacity(0.5))
                         .frame(maxWidth: .infinity, minHeight: 100, alignment: .center)
                 } else {
-                    ExerciseLineChart(history: top.history, theme: theme, height: 160)
+                    ExerciseLineChart(history: top.history, metric: selectedMetric, theme: theme, height: 160)
                 }
             }
             .padding()
@@ -140,8 +258,15 @@ struct TopExerciseChartCard: View {
         var session = 1
         for workout in sorted {
             for exercise in workout.exercises where exercise.name == name && !exercise.logs.isEmpty {
-                let maxWeight = exercise.logs.map { $0.weight }.max() ?? 0
-                points.append(ExerciseHistoryPoint(date: workout.date, maxWeight: maxWeight, session: session))
+                points.append(
+                    ExerciseHistoryPoint(
+                        date: workout.date,
+                        totalVolume: exercise.totalVolume,
+                        maxWeight: exercise.maxLoggedWeight,
+                        estimatedOneRepMax: exercise.estimatedOneRepMax,
+                        session: session
+                    )
+                )
                 session += 1
             }
         }
@@ -153,6 +278,7 @@ struct TopExerciseChartCard: View {
 
 struct ExerciseLineChart: View {
     let history: [ExerciseHistoryPoint]
+    let metric: ExerciseChartMetric
     let theme: AppTheme
     let height: CGFloat
 
@@ -166,21 +292,21 @@ struct ExerciseLineChart: View {
         Chart(history) { point in
             LineMark(
                 x: .value("Session", point.session),
-                y: .value("Max Weight", point.maxWeight)
+                y: .value(metric.axisLabel, metric.value(for: point))
             )
             .interpolationMethod(.catmullRom)
             .foregroundStyle(lineColor)
 
             AreaMark(
                 x: .value("Session", point.session),
-                y: .value("Max Weight", point.maxWeight)
+                y: .value(metric.axisLabel, metric.value(for: point))
             )
             .interpolationMethod(.catmullRom)
             .foregroundStyle(fillColor)
 
             PointMark(
                 x: .value("Session", point.session),
-                y: .value("Max Weight", point.maxWeight)
+                y: .value(metric.axisLabel, metric.value(for: point))
             )
             .foregroundStyle(lineColor)
         }
@@ -194,10 +320,51 @@ struct ExerciseLineChart: View {
             }
         }
         .chartYAxis {
-            AxisMarks { _ in
+            AxisMarks { value in
                 AxisGridLine().foregroundStyle(isLight ? Color(white: 0.75) : Color(white: 0.3))
-                AxisValueLabel().foregroundStyle(axisColor)
+                AxisValueLabel {
+                    if let metricValue = value.as(Double.self) {
+                        Text(formattedAxisValue(metricValue))
+                    }
+                }
+                .foregroundStyle(axisColor)
             }
+        }
+    }
+
+    private func formattedAxisValue(_ value: Double) -> String {
+        switch metric {
+        case .volume:
+            return value.abbreviatedVolume
+        case .topSet, .estimatedOneRepMax:
+            return String(format: "%.0f", value)
+        }
+    }
+}
+
+struct ExerciseChartMetricMenu: View {
+    @Binding var selection: ExerciseChartMetric
+    let theme: AppTheme
+
+    var body: some View {
+        Menu {
+            Picker("Metric", selection: $selection) {
+                ForEach(ExerciseChartMetric.allCases) { metric in
+                    Text(metric.title).tag(metric)
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(selection.title)
+                    .font(.caption.weight(.semibold))
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.bold))
+            }
+            .foregroundColor(theme.rowText)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(theme.rowBackground)
+            .cornerRadius(10)
         }
     }
 }
@@ -248,8 +415,21 @@ struct ExercisesListView: View {
 struct ExerciseProgressView: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
+    @AppStorage("preferredExerciseChartMetric") private var selectedMetricRawValue = ExerciseChartMetric.volume.rawValue
     let exerciseName: String
     private var theme: AppTheme { themeManager.current }
+
+    private var selectedMetric: ExerciseChartMetric {
+        get { ExerciseChartMetric(rawValue: selectedMetricRawValue) ?? .volume }
+        nonmutating set { selectedMetricRawValue = newValue.rawValue }
+    }
+
+    private var selectedMetricBinding: Binding<ExerciseChartMetric> {
+        Binding(
+            get: { selectedMetric },
+            set: { selectedMetric = $0 }
+        )
+    }
 
     private var history: [ExerciseHistoryPoint] {
         var points: [ExerciseHistoryPoint] = []
@@ -257,8 +437,15 @@ struct ExerciseProgressView: View {
         var session = 1
         for workout in sorted {
             for exercise in workout.exercises where exercise.name == exerciseName && !exercise.logs.isEmpty {
-                let maxWeight = exercise.logs.map { $0.weight }.max() ?? 0
-                points.append(ExerciseHistoryPoint(date: workout.date, maxWeight: maxWeight, session: session))
+                points.append(
+                    ExerciseHistoryPoint(
+                        date: workout.date,
+                        totalVolume: exercise.totalVolume,
+                        maxWeight: exercise.maxLoggedWeight,
+                        estimatedOneRepMax: exercise.estimatedOneRepMax,
+                        session: session
+                    )
+                )
                 session += 1
             }
         }
@@ -277,10 +464,21 @@ struct ExerciseProgressView: View {
                     } else {
                         // Chart card
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Max Weight Over Time")
-                                .font(.custom("ChalkboardSE-Regular", size: 14))
-                                .foregroundColor(theme.onPrimaryText.opacity(0.7))
-                            ExerciseLineChart(history: history, theme: theme, height: 220)
+                            HStack(alignment: .top) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("\(selectedMetric.title) Over Time")
+                                        .font(.custom("ChalkboardSE-Regular", size: 14))
+                                        .foregroundColor(theme.onPrimaryText.opacity(0.7))
+                                    Text(selectedMetric.subtitle)
+                                        .font(.caption)
+                                        .foregroundColor(theme.onPrimaryText.opacity(0.55))
+                                }
+
+                                Spacer()
+
+                                ExerciseChartMetricMenu(selection: selectedMetricBinding, theme: theme)
+                            }
+                            ExerciseLineChart(history: history, metric: selectedMetric, theme: theme, height: 220)
                         }
                         .padding()
                         .background(theme == .light ? theme.onPrimaryText.opacity(0.08) : Color.clear)
@@ -297,9 +495,13 @@ struct ExerciseProgressView: View {
                                 Spacer()
                                 Text(point.date.formatted(date: .abbreviated, time: .omitted))
                                     .foregroundColor(theme.secondaryRowText)
-                                Text(String(format: "%.0f lbs", point.maxWeight))
-                                    .foregroundColor(theme.rowText)
-                                    .frame(width: 72, alignment: .trailing)
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text(selectedMetric.formattedValue(for: point))
+                                        .foregroundColor(theme.rowText)
+                                    Text("Top set: \(String(format: "%.0f", point.maxWeight)) lbs")
+                                        .font(.caption)
+                                        .foregroundColor(theme.secondaryRowText)
+                                }
                             }
                             .padding(.horizontal)
                             .padding(.vertical, 10)
