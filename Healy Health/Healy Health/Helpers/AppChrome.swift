@@ -1,0 +1,57 @@
+import SwiftUI
+
+enum AppChrome {
+    static func applyGlobalAppearance(for theme: AppTheme) {
+        let navBgColor = UIColor(theme.primaryColor)
+        let navTextColor = UIColor(theme.onPrimaryText)
+        let tabBgColor = UIColor(theme.primaryColor)
+        let tabTextColor = UIColor(theme.onPrimaryText)
+        let navFont = UIFont(name: "ChalkboardSE-Regular", size: 20) ?? .systemFont(ofSize: 20)
+        let navLargeFont = UIFont(name: "ChalkboardSE-Regular", size: 34) ?? .systemFont(ofSize: 34)
+
+        let navAppearance = UINavigationBarAppearance()
+        navAppearance.configureWithOpaqueBackground()
+        navAppearance.backgroundColor = navBgColor
+        navAppearance.shadowColor = .clear
+        navAppearance.titleTextAttributes = [.font: navFont, .foregroundColor: navTextColor]
+        navAppearance.largeTitleTextAttributes = [.font: navLargeFont, .foregroundColor: navTextColor]
+        UINavigationBar.appearance().standardAppearance = navAppearance
+        UINavigationBar.appearance().compactAppearance = navAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
+        UINavigationBar.appearance().tintColor = navTextColor
+
+        let tabAppearance = UITabBarAppearance()
+        tabAppearance.configureWithOpaqueBackground()
+        tabAppearance.backgroundColor = tabBgColor
+        let itemAppearance = UITabBarItemAppearance()
+        itemAppearance.normal.titleTextAttributes = [.foregroundColor: tabTextColor.withAlphaComponent(0.6)]
+        itemAppearance.selected.titleTextAttributes = [.foregroundColor: tabTextColor]
+        itemAppearance.normal.iconColor = tabTextColor.withAlphaComponent(0.6)
+        itemAppearance.selected.iconColor = tabTextColor
+        tabAppearance.stackedLayoutAppearance = itemAppearance
+        UITabBar.appearance().standardAppearance = tabAppearance
+        UITabBar.appearance().scrollEdgeAppearance = tabAppearance
+    }
+}
+
+struct ThemedNavigationChrome: ViewModifier {
+    let theme: AppTheme
+
+    func body(content: Content) -> some View {
+        content
+            .toolbarBackground(theme.primaryColor, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(theme.prefersDarkNavigationContent ? .dark : .light, for: .navigationBar)
+    }
+}
+
+struct ThemedTabChrome: ViewModifier {
+    let theme: AppTheme
+
+    func body(content: Content) -> some View {
+        content
+            .toolbarBackground(theme.primaryColor, for: .tabBar)
+            .toolbarBackground(.visible, for: .tabBar)
+            .toolbarColorScheme(theme.prefersDarkNavigationContent ? .dark : .light, for: .tabBar)
+    }
+}

@@ -54,12 +54,6 @@ struct RoutinesView: View {
                     .scrollContentBackground(.hidden)
                 }
             }
-            .navigationTitle("Routines")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton().foregroundColor(theme.onPrimaryText)
-                }
-            }
             .safeAreaInset(edge: .bottom) {
                 Button(action: { showingAddRoutine = true }) {
                     Text("Add Routine")
@@ -83,6 +77,13 @@ struct RoutinesView: View {
                         newRoutineName = ""
                     }
                 }
+            }
+        }
+        .navigationTitle("Routines")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                EditButton().foregroundColor(theme.onPrimaryText)
             }
         }
     }

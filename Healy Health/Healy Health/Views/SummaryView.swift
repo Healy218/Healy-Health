@@ -64,6 +64,7 @@ struct SummaryView: View {
             }
         }
         .navigationTitle("Summary")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

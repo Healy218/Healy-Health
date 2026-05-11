@@ -101,7 +101,7 @@ struct ExerciseDetailView: View {
             }
         }
         .onReceive(timer) { _ in if timerActive { updateTimerDisplay() } }
-        .onChange(of: scenePhase) { _, newPhase in if newPhase == .active && timerActive { updateTimerDisplay() } }
+        .onChange(of: scenePhase) { newPhase in if newPhase == .active && timerActive { updateTimerDisplay() } }
         .alert("Custom Timer", isPresented: $showCustomTimerAlert, actions: {
             TextField("Seconds", text: $customTimerInput).keyboardType(.numberPad)
             Button("Set") { if let s = Double(customTimerInput) { selectedDuration = s }; customTimerInput = "" }

@@ -4,9 +4,11 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
-    @State private var showShareSheet = false
-    @State private var exportURL: URL?
+    @State private var isExporting = false
+    @State private var exportDocument: AppExportDocument?
     @State private var isImporting = false
+    @State private var showExportSuccessAlert = false
+    @State private var showExportErrorAlert = false
     @State private var showImportSuccessAlert = false
     @State private var showImportErrorAlert = false
 
@@ -47,7 +49,12 @@ struct SettingsView: View {
             // MARK: Data Management
             Section(header: Text("Data Management").foregroundColor(theme.onPrimaryText)) {
                 Button(action: {
-                    if let url = ExportManager.shared.generateJSONData() { exportURL = url; showShareSheet = true }
+                    exportDocument = ExportManager.shared.makeExportDocument()
+                    if exportDocument != nil {
+                        isExporting = true
+                    } else {
+                        showExportErrorAlert = true
+                    }
                 }) {
                     Label("Export Data", systemImage: "square.and.arrow.up").foregroundColor(theme.accentColor)
                 }
@@ -72,8 +79,19 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         .background(theme.primaryColor.ignoresSafeArea())
         .navigationTitle("Settings")
-        .sheet(isPresented: $showShareSheet) {
-            if let url = exportURL { ShareSheet(items: [url]) }
+        .navigationBarTitleDisplayMode(.inline)
+        .fileExporter(
+            isPresented: $isExporting,
+            document: exportDocument,
+            contentType: .json,
+            defaultFilename: ExportManager.shared.defaultExportFilename()
+        ) { result in
+            switch result {
+            case .success:
+                showExportSuccessAlert = true
+            case .failure:
+                showExportErrorAlert = true
+            }
         }
         .fileImporter(isPresented: $isImporting, allowedContentTypes: [UTType.json]) { result in
             switch result {
@@ -84,6 +102,10 @@ struct SettingsView: View {
             case .failure: showImportErrorAlert = true
             }
         }
+        .alert("Export Successful", isPresented: $showExportSuccessAlert) { Button("OK", role: .cancel) { } }
+            message: { Text("Your data was exported as a JSON file. Save it to Files, ideally in iCloud Drive, so it is available on this Mac and can be imported on the new phone.") }
+        .alert("Export Failed", isPresented: $showExportErrorAlert) { Button("OK", role: .cancel) { } }
+            message: { Text("The app could not create or save the export file.") }
         .alert("Import Successful", isPresented: $showImportSuccessAlert) { Button("OK", role: .cancel) { } }
             message: { Text("Your app data has been fully restored.") }
         .alert("Import Failed", isPresented: $showImportErrorAlert) { Button("OK", role: .cancel) { } }

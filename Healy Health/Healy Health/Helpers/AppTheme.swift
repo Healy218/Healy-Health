@@ -74,6 +74,15 @@ enum AppTheme: String, CaseIterable, Codable {
         }
     }
 
+    var prefersDarkNavigationContent: Bool {
+        switch self {
+        case .yellow, .light:
+            return false
+        default:
+            return true
+        }
+    }
+
     var displayName: String {
         switch self {
         case .systemBlue: return "Blue"
