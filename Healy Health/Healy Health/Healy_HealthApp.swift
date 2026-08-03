@@ -14,7 +14,9 @@ struct HealyHealthApp: App {
     @StateObject private var themeManager = ThemeManager.shared
 
     init() {
-        NotificationManager.shared.requestAuthorization()
+        // Rest-timer state is view-local. A new process cannot safely resume it,
+        // so remove any notification that may have outlived the exercise screen.
+        NotificationManager.shared.cancelPendingTimers()
     }
 
     var body: some Scene {

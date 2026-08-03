@@ -1,4 +1,5 @@
 import XCTest
+import UserNotifications
 @testable import Healy_Health
 
 @MainActor
@@ -172,6 +173,98 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertEqual(store.routines[0].workouts.map(\.id), [routine.workouts[0].id])
         XCTAssertEqual(store.activeRoutineId, routine.id)
         XCTAssertNil(store.activeWorkoutId)
+    }
+
+    func testRestTimerDurationValidationRejectsUnsafeValues() {
+        for invalidDuration: TimeInterval in [0, -1, .infinity, -.infinity, .nan] {
+            XCTAssertEqual(
+                RestTimerDuration.validate(invalidDuration),
+                .failure(.invalidDuration),
+                "Expected \(invalidDuration) to be rejected"
+            )
+        }
+
+        XCTAssertEqual(
+            RestTimerDuration.validate(RestTimerDuration.maximumSeconds + 1),
+            .failure(.durationTooLong(maximumSeconds: RestTimerDuration.maximumSeconds))
+        )
+    }
+
+    func testRestTimerSchedulingRequestsPermissionAtTimerUseAndAddsNotification() {
+        var requestedAuthorization = false
+        var scheduledRequest: UNNotificationRequest?
+        let completed = expectation(description: "timer scheduling completed")
+        let manager = NotificationManager(
+            authorizationStatusProvider: { completion in completion(.notDetermined) },
+            authorizationRequester: { completion in
+                requestedAuthorization = true
+                completion(true, nil)
+            },
+            requestAdder: { request, completion in
+                scheduledRequest = request
+                completion(nil)
+            },
+            timerCanceler: { _ in }
+        )
+
+        manager.scheduleTimer(seconds: 120) { result in
+            if case .failure(let error) = result {
+                XCTFail("Unexpected scheduling error: \(error.localizedDescription)")
+            }
+            completed.fulfill()
+        }
+
+        wait(for: [completed], timeout: 1)
+        XCTAssertTrue(requestedAuthorization)
+        XCTAssertTrue(scheduledRequest?.identifier.hasPrefix("restTimer-") == true)
+        XCTAssertEqual((scheduledRequest?.trigger as? UNTimeIntervalNotificationTrigger)?.timeInterval, 120)
+    }
+
+    func testRestTimerSchedulingReportsNotificationCenterFailure() {
+        let completed = expectation(description: "timer scheduling failed")
+        let manager = NotificationManager(
+            authorizationStatusProvider: { completion in completion(.authorized) },
+            authorizationRequester: { _ in XCTFail("Authorization should not be requested") },
+            requestAdder: { _, completion in
+                completion(NSError(domain: "NotificationTests", code: 1))
+            },
+            timerCanceler: { _ in }
+        )
+
+        manager.scheduleTimer(seconds: 120) { result in
+            guard case .failure(.schedulingFailed) = result else {
+                return XCTFail("Expected notification-center failure")
+            }
+            completed.fulfill()
+        }
+
+        wait(for: [completed], timeout: 1)
+    }
+
+    func testCancellingTimerPreventsAnInFlightAuthorizationFromSchedulingIt() {
+        var authorizationCompletion: ((Bool, Error?) -> Void)?
+        var scheduledRequest: UNNotificationRequest?
+        var cancelledRequestIDs: [String] = []
+        let timerID = UUID()
+        let manager = NotificationManager(
+            authorizationStatusProvider: { completion in completion(.notDetermined) },
+            authorizationRequester: { completion in authorizationCompletion = completion },
+            requestAdder: { request, completion in
+                scheduledRequest = request
+                completion(nil)
+            },
+            timerCanceler: { cancelledRequestIDs.append(contentsOf: $0) }
+        )
+
+        manager.scheduleTimer(seconds: 120, identifier: timerID) { _ in
+            XCTFail("A cancelled timer should not report scheduling completion")
+        }
+        manager.cancelTimer(identifier: timerID)
+        authorizationCompletion?(true, nil)
+
+        XCTAssertNil(scheduledRequest)
+        XCTAssertEqual(cancelledRequestIDs.count, 1)
+        XCTAssertTrue(cancelledRequestIDs[0].hasPrefix("restTimer-"))
     }
 
     private func makeEmptyStore() -> RoutineStore {

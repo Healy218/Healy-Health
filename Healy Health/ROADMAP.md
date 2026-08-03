@@ -53,6 +53,7 @@ Completed in this phase:
 - Added the `Healy HealthTests` unit-test target and a `RoutineStore` test seam that uses injected temporary storage and `UserDefaults`.
 - Made routine and workout deletion ID-based, preventing multi-row index shifts and clearing invalid active state; covered single/multi-routine and active-workout deletion.
 - Hardened routine, history, and exercise-library persistence with atomic writes and visible failure state. Routine/history save requests are now independent, backgrounding flushes pending store data, and failed/corrupt files are retained rather than silently replaced.
+- Hardened the rest timer: durations are finite, positive, and capped at 24 hours; notification permission is requested at timer use; and authorization/scheduling failures reach the user without stopping the visible countdown. A backgrounded timer continues, while leaving/completing its exercise or launching a new app process clears its pending notification.
 
 Verification note: app and XCTest sources type-check in the terminal environment. The user has also built and installed the app in an interactive iPhone simulator, while terminal `xcodebuild` remains blocked by a separate CoreSimulator-runtime issue. XCTest execution has not yet been recorded.
 

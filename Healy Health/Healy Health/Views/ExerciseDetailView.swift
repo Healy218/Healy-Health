@@ -32,6 +32,8 @@ struct ExerciseDetailView: View {
     @State private var selectedDuration: Double = 120
     @State private var showCustomTimerAlert = false
     @State private var customTimerInput = ""
+    @State private var timerErrorMessage: String?
+    @State private var timerNotificationID: UUID?
 
     var body: some View {
         ZStack {
@@ -69,12 +71,7 @@ struct ExerciseDetailView: View {
                         SetInputView(setNumber: exercise.logs.count + 1, weightInput: $weightInput, repsInput: $repsInput, selectedDuration: $selectedDuration, showCustomTimerAlert: $showCustomTimerAlert, isCustomDuration: isCustomDuration, onLogSet: logSet)
                     } else {
                         RestTimerDisplayView(timeRemaining: timeRemaining, nextSetNumber: exercise.logs.count + 1, onSkip: skipRest, onAddTime: {
-                            if let endTime = timerEndTime {
-                                timerEndTime = endTime.addingTimeInterval(30)
-                                NotificationManager.shared.cancelTimer()
-                                updateTimerDisplay()
-                                NotificationManager.shared.scheduleTimer(seconds: timeRemaining)
-                            }
+                            addRestTime()
                         })
                     }
                     Spacer()
@@ -102,11 +99,20 @@ struct ExerciseDetailView: View {
         }
         .onReceive(timer) { _ in if timerActive { updateTimerDisplay() } }
         .onChange(of: scenePhase) { newPhase in if newPhase == .active && timerActive { updateTimerDisplay() } }
+        .onDisappear(perform: cancelRestTimer)
         .alert("Custom Timer", isPresented: $showCustomTimerAlert, actions: {
             TextField("Seconds", text: $customTimerInput).keyboardType(.numberPad)
-            Button("Set") { if let s = Double(customTimerInput) { selectedDuration = s }; customTimerInput = "" }
+            Button("Set") { setCustomDuration() }
             Button("Cancel", role: .cancel, action: {})
         }, message: { Text("Enter rest duration in seconds.") })
+        .alert("Rest Timer", isPresented: Binding(
+            get: { timerErrorMessage != nil },
+            set: { if !$0 { timerErrorMessage = nil } }
+        ), actions: {
+            Button("OK", role: .cancel) { timerErrorMessage = nil }
+        }, message: {
+            Text(timerErrorMessage ?? "")
+        })
     }
 
     var isCustomDuration: Bool { ![120.0, 150.0, 180.0].contains(selectedDuration) }
@@ -123,9 +129,15 @@ struct ExerciseDetailView: View {
     }
 
     func startTimer() {
-        timerEndTime = Date().addingTimeInterval(selectedDuration)
-        timerActive = true; updateTimerDisplay()
-        NotificationManager.shared.scheduleTimer(seconds: selectedDuration)
+        guard case .success(let duration) = RestTimerDuration.validate(selectedDuration) else {
+            showTimerDurationError(selectedDuration)
+            return
+        }
+
+        timerEndTime = Date().addingTimeInterval(duration)
+        timerActive = true
+        updateTimerDisplay()
+        scheduleTimerNotification(seconds: duration)
     }
 
     func updateTimerDisplay() {
@@ -133,10 +145,69 @@ struct ExerciseDetailView: View {
         let remaining = endTime.timeIntervalSinceNow
         if remaining > 0 { timeRemaining = remaining } else {
             timeRemaining = 0; timerActive = false; timerEndTime = nil
+            cancelTimerNotification()
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
     }
 
-    func skipRest() { timerActive = false; timerEndTime = nil; NotificationManager.shared.cancelTimer() }
-    func finishExercise() { exerciseBinding?.wrappedValue.isCompleted = true; store.saveRoutines(); NotificationManager.shared.cancelTimer(); presentationMode.wrappedValue.dismiss() }
+    func setCustomDuration() {
+        guard let seconds = Double(customTimerInput.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            timerErrorMessage = "Enter a rest duration greater than zero seconds."
+            return
+        }
+        guard case .success(let duration) = RestTimerDuration.validate(seconds) else {
+            showTimerDurationError(seconds)
+            return
+        }
+
+        selectedDuration = duration
+        customTimerInput = ""
+    }
+
+    func addRestTime() {
+        guard let endTime = timerEndTime, timerActive else { return }
+        let updatedEndTime = endTime.addingTimeInterval(30)
+        timerEndTime = updatedEndTime
+        cancelTimerNotification()
+        updateTimerDisplay()
+        scheduleTimerNotification(seconds: max(updatedEndTime.timeIntervalSinceNow, 1))
+    }
+
+    func scheduleTimerNotification(seconds: TimeInterval) {
+        let notificationID = UUID()
+        timerNotificationID = notificationID
+        NotificationManager.shared.scheduleTimer(seconds: seconds, identifier: notificationID) { result in
+            if case .failure(let error) = result {
+                timerErrorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func showTimerDurationError(_ seconds: TimeInterval) {
+        if case .failure(let error) = RestTimerDuration.validate(seconds) {
+            timerErrorMessage = error.localizedDescription
+        }
+    }
+
+    func cancelRestTimer() {
+        timerActive = false
+        timerEndTime = nil
+        timeRemaining = 0
+        cancelTimerNotification()
+    }
+
+    func cancelTimerNotification() {
+        if let timerNotificationID {
+            NotificationManager.shared.cancelTimer(identifier: timerNotificationID)
+            self.timerNotificationID = nil
+        }
+    }
+
+    func skipRest() { cancelRestTimer() }
+    func finishExercise() {
+        exerciseBinding?.wrappedValue.isCompleted = true
+        store.saveRoutines()
+        cancelRestTimer()
+        presentationMode.wrappedValue.dismiss()
+    }
 }
