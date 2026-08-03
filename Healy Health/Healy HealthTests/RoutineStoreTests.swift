@@ -61,6 +61,72 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertEqual(reloadedStore.routines.map(\.id), [routine.id])
     }
 
+    func testRoutineSaveDoesNotWriteHistory() {
+        var writtenFileNames: [String] = []
+        let store = RoutineStore(
+            documentsDirectory: storageDirectory,
+            userDefaults: defaults,
+            initialLoadBehavior: .empty,
+            saveDebounceInterval: 0,
+            dataWriter: { data, url in
+                writtenFileNames.append(url.lastPathComponent)
+                try data.write(to: url, options: .atomic)
+            }
+        )
+
+        store.routines = [makeRoutine(name: "Strength")]
+        store.saveRoutines()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+
+        XCTAssertEqual(writtenFileNames, ["routines.json"])
+    }
+
+    func testFailedRoutineSavePreservesTheLastGoodFileAndPublishesAnError() throws {
+        let original = makeRoutine(name: "Original")
+        let initialStore = makeEmptyStore()
+        initialStore.routines = [original]
+        XCTAssertTrue(initialStore.flushSaves())
+        let originalData = try Data(contentsOf: storageDirectory.appendingPathComponent("routines.json"))
+
+        let failedStore = RoutineStore(
+            documentsDirectory: storageDirectory,
+            userDefaults: defaults,
+            initialLoadBehavior: .empty,
+            dataWriter: { data, url in
+                if url.lastPathComponent == "routines.json" {
+                    throw CocoaError(.fileWriteNoPermission)
+                }
+                try data.write(to: url, options: .atomic)
+            }
+        )
+        failedStore.routines = [makeRoutine(name: "Replacement")]
+
+        XCTAssertFalse(failedStore.flushSaves())
+        XCTAssertEqual(
+            try Data(contentsOf: storageDirectory.appendingPathComponent("routines.json")),
+            originalData
+        )
+        XCTAssertEqual(failedStore.persistenceError?.resource, .routines)
+        XCTAssertEqual(failedStore.persistenceError?.operation, .save)
+    }
+
+    func testCorruptRoutineFileIsReportedAndNeverReplacedWithDefaults() throws {
+        defaults.set(true, forKey: "hasMigratedToRoutines")
+        let routinesURL = storageDirectory.appendingPathComponent("routines.json")
+        try Data("not valid JSON".utf8).write(to: routinesURL, options: .atomic)
+
+        let store = RoutineStore(
+            documentsDirectory: storageDirectory,
+            userDefaults: defaults,
+            initialLoadBehavior: .normal
+        )
+
+        XCTAssertTrue(store.routines.isEmpty)
+        XCTAssertEqual(store.persistenceError?.resource, .routines)
+        XCTAssertEqual(store.persistenceError?.operation, .load)
+        XCTAssertEqual(try Data(contentsOf: routinesURL), Data("not valid JSON".utf8))
+    }
+
     func testDeletingOneRoutinePreservesAnUnrelatedActiveRoutine() {
         let first = makeRoutine(name: "First")
         let second = makeRoutine(name: "Second")

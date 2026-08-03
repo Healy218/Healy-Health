@@ -3,6 +3,11 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
+    @ObservedObject private var exerciseManager = ExerciseManager.shared
+
+    private var persistenceError: PersistenceError? {
+        store.persistenceError ?? exerciseManager.persistenceError
+    }
 
     init() {
         // Apply saved theme before any views render so titles are colored immediately
@@ -39,6 +44,27 @@ struct ContentView: View {
         .onAppear { AppChrome.applyGlobalAppearance(for: themeManager.current) }
         .onChange(of: themeManager.current) { newTheme in
             AppChrome.applyGlobalAppearance(for: newTheme)
+        }
+        .alert(
+            "Your data needs attention",
+            isPresented: Binding(
+                get: { persistenceError != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        store.clearPersistenceError()
+                        exerciseManager.clearPersistenceError()
+                    }
+                }
+            ),
+            presenting: persistenceError
+        ) { _ in
+            Button("OK", role: .cancel) {
+                store.clearPersistenceError()
+                exerciseManager.clearPersistenceError()
+            }
+        } message: { error in
+            let recoverySuggestion = error.recoverySuggestion ?? ""
+            Text("\(error.localizedDescription) \(recoverySuggestion)")
         }
     }
 }

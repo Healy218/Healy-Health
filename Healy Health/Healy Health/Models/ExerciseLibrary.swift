@@ -15,6 +15,7 @@ class ExerciseManager: ObservableObject {
     static let shared = ExerciseManager()
     
     @Published var exercises: [ExerciseTemplate] = []
+    @Published private(set) var persistenceError: PersistenceError?
     
     private let libraryFileName = "exercise_library.json"
     
@@ -26,21 +27,33 @@ class ExerciseManager: ObservableObject {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
     
-    func saveLibrary() {
-        let encoder = JSONEncoder()
-        if let data = try? encoder.encode(exercises) {
+    @discardableResult
+    func saveLibrary() -> Bool {
+        do {
+            let data = try JSONEncoder().encode(exercises)
             let url = getDocumentsDirectory().appendingPathComponent(libraryFileName)
-            try? data.write(to: url)
+            try data.write(to: url, options: .atomic)
+            clearPersistenceError(for: .exerciseLibrary)
+            return true
+        } catch {
+            recordPersistenceError(operation: .save, error: error)
+            return false
         }
     }
     
     private func loadLibrary() {
         let url = getDocumentsDirectory().appendingPathComponent(libraryFileName)
-        if let data = try? Data(contentsOf: url),
-           let decoded = try? JSONDecoder().decode([ExerciseTemplate].self, from: data) {
-            exercises = decoded
-        } else {
+        guard FileManager.default.fileExists(atPath: url.path) else {
             loadDefaultExercises()
+            return
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let decoded = try JSONDecoder().decode([ExerciseTemplate].self, from: data)
+            exercises = decoded
+        } catch {
+            recordPersistenceError(operation: .load, error: error)
         }
     }
     
@@ -77,5 +90,22 @@ class ExerciseManager: ObservableObject {
         ]
         
         exercises.sort { $0.name < $1.name }
+    }
+
+    func clearPersistenceError() {
+        persistenceError = nil
+    }
+
+    private func recordPersistenceError(operation: PersistenceOperation, error: Error) {
+        persistenceError = PersistenceError(
+            resource: .exerciseLibrary,
+            operation: operation,
+            underlyingErrorDescription: error.localizedDescription
+        )
+    }
+
+    private func clearPersistenceError(for resource: PersistenceResource) {
+        guard persistenceError?.resource == resource else { return }
+        persistenceError = nil
     }
 }

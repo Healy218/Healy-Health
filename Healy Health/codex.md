@@ -75,3 +75,8 @@ A code task is done only when:
 - Failure and empty states have been considered.
 - Persisted-data compatibility has been considered.
 - `TODO.md`, `ROADMAP.md`, and `handoff.md` are updated.
+
+## GitHub authentication
+
+- Do not treat `gh auth status` as a prerequisite for committing or pushing. This workspace may use Git credential-manager authentication that is separate from the GitHub CLI and can remain valid when the CLI token is expired.
+- For a user-requested commit/push, use the configured Git remote and report only an actual `git push` authentication failure. Use `gh` only when GitHub-specific work (such as creating or inspecting a pull request) is required.

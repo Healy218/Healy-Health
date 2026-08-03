@@ -1,6 +1,6 @@
 # Healy Health TODO
 
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 
 This is the actionable backlog for `ROADMAP.md`. Work top-to-bottom within the active phase unless a user request changes the priority.
 
@@ -18,8 +18,8 @@ Priority legend:
 - [x] **HH-101 (P0) Make deletion safe and repair active state.** Replaced offset-by-offset deletion with store-owned ID deletion. Deleting an active routine clears both IDs; deleting the active workout clears its workout ID. Regression tests cover single and multi-routine deletion and active-workout deletion.
   - Acceptance: delete IDs or remove offsets in one mutation; deleting an active routine clears both IDs; deleting the active workout clears its ID; tests cover single and multi-delete.
 
-- [ ] **HH-102 (P0) Harden persistence.** `RoutineStore` and `ExerciseManager` suppress encode/write/read errors with `try?`; routine/history saves share one debounce, noncritical mutations rely on a one-second delayed save, and writes are not atomic.
-  - Acceptance: atomic writes, explicit error propagation/state, separate intent where appropriate, and a scene background/termination flush; failures are visible without destroying the last good file.
+- [x] **HH-102 (P0) Harden persistence.** Routine, history, and exercise-library writes now use atomic replacement; routine and history debounce independently; load/save failures publish user-visible state; and the app flushes routine/history data on backgrounding. Existing/corrupt files are left untouched rather than being replaced with defaults. Regression coverage verifies independent save intent, failed-write preservation, and corrupt-file handling.
+  - Acceptance: atomic writes, explicit error propagation/state, separate intent where appropriate, and a scene background flush; failures are visible without destroying the last good file.
 
 - [ ] **HH-103 (P0) Validate and own the rest-timer lifecycle.** Custom duration accepts zero, negative, non-finite, and impractically large values before creating `UNTimeIntervalNotificationTrigger`. Scheduling errors are ignored, notification permission is requested at launch without context, and leaving via the navigation bar can orphan a pending timer while the view state is discarded.
   - Acceptance: bounded positive duration validation, scheduling completion handling, contextual permission flow, and documented/tested cancel-or-resume behavior for back navigation and relaunch.

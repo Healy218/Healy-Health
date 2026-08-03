@@ -1,23 +1,24 @@
 # Session Handoff
 
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 
 Current roadmap phase: Phase 1 — Data safety and crash prevention
 
 ## Completed this session
 
-- **HH-100:** Added the `Healy HealthTests` XCTest target and `RoutineStore` test seams for an injected documents directory, isolated `UserDefaults`, empty/normal loading, and immediate save flushing.
-- **HH-101:** Replaced list-offset deletion with store-owned ID deletion. Multi-row routine deletion is stable; deleting an active routine clears both active IDs; deleting an active workout clears only its workout ID.
-- Added regression coverage for temporary-directory persistence/reload, single routine deletion, multi-routine deletion, and active-workout deletion.
-- Reconciled `TODO.md`, `ROADMAP.md`, and this handoff with the current target/code state and the user-reported interactive Xcode build.
+- **HH-102:** Replaced silent persistence failures with atomic routine, history, and exercise-library writes plus published load/save errors that are shown from the app root.
+- Split routine and history save intents into independent debounced pipelines. `flushSaves()` remains the deterministic test/lifecycle seam and now returns whether both writes succeeded.
+- Flush routine/history state when the app moves to the background. Existing corrupted files are no longer silently replaced with defaults; they remain untouched and the app displays a recovery-oriented error.
+- Added persistence regressions for separate routine/history writes, failed-write preservation of the last good file, and corrupt routine-file handling.
+- Reconciled `TODO.md`, `ROADMAP.md`, and this handoff with the implementation.
 
 ## Next actions
 
-1. **HH-102:** Harden routine/history persistence with atomic writes, visible errors, separate save intent, and scene lifecycle flushing. Keep and extend the isolated-store tests.
-2. **HH-103:** Validate rest-timer durations and scheduling failures; make timer behavior explicit on navigation, backgrounding, and relaunch.
-3. **HH-104:** Make import validation transactional with schema/graph checks, a recoverable backup, deterministic history ordering, and specific errors.
-4. **HH-105:** Make workout completion resolve current store state by ID, reject duplicate completion, and handle skipped/unlogged work explicitly.
-5. **HH-100:** Run the `Healy HealthTests` target from the interactive Xcode/simulator environment and record the result before relying on runtime coverage.
+1. **HH-103:** Validate rest-timer duration/scheduling failures and define timer behavior on navigation, backgrounding, and relaunch.
+2. **HH-104:** Make import validation transactional with schema/graph checks, a recoverable backup, deterministic history ordering, and specific errors.
+3. **HH-105:** Make workout completion resolve current store state by ID, reject duplicate completion, and handle skipped/unlogged work explicitly.
+4. **HH-106:** Apply shared domain validation to configuration, editing, custom exercises, and set logging.
+5. **HH-100:** Run the `Healy HealthTests` target in the interactive Xcode/simulator environment and record its result before treating the new persistence regressions as runtime-tested.
 
 ## Verification
 
@@ -31,22 +32,23 @@ xcrun swiftc -emit-module -emit-module-path /tmp/HealyHealthTestModule/Healy_Hea
 xcrun swiftc -typecheck -module-cache-path /tmp/HealyHealthSwiftModuleCache -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios16.0 -I /tmp/HealyHealthTestModule -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks "Healy HealthTests/RoutineStoreTests.swift"
 
 plutil -lint "Healy Health.xcodeproj/project.pbxproj"
-xcodebuild -list -project "Healy Health.xcodeproj"
 git diff --check
+xcodebuild -list -project "Healy Health.xcodeproj"
 ```
 
-`xcodebuild build-for-testing` recognized both `Healy Health` and `Healy HealthTests`, but terminal asset compilation stopped because its CoreSimulator service has no available simulator runtimes. The test bundle did not execute there. Separately, the user reports the interactive Xcode instance built and installed the app in an iPhone simulator; no XCTest execution result has been reported yet.
+All commands above completed successfully. The source and test target type-check; the project lists `Healy Health` and `Healy HealthTests`.
 
 ## Known blockers and risks
 
-- Terminal CoreSimulator services remain unavailable, so this shell cannot complete asset compilation or run XCTest. The interactive Xcode simulator is a separate usable environment.
-- HH-102 through HH-107 data-safety work remains. Persistence still uses silent, non-atomic writes, and stored active IDs are not normalized after load/migration.
+- The terminal CoreSimulator service has no usable runtime, so this shell cannot build assets or execute XCTest. `xcodebuild -list` completes but logs CoreSimulator connection warnings. Use the interactive Xcode simulator for test execution.
+- HH-103 through HH-107 data-safety work remains. In particular, active IDs are not normalized after load/migration and import is not yet transactional.
 
 ## Important decisions and context
 
-- Tests use a unique temporary directory and a unique `UserDefaults` suite per case, protecting live app data.
-- `flushSaves()` is a deterministic test/lifecycle seam; HH-102 should turn it into the app’s complete explicit persistence-flush path.
-- Delete views resolve selected objects to IDs before asking `RoutineStore` to mutate state, avoiding stale-offset hazards.
+- Atomic `Data.write` is used for every routine, history, and exercise-library write. A failed save leaves a previous complete file in place.
+- A present-but-corrupt routine/history/library file is treated as an error, not as a signal to create defaults. Defaults are created only for a missing file.
+- `RoutineStore` accepts an injected `dataWriter` and save-debounce interval solely as deterministic test seams; production keeps the one-second debounce and atomic writer.
+- iOS has no reliable termination callback, so the store flush is attached to the SwiftUI scene’s background transition.
 - The git repository root is `/Users/healy218macbook/Coding/Fitness App`; the app workspace is its `Healy Health` subdirectory.
 
 ## Working-tree notes
@@ -60,13 +62,9 @@ Pre-existing/user-environment changes preserved:
 
 Current implementation/session changes:
 
-- `Healy Health.xcodeproj/project.pbxproj`
+- `Healy Health/ContentView.swift`
+- `Healy Health/Healy_HealthApp.swift`
+- `Healy Health/Models/ExerciseLibrary.swift`
 - `Healy Health/Models/RoutineStore.swift`
-- `Healy Health/Views/RoutinesView.swift`
-- `Healy Health/Views/RoutineDetailView.swift`
 - `Healy HealthTests/RoutineStoreTests.swift`
-- `TODO.md`, `ROADMAP.md`, and `handoff.md`
-
-Earlier untracked protocol document retained:
-
-- `codex.md`
+- `TODO.md`, `ROADMAP.md`, `handoff.md`, and `codex.md`

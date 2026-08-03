@@ -1,6 +1,6 @@
 # Healy Health Roadmap
 
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 
 ## Product goal
 
@@ -52,6 +52,7 @@ Completed in this phase:
 
 - Added the `Healy HealthTests` unit-test target and a `RoutineStore` test seam that uses injected temporary storage and `UserDefaults`.
 - Made routine and workout deletion ID-based, preventing multi-row index shifts and clearing invalid active state; covered single/multi-routine and active-workout deletion.
+- Hardened routine, history, and exercise-library persistence with atomic writes and visible failure state. Routine/history save requests are now independent, backgrounding flushes pending store data, and failed/corrupt files are retained rather than silently replaced.
 
 Verification note: app and XCTest sources type-check in the terminal environment. The user has also built and installed the app in an interactive iPhone simulator, while terminal `xcodebuild` remains blocked by a separate CoreSimulator-runtime issue. XCTest execution has not yet been recorded.
 

@@ -1,6 +1,56 @@
 import Foundation
 import Combine
 
+enum PersistenceResource: String {
+    case routines
+    case history
+    case exerciseLibrary
+
+    var displayName: String {
+        switch self {
+        case .routines:
+            return "routines"
+        case .history:
+            return "workout history"
+        case .exerciseLibrary:
+            return "exercise library"
+        }
+    }
+}
+
+enum PersistenceOperation: String {
+    case load
+    case save
+}
+
+struct PersistenceError: LocalizedError, Identifiable {
+    let resource: PersistenceResource
+    let operation: PersistenceOperation
+    let underlyingErrorDescription: String
+
+    var id: String {
+        "\(resource.rawValue)-\(operation.rawValue)-\(underlyingErrorDescription)"
+    }
+
+    var errorDescription: String? {
+        switch operation {
+        case .load:
+            return "Couldn’t load your \(resource.displayName)."
+        case .save:
+            return "Couldn’t save your \(resource.displayName)."
+        }
+    }
+
+    var recoverySuggestion: String? {
+        switch operation {
+        case .load:
+            return "The existing file was left unchanged. Please keep the app open and try again after freeing storage or restoring a backup."
+        case .save:
+            return "No existing saved file was overwritten. Please keep the app open and try again after freeing storage."
+        }
+    }
+}
+
 class RoutineStore: ObservableObject {
     static let shared = RoutineStore()
 
@@ -9,8 +59,10 @@ class RoutineStore: ObservableObject {
         case empty
     }
     
-    private var saveCancellable: AnyCancellable?
-    private let saveSubject = PassthroughSubject<Void, Never>()
+    private var routinesSaveCancellable: AnyCancellable?
+    private var historySaveCancellable: AnyCancellable?
+    private let routinesSaveSubject = PassthroughSubject<Void, Never>()
+    private let historySaveSubject = PassthroughSubject<Void, Never>()
     
     @Published var routines: [Routine] = []
     @Published var completedWorkouts: [CompletedWorkout] = []
@@ -23,6 +75,7 @@ class RoutineStore: ObservableObject {
     }
     
     @Published var selectedTab: Int = 0
+    @Published private(set) var persistenceError: PersistenceError?
     
     // Add properties to store the active routine and workout easily
     var activeRoutine: Routine? {
@@ -37,6 +90,7 @@ class RoutineStore: ObservableObject {
     private let historyFileName = "workout_history.json"
     private let documentsDirectory: URL
     private let userDefaults: UserDefaults
+    private let dataWriter: (Data, URL) throws -> Void
     
     // Legacy file names for migration
     private let legacyScheduleFileName = "workout_schedule.json"
@@ -46,17 +100,26 @@ class RoutineStore: ObservableObject {
     init(
         documentsDirectory: URL? = nil,
         userDefaults: UserDefaults = .standard,
-        initialLoadBehavior: InitialLoadBehavior = .normal
+        initialLoadBehavior: InitialLoadBehavior = .normal,
+        saveDebounceInterval: TimeInterval = 1,
+        dataWriter: @escaping (Data, URL) throws -> Void = { data, url in
+            try data.write(to: url, options: .atomic)
+        }
     ) {
         self.documentsDirectory = documentsDirectory
             ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         self.userDefaults = userDefaults
+        self.dataWriter = dataWriter
 
-        // Set up debounced save — saves at most once per second
-        saveCancellable = saveSubject
-            .debounce(for: .seconds(1), scheduler: RunLoop.main)
+        // Keep routine and history saves independent so a routine edit never writes history.
+        routinesSaveCancellable = routinesSaveSubject
+            .debounce(for: .seconds(saveDebounceInterval), scheduler: RunLoop.main)
             .sink { [weak self] in
                 self?.performSaveRoutines()
+            }
+        historySaveCancellable = historySaveSubject
+            .debounce(for: .seconds(saveDebounceInterval), scheduler: RunLoop.main)
+            .sink { [weak self] in
                 self?.performSaveHistory()
             }
         
@@ -222,19 +285,26 @@ class RoutineStore: ObservableObject {
         documentsDirectory
     }
     
-    // Fix #3: Public save methods now debounce
+    // MARK: - Persistence
+
+    /// Schedules only routine data for persistence.
     func saveRoutines() {
-        saveSubject.send()
+        routinesSaveSubject.send()
     }
-    
+
+    /// Schedules only completed-workout history for persistence.
     func saveHistory() {
-        saveSubject.send()
+        historySaveSubject.send()
     }
 
     /// Persists the current store state immediately. Used for lifecycle flushing and deterministic tests.
-    func flushSaves() {
-        performSaveRoutines()
-        performSaveHistory()
+    @discardableResult
+    func flushSaves() -> Bool {
+        performSaveRoutines() && performSaveHistory()
+    }
+
+    func clearPersistenceError() {
+        persistenceError = nil
     }
     
     // Fix #8: ISO 8601 date encoding for new saves, backward-compatible loading
@@ -245,47 +315,78 @@ class RoutineStore: ObservableObject {
     }
     
     /// Tries ISO 8601 first, falls back to default (deferredToDate) for legacy data
-    private func decode<T: Decodable>(_ type: T.Type, from data: Data) -> T? {
+    private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
         let iso8601Decoder = JSONDecoder()
         iso8601Decoder.dateDecodingStrategy = .iso8601
-        if let result = try? iso8601Decoder.decode(type, from: data) {
-            return result
-        }
-        // Fallback to default decoder for legacy data
-        return try? JSONDecoder().decode(type, from: data)
-    }
-    
-    // Actual save implementations
-    private func performSaveRoutines() {
-        if let data = try? iso8601Encoder.encode(routines) {
-            let url = getDocumentsDirectory().appendingPathComponent(routinesFileName)
-            try? data.write(to: url)
+        do {
+            return try iso8601Decoder.decode(type, from: data)
+        } catch {
+            let legacyDecoder = JSONDecoder()
+            return try legacyDecoder.decode(type, from: data)
         }
     }
-    
-    func performSaveHistory() {
-        if let data = try? iso8601Encoder.encode(completedWorkouts) {
-            let url = getDocumentsDirectory().appendingPathComponent(historyFileName)
-            try? data.write(to: url)
+
+    // Actual save implementations. Atomic writes leave the previous complete file in place on failure.
+    @discardableResult
+    private func performSaveRoutines() -> Bool {
+        save(routines, to: routinesFileName, resource: .routines)
+    }
+
+    @discardableResult
+    func performSaveHistory() -> Bool {
+        save(completedWorkouts, to: historyFileName, resource: .history)
+    }
+
+    @discardableResult
+    private func save<T: Encodable>(_ value: T, to fileName: String, resource: PersistenceResource) -> Bool {
+        do {
+            let data = try iso8601Encoder.encode(value)
+            let url = getDocumentsDirectory().appendingPathComponent(fileName)
+            try dataWriter(data, url)
+            clearPersistenceError(for: resource)
+            return true
+        } catch {
+            recordPersistenceError(resource: resource, operation: .save, error: error)
+            return false
         }
     }
-    
+
     private func loadRoutines() {
         let url = getDocumentsDirectory().appendingPathComponent(routinesFileName)
-        if let data = try? Data(contentsOf: url),
-           let decoded = decode([Routine].self, from: data) {
-            self.routines = decoded
-        } else {
+        guard FileManager.default.fileExists(atPath: url.path) else {
             loadDefaultRoutines()
+            return
+        }
+
+        do {
+            routines = try decode([Routine].self, from: Data(contentsOf: url))
+        } catch {
+            recordPersistenceError(resource: .routines, operation: .load, error: error)
         }
     }
-    
+
     private func loadHistory() {
         let url = getDocumentsDirectory().appendingPathComponent(historyFileName)
-        if let data = try? Data(contentsOf: url),
-           let decoded = decode([CompletedWorkout].self, from: data) {
-            self.completedWorkouts = decoded
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+
+        do {
+            completedWorkouts = try decode([CompletedWorkout].self, from: Data(contentsOf: url))
+        } catch {
+            recordPersistenceError(resource: .history, operation: .load, error: error)
         }
+    }
+
+    private func recordPersistenceError(resource: PersistenceResource, operation: PersistenceOperation, error: Error) {
+        persistenceError = PersistenceError(
+            resource: resource,
+            operation: operation,
+            underlyingErrorDescription: error.localizedDescription
+        )
+    }
+
+    private func clearPersistenceError(for resource: PersistenceResource) {
+        guard persistenceError?.resource == resource else { return }
+        persistenceError = nil
     }
     
     private func saveActiveState() {
