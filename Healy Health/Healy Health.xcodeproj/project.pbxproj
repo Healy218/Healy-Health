@@ -8,6 +8,7 @@
 
 /* Begin PBXFileReference section */
 		6F6D15B92F3405C700678EA4 /* Healy Health.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Healy Health.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A11EA1002F3405C700678EA4 /* Healy HealthTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Healy HealthTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +17,22 @@
 			path = "Healy Health";
 			sourceTree = "<group>";
 		};
+		A11EA1012F3405C700678EA4 /* Healy HealthTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Healy HealthTests";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		6F6D15B62F3405C700678EA4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A11EA1022F3405C700678EA4 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +46,7 @@
 			isa = PBXGroup;
 			children = (
 				6F6D15BB2F3405C700678EA4 /* Healy Health */,
+				A11EA1012F3405C700678EA4 /* Healy HealthTests */,
 				6F6D15BA2F3405C700678EA4 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,11 +55,22 @@
 			isa = PBXGroup;
 			children = (
 				6F6D15B92F3405C700678EA4 /* Healy Health.app */,
+				A11EA1002F3405C700678EA4 /* Healy HealthTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
+
+/* Begin PBXContainerItemProxy section */
+		A11EA1032F3405C700678EA4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6F6D15B12F3405C700678EA4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6F6D15B82F3405C700678EA4;
+			remoteInfo = "Healy Health";
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXNativeTarget section */
 		6F6D15B82F3405C700678EA4 /* Healy Health */ = {
@@ -70,7 +95,37 @@
 			productReference = 6F6D15B92F3405C700678EA4 /* Healy Health.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A11EA1042F3405C700678EA4 /* Healy HealthTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A11EA1052F3405C700678EA4 /* Build configuration list for PBXNativeTarget "Healy HealthTests" */;
+			buildPhases = (
+				A11EA1062F3405C700678EA4 /* Sources */,
+				A11EA1022F3405C700678EA4 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A11EA1072F3405C700678EA4 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A11EA1012F3405C700678EA4 /* Healy HealthTests */,
+			);
+			name = "Healy HealthTests";
+			packageProductDependencies = (
+			);
+			productName = "Healy HealthTests";
+			productReference = A11EA1002F3405C700678EA4 /* Healy HealthTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXTargetDependency section */
+		A11EA1072F3405C700678EA4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6F6D15B82F3405C700678EA4 /* Healy Health */;
+			targetProxy = A11EA1032F3405C700678EA4 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		6F6D15B12F3405C700678EA4 /* Project object */ = {
@@ -82,6 +137,10 @@
 				TargetAttributes = {
 					6F6D15B82F3405C700678EA4 = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					A11EA1042F3405C700678EA4 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 6F6D15B82F3405C700678EA4;
 					};
 				};
 			};
@@ -100,6 +159,7 @@
 			projectRoot = "";
 			targets = (
 				6F6D15B82F3405C700678EA4 /* Healy Health */,
+				A11EA1042F3405C700678EA4 /* Healy HealthTests */,
 			);
 		};
 /* End PBXProject section */
@@ -116,6 +176,13 @@
 
 /* Begin PBXSourcesBuildPhase section */
 		6F6D15B52F3405C700678EA4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A11EA1062F3405C700678EA4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -310,6 +377,44 @@
 			};
 			name = Release;
 		};
+		A11EA1082F3405C700678EA4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "Healy-Labs.Healy-HealthTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Healy Health.app/Healy Health";
+				TEST_TARGET_NAME = "Healy Health";
+			};
+			name = Debug;
+		};
+		A11EA1092F3405C700678EA4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "Healy-Labs.Healy-HealthTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Healy Health.app/Healy Health";
+				TEST_TARGET_NAME = "Healy Health";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -327,6 +432,15 @@
 			buildConfigurations = (
 				6F6D15C52F3405C700678EA4 /* Debug */,
 				6F6D15C62F3405C700678EA4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A11EA1052F3405C700678EA4 /* Build configuration list for PBXNativeTarget "Healy HealthTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A11EA1082F3405C700678EA4 /* Debug */,
+				A11EA1092F3405C700678EA4 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

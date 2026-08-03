@@ -89,6 +89,7 @@ struct RoutinesView: View {
     }
 
     private func deleteRoutine(offsets: IndexSet) {
-        offsets.forEach { store.deleteRoutine(store.routines[$0]) }
+        let routineIDs = Set(offsets.compactMap { store.routines.indices.contains($0) ? store.routines[$0].id : nil })
+        store.deleteRoutines(ids: routineIDs)
     }
 }

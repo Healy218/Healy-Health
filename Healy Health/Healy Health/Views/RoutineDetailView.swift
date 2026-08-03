@@ -116,10 +116,11 @@ struct RoutineDetailView: View {
     }
 
     private func deleteWorkout(offsets: IndexSet) {
-        if let cr = currentRoutine {
-            var updated = cr
-            updated.workouts.remove(atOffsets: offsets)
-            store.updateRoutine(updated)
+        if let currentRoutine {
+            let workoutIDs = Set(offsets.compactMap {
+                currentRoutine.workouts.indices.contains($0) ? currentRoutine.workouts[$0].id : nil
+            })
+            store.deleteWorkouts(routineId: currentRoutine.id, ids: workoutIDs)
         }
     }
 }

@@ -3,6 +3,11 @@ import Combine
 
 class RoutineStore: ObservableObject {
     static let shared = RoutineStore()
+
+    enum InitialLoadBehavior {
+        case normal
+        case empty
+    }
     
     private var saveCancellable: AnyCancellable?
     private let saveSubject = PassthroughSubject<Void, Never>()
@@ -30,13 +35,23 @@ class RoutineStore: ObservableObject {
     
     private let routinesFileName = "routines.json"
     private let historyFileName = "workout_history.json"
+    private let documentsDirectory: URL
+    private let userDefaults: UserDefaults
     
     // Legacy file names for migration
     private let legacyScheduleFileName = "workout_schedule.json"
     private let legacyCustomWorkoutsFileName = "custom_workouts.json"
     private let hasMigratedKey = "hasMigratedToRoutines"
     
-    private init() {
+    init(
+        documentsDirectory: URL? = nil,
+        userDefaults: UserDefaults = .standard,
+        initialLoadBehavior: InitialLoadBehavior = .normal
+    ) {
+        self.documentsDirectory = documentsDirectory
+            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        self.userDefaults = userDefaults
+
         // Set up debounced save — saves at most once per second
         saveCancellable = saveSubject
             .debounce(for: .seconds(1), scheduler: RunLoop.main)
@@ -45,13 +60,18 @@ class RoutineStore: ObservableObject {
                 self?.performSaveHistory()
             }
         
-        if !UserDefaults.standard.bool(forKey: hasMigratedKey) {
-            performMigration()
-        } else {
-            loadRoutines()
-            loadHistory()
+        switch initialLoadBehavior {
+        case .normal:
+            if !userDefaults.bool(forKey: hasMigratedKey) {
+                performMigration()
+            } else {
+                loadRoutines()
+                loadHistory()
+            }
+            loadActiveState()
+        case .empty:
+            break
         }
-        loadActiveState()
     }
     
     // MARK: - Migration
@@ -100,7 +120,7 @@ class RoutineStore: ObservableObject {
         loadHistory()
         
         // Mark as migrated
-        UserDefaults.standard.set(true, forKey: hasMigratedKey)
+        userDefaults.set(true, forKey: hasMigratedKey)
     }
     
     // MARK: - Actions
@@ -167,13 +187,39 @@ class RoutineStore: ObservableObject {
     }
     
     func deleteRoutine(_ routine: Routine) {
-        routines.removeAll(where: { $0.id == routine.id })
+        deleteRoutines(ids: [routine.id])
+    }
+
+    func deleteRoutines(ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
+
+        let removedActiveRoutine = activeRoutineId.map(ids.contains) ?? false
+        routines.removeAll { ids.contains($0.id) }
+
+        if removedActiveRoutine {
+            activeRoutineId = nil
+            activeWorkoutId = nil
+        }
+        saveRoutines()
+    }
+
+    func deleteWorkouts(routineId: UUID, ids: Set<UUID>) {
+        guard !ids.isEmpty,
+              let routineIndex = routines.firstIndex(where: { $0.id == routineId }) else {
+            return
+        }
+
+        routines[routineIndex].workouts.removeAll { ids.contains($0.id) }
+        if activeRoutineId == routineId,
+           activeWorkoutId.map(ids.contains) ?? false {
+            activeWorkoutId = nil
+        }
         saveRoutines()
     }
     
     // MARK: - Persistence
     private func getDocumentsDirectory() -> URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        documentsDirectory
     }
     
     // Fix #3: Public save methods now debounce
@@ -183,6 +229,12 @@ class RoutineStore: ObservableObject {
     
     func saveHistory() {
         saveSubject.send()
+    }
+
+    /// Persists the current store state immediately. Used for lifecycle flushing and deterministic tests.
+    func flushSaves() {
+        performSaveRoutines()
+        performSaveHistory()
     }
     
     // Fix #8: ISO 8601 date encoding for new saves, backward-compatible loading
@@ -237,15 +289,15 @@ class RoutineStore: ObservableObject {
     }
     
     private func saveActiveState() {
-        UserDefaults.standard.set(activeRoutineId?.uuidString, forKey: "activeRoutineId")
-        UserDefaults.standard.set(activeWorkoutId?.uuidString, forKey: "activeWorkoutId")
+        userDefaults.set(activeRoutineId?.uuidString, forKey: "activeRoutineId")
+        userDefaults.set(activeWorkoutId?.uuidString, forKey: "activeWorkoutId")
     }
 
     private func loadActiveState() {
-        if let rIdStr = UserDefaults.standard.string(forKey: "activeRoutineId"), let rId = UUID(uuidString: rIdStr) {
+        if let rIdStr = userDefaults.string(forKey: "activeRoutineId"), let rId = UUID(uuidString: rIdStr) {
             activeRoutineId = rId
         }
-        if let wIdStr = UserDefaults.standard.string(forKey: "activeWorkoutId"), let wId = UUID(uuidString: wIdStr) {
+        if let wIdStr = userDefaults.string(forKey: "activeWorkoutId"), let wId = UUID(uuidString: wIdStr) {
             activeWorkoutId = wId
         }
     }
