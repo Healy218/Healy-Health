@@ -34,6 +34,7 @@ struct ExerciseDetailView: View {
     @State private var customTimerInput = ""
     @State private var timerErrorMessage: String?
     @State private var timerNotificationID: UUID?
+    @State private var setLogErrorMessage: String?
 
     var body: some View {
         ZStack {
@@ -68,7 +69,7 @@ struct ExerciseDetailView: View {
                             .font(.caption).foregroundColor(theme.onPrimaryText.opacity(0.6))
                             .padding(.top, 8)
                     } else if !timerActive {
-                        SetInputView(setNumber: exercise.logs.count + 1, weightInput: $weightInput, repsInput: $repsInput, selectedDuration: $selectedDuration, showCustomTimerAlert: $showCustomTimerAlert, isCustomDuration: isCustomDuration, onLogSet: logSet)
+                        SetInputView(setNumber: exercise.logs.count + 1, weightInput: $weightInput, repsInput: $repsInput, selectedDuration: $selectedDuration, showCustomTimerAlert: $showCustomTimerAlert, isCustomDuration: isCustomDuration, validationMessage: setLogErrorMessage, onLogSet: logSet)
                     } else {
                         RestTimerDisplayView(timeRemaining: timeRemaining, nextSetNumber: exercise.logs.count + 1, onSkip: skipRest, onAddTime: {
                             addRestTime()
@@ -97,6 +98,8 @@ struct ExerciseDetailView: View {
                 repsInput = ex.logs.last.map { String(format: "%d", $0.reps) } ?? ""
             }
         }
+        .onChange(of: weightInput) { _ in setLogErrorMessage = nil }
+        .onChange(of: repsInput) { _ in setLogErrorMessage = nil }
         .onReceive(timer) { _ in if timerActive { updateTimerDisplay() } }
         .onChange(of: scenePhase) { newPhase in if newPhase == .active && timerActive { updateTimerDisplay() } }
         .onDisappear(perform: cancelRestTimer)
@@ -118,11 +121,29 @@ struct ExerciseDetailView: View {
     var isCustomDuration: Bool { ![120.0, 150.0, 180.0].contains(selectedDuration) }
 
     func logSet() {
-        guard let weight = Double(weightInput), let reps = Int(repsInput), let binding = exerciseBinding else { return }
+        guard let weight = Double(weightInput.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            setLogErrorMessage = "Enter a valid weight."
+            return
+        }
+        guard let reps = Int(repsInput.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            setLogErrorMessage = "Enter reps as a whole number."
+            return
+        }
+        guard let binding = exerciseBinding else { return }
+        let validatedLog: ValidatedSetLog
+        do {
+            validatedLog = try ExerciseDomainValidation.setLog(weight: weight, reps: reps)
+        } catch let error as ExerciseValidationError {
+            setLogErrorMessage = error.localizedDescription
+            return
+        } catch {
+            setLogErrorMessage = "Couldn’t validate this set."
+            return
+        }
         let maxSets = binding.wrappedValue.targetSets + 5
         guard binding.wrappedValue.logs.count < maxSets else { return }
-        binding.wrappedValue.logs.append(SetLog(weight: weight, reps: reps, completedDate: Date()))
-        binding.wrappedValue.currentWeight = weight
+        binding.wrappedValue.logs.append(SetLog(weight: validatedLog.weight, reps: validatedLog.reps, completedDate: Date()))
+        binding.wrappedValue.currentWeight = validatedLog.weight
         store.saveRoutines()
         if binding.wrappedValue.logs.count < maxSets { startTimer() }
         repsInput = ""

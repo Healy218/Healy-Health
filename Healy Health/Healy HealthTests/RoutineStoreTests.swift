@@ -128,6 +128,113 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: routinesURL), Data("not valid JSON".utf8))
     }
 
+    func testLoadClearsAnActiveRoutineThatNoLongerExists() throws {
+        let routine = makeRoutine(name: "Strength")
+        let store = makeEmptyStore()
+        store.routines = [routine]
+        XCTAssertTrue(store.flushSaves())
+        defaults.set(true, forKey: "hasMigratedToRoutines")
+        defaults.set(UUID().uuidString, forKey: "activeRoutineId")
+        defaults.set(UUID().uuidString, forKey: "activeWorkoutId")
+
+        let reloadedStore = RoutineStore(
+            documentsDirectory: storageDirectory,
+            userDefaults: defaults,
+            initialLoadBehavior: .normal
+        )
+
+        XCTAssertNil(reloadedStore.activeRoutineId)
+        XCTAssertNil(reloadedStore.activeWorkoutId)
+        XCTAssertNil(defaults.string(forKey: "activeRoutineId"))
+        XCTAssertNil(defaults.string(forKey: "activeWorkoutId"))
+    }
+
+    func testLoadClearsAWorkoutThatDoesNotBelongToTheActiveRoutine() throws {
+        let first = makeRoutine(name: "First")
+        let second = makeRoutine(name: "Second")
+        let store = makeEmptyStore()
+        store.routines = [first, second]
+        XCTAssertTrue(store.flushSaves())
+        defaults.set(true, forKey: "hasMigratedToRoutines")
+        defaults.set(first.id.uuidString, forKey: "activeRoutineId")
+        defaults.set(second.workouts[0].id.uuidString, forKey: "activeWorkoutId")
+
+        let reloadedStore = RoutineStore(
+            documentsDirectory: storageDirectory,
+            userDefaults: defaults,
+            initialLoadBehavior: .normal
+        )
+
+        XCTAssertEqual(reloadedStore.activeRoutineId, first.id)
+        XCTAssertNil(reloadedStore.activeWorkoutId)
+        XCTAssertEqual(defaults.string(forKey: "activeRoutineId"), first.id.uuidString)
+        XCTAssertNil(defaults.string(forKey: "activeWorkoutId"))
+    }
+
+    func testMigrationReportsUnreadableLegacyDataAndRetriesOnNextLaunch() throws {
+        let legacyURL = storageDirectory.appendingPathComponent("workout_schedule.json")
+        try Data("not valid JSON".utf8).write(to: legacyURL, options: .atomic)
+
+        let store = RoutineStore(
+            documentsDirectory: storageDirectory,
+            userDefaults: defaults,
+            initialLoadBehavior: .normal
+        )
+
+        XCTAssertTrue(store.routines.isEmpty)
+        XCTAssertEqual(store.persistenceError?.resource, .routines)
+        XCTAssertEqual(store.persistenceError?.operation, .migration)
+        XCTAssertFalse(defaults.bool(forKey: "hasMigratedToRoutines"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: storageDirectory.appendingPathComponent("routines.json").path))
+        XCTAssertEqual(try Data(contentsOf: legacyURL), Data("not valid JSON".utf8))
+    }
+
+    func testMigrationPersistsValidLegacyFixturesAndRepairsActiveState() throws {
+        let legacyWorkout = RoutineStore.LegacyWorkoutDay(
+            dayName: "Legacy Push",
+            focus: "Chest",
+            exercises: [Exercise(name: "Bench Press", targetSets: 3, targetReps: "8", currentWeight: 135)]
+        )
+        let legacyURL = storageDirectory.appendingPathComponent("workout_schedule.json")
+        try JSONEncoder().encode([legacyWorkout]).write(to: legacyURL, options: .atomic)
+        defaults.set(UUID().uuidString, forKey: "activeRoutineId")
+        defaults.set(UUID().uuidString, forKey: "activeWorkoutId")
+
+        let store = RoutineStore(
+            documentsDirectory: storageDirectory,
+            userDefaults: defaults,
+            initialLoadBehavior: .normal
+        )
+
+        XCTAssertTrue(defaults.bool(forKey: "hasMigratedToRoutines"))
+        XCTAssertEqual(store.routines.map(\.name), ["Legacy Weekly Schedule"])
+        XCTAssertEqual(store.routines[0].workouts.map(\.name), ["Legacy Push"])
+        XCTAssertNil(store.activeRoutineId)
+        XCTAssertNil(store.activeWorkoutId)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: storageDirectory.appendingPathComponent("routines.json").path))
+    }
+
+    func testCustomExerciseLibraryAddsOnceAndPersistsTheNormalizedTemplate() {
+        let manager = ExerciseManager(documentsDirectory: storageDirectory)
+        let template = ExerciseTemplate(
+            name: "  Custom Step-Up \n",
+            primaryMuscleGroup: "Legs",
+            equipmentType: "Custom"
+        )
+
+        XCTAssertEqual(manager.addExercise(template), .added)
+        XCTAssertEqual(manager.addExercise(ExerciseTemplate(
+            name: "custom step-up",
+            primaryMuscleGroup: "Legs",
+            equipmentType: "Custom"
+        )), .duplicateName)
+
+        let reloadedManager = ExerciseManager(documentsDirectory: storageDirectory)
+        let savedTemplate = reloadedManager.exercises.first { $0.name == "Custom Step-Up" }
+        XCTAssertEqual(savedTemplate?.primaryMuscleGroup, "Legs")
+        XCTAssertEqual(savedTemplate?.equipmentType, "Custom")
+    }
+
     func testDeletingOneRoutinePreservesAnUnrelatedActiveRoutine() {
         let first = makeRoutine(name: "First")
         let second = makeRoutine(name: "Second")
@@ -188,6 +295,34 @@ final class RoutineStoreTests: XCTestCase {
             RestTimerDuration.validate(RestTimerDuration.maximumSeconds + 1),
             .failure(.durationTooLong(maximumSeconds: RestTimerDuration.maximumSeconds))
         )
+    }
+
+    func testExerciseValidationTrimsConfigurationTextAndRejectsInvalidBoundaries() throws {
+        let configuration = try ExerciseDomainValidation.configuration(
+            name: "  Bench Press \n",
+            targetSets: 3,
+            targetReps: " 8-12 ",
+            currentWeight: 135
+        )
+
+        XCTAssertEqual(configuration.name, "Bench Press")
+        XCTAssertEqual(configuration.targetReps, "8-12")
+
+        XCTAssertThrowsError(try ExerciseDomainValidation.configuration(name: " \n", targetSets: 3, targetReps: "8", currentWeight: 0))
+        XCTAssertThrowsError(try ExerciseDomainValidation.configuration(name: "Bench", targetSets: 0, targetReps: "8", currentWeight: 0))
+        XCTAssertThrowsError(try ExerciseDomainValidation.configuration(name: "Bench", targetSets: -1, targetReps: "8", currentWeight: 0))
+        XCTAssertThrowsError(try ExerciseDomainValidation.configuration(name: "Bench", targetSets: 3, targetReps: " ", currentWeight: 0))
+        XCTAssertThrowsError(try ExerciseDomainValidation.configuration(name: "Bench", targetSets: 3, targetReps: "8", currentWeight: -.infinity))
+        XCTAssertThrowsError(try ExerciseDomainValidation.configuration(name: "Bench", targetSets: 3, targetReps: "8", currentWeight: .nan))
+    }
+
+    func testSetLogValidationRejectsNegativeWeightAndNonpositiveReps() throws {
+        XCTAssertEqual(try ExerciseDomainValidation.setLog(weight: 0, reps: 1), ValidatedSetLog(weight: 0, reps: 1))
+
+        XCTAssertThrowsError(try ExerciseDomainValidation.setLog(weight: -0.1, reps: 1))
+        XCTAssertThrowsError(try ExerciseDomainValidation.setLog(weight: .infinity, reps: 1))
+        XCTAssertThrowsError(try ExerciseDomainValidation.setLog(weight: 100, reps: 0))
+        XCTAssertThrowsError(try ExerciseDomainValidation.setLog(weight: 100, reps: -1))
     }
 
     func testRestTimerSchedulingRequestsPermissionAtTimerUseAndAddsNotification() {

@@ -15,8 +15,35 @@ struct ConfigureExerciseView: View {
 
     private var theme: AppTheme { themeManager.current }
 
+    private var validatedConfiguration: Result<ValidatedExerciseConfiguration, ExerciseValidationError> {
+        guard let sets = Int(targetSets) else {
+            return .failure(.invalidTargetSets)
+        }
+        guard let weight = Double(startingWeight) else {
+            return .failure(.invalidWeight)
+        }
+        do {
+            return .success(try ExerciseDomainValidation.configuration(
+                name: template.name,
+                targetSets: sets,
+                targetReps: targetReps,
+                currentWeight: weight
+            ))
+        } catch let error as ExerciseValidationError {
+            return .failure(error)
+        } catch {
+            return .failure(.invalidWeight)
+        }
+    }
+
     var isFormValid: Bool {
-        Int(targetSets) != nil && Double(startingWeight) != nil && !targetReps.isEmpty
+        if case .success = validatedConfiguration { return true }
+        return false
+    }
+
+    private var validationMessage: String? {
+        if case .failure(let error) = validatedConfiguration { return error.localizedDescription }
+        return nil
     }
 
     var body: some View {
@@ -64,11 +91,24 @@ struct ConfigureExerciseView: View {
                         .keyboardType(.decimalPad).multilineTextAlignment(.trailing).foregroundColor(theme.rowText)
                 }
                 .listRowBackground(theme.rowBackground)
+
+                if let validationMessage {
+                    Text(validationMessage)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .listRowBackground(theme.rowBackground)
+                }
             }
 
             Button(action: {
-                if let sets = Int(targetSets), let weight = Double(startingWeight) {
-                    onAdd(Exercise(name: template.name, targetSets: sets, targetReps: targetReps, currentWeight: weight, category: selectedCategory))
+                if case .success(let configuration) = validatedConfiguration {
+                    onAdd(Exercise(
+                        name: configuration.name,
+                        targetSets: configuration.targetSets,
+                        targetReps: configuration.targetReps,
+                        currentWeight: configuration.currentWeight,
+                        category: selectedCategory
+                    ))
                 }
             }) {
                 Text("Add to Workout")

@@ -21,7 +21,39 @@ struct EditExerciseView: View {
             .exercises.first(where: { $0.id == exerciseId })
     }
 
-    var isFormValid: Bool { Int(targetSets) != nil && Double(startingWeight) != nil && !targetReps.isEmpty }
+    private var validatedConfiguration: Result<ValidatedExerciseConfiguration, ExerciseValidationError> {
+        guard let exercise = currentExercise else {
+            return .failure(.invalidWeight)
+        }
+        guard let sets = Int(targetSets) else {
+            return .failure(.invalidTargetSets)
+        }
+        guard let weight = Double(startingWeight) else {
+            return .failure(.invalidWeight)
+        }
+        do {
+            return .success(try ExerciseDomainValidation.configuration(
+                name: exercise.name,
+                targetSets: sets,
+                targetReps: targetReps,
+                currentWeight: weight
+            ))
+        } catch let error as ExerciseValidationError {
+            return .failure(error)
+        } catch {
+            return .failure(.invalidWeight)
+        }
+    }
+
+    var isFormValid: Bool {
+        if case .success = validatedConfiguration { return true }
+        return false
+    }
+
+    private var validationMessage: String? {
+        if case .failure(let error) = validatedConfiguration { return error.localizedDescription }
+        return nil
+    }
 
     var body: some View {
         Form {
@@ -44,17 +76,24 @@ struct EditExerciseView: View {
                         Spacer()
                         TextField("e.g. 135.0", text: $startingWeight).keyboardType(.decimalPad).multilineTextAlignment(.trailing).foregroundColor(theme.rowText)
                     }.listRowBackground(theme.rowBackground)
+
+                    if let validationMessage {
+                        Text(validationMessage)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .listRowBackground(theme.rowBackground)
+                    }
                 }
 
                 Button(action: {
-                    if let sets = Int(targetSets), let weight = Double(startingWeight),
+                    if case .success(let configuration) = validatedConfiguration,
                        let rIndex = store.routines.firstIndex(where: { $0.id == routineId }),
                        let wIndex = store.routines[rIndex].workouts.firstIndex(where: { $0.id == workoutId }),
                        let eIndex = store.routines[rIndex].workouts[wIndex].exercises.firstIndex(where: { $0.id == exerciseId }) {
                         var updated = store.routines[rIndex]
-                        updated.workouts[wIndex].exercises[eIndex].targetSets = sets
-                        updated.workouts[wIndex].exercises[eIndex].targetReps = targetReps
-                        updated.workouts[wIndex].exercises[eIndex].currentWeight = weight
+                        updated.workouts[wIndex].exercises[eIndex].targetSets = configuration.targetSets
+                        updated.workouts[wIndex].exercises[eIndex].targetReps = configuration.targetReps
+                        updated.workouts[wIndex].exercises[eIndex].currentWeight = configuration.currentWeight
                         store.updateRoutine(updated)
                         dismiss()
                     }

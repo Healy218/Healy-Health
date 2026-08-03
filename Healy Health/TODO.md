@@ -30,15 +30,15 @@ Priority legend:
 - [x] **HH-105 (P0) Make workout completion idempotent and current-state based.** `finishWorkout` now resolves the current routine and workout from IDs inside `RoutineStore`, returns a typed failure for missing or already-completed entries, and records history only once. The finish control disables once completion is reflected in store state, and a confirmation names every planned exercise with no logged sets before allowing completion. Regression tests cover current-state resolution, duplicate completion, and missing routine/workout rejection.
   - Acceptance: resolve by IDs inside the store, reject already-completed/missing workouts, disable repeated submission, and confirm or clearly explain skipped/unlogged work.
 
-- [ ] **HH-106 (P1) Apply consistent domain validation.** Configure/edit/custom forms accept zero or negative set counts, negative/non-finite weights, and whitespace-only or untrimmed values in some paths. Set logging accepts negative weight and zero/negative reps.
+- [x] **HH-106 (P1) Apply consistent domain validation.** A shared model-level validator now trims exercise names and target reps, requires positive set counts and reps, and rejects negative/non-finite weights. Configure, edit, custom-exercise, set-logging, and import paths use it; inline feedback explains invalid form/set values, and boundary tests cover the rules.
   - Acceptance: shared validation rules require sensible set/repetition/weight values, trim names and reps, provide inline errors, and have boundary tests.
 
-- [ ] **HH-107 (P1) Repair state after load/migration.** `loadActiveState` trusts stored UUIDs without checking that the routine contains the workout. Migration is marked complete even when legacy reads fail silently.
+- [x] **HH-107 (P1) Repair state after load/migration.** Stored active references now normalize after every normal load, migration, and imported-state application: invalid routines clear both IDs, while a missing/cross-routine workout clears only the workout ID. Legacy reads now report a distinct migration error, retain their original files, and leave migration pending; successful migration persists first and only then records completion. Regression tests cover stale references and valid/corrupt legacy fixtures.
   - Acceptance: active references are normalized after every load/migration; migration outcome and errors are distinguishable and tested with legacy fixtures.
 
 ## Phase 2 — Core workout experience
 
-- [ ] **HH-201 (P1) Finish custom exercise library wiring.** `ExerciseManager.addExercise` is unused; the custom-exercise UI checks library duplicates but adds only to one workout, so a new custom exercise is not available for reuse. Decide whether “Custom” means reusable or one-off and make the UI/data behavior match.
+- [x] **HH-201 (P1) Finish custom exercise library wiring.** “Custom” now means reusable: creating one normalizes and persists a library template, then adds the configured exercise to the current workout. The operation is atomic—save failure leaves both the library and workout unchanged and is shown inline. The library owns case/whitespace-insensitive duplicate protection, keeps templates deterministically sorted, and has temporary-directory persistence coverage.
 
 - [ ] **HH-202 (P1) Allow set correction.** Add edit/delete controls for logged sets, recalculate completion presentation, and persist changes immediately. Confirm destructive history edits where appropriate.
 

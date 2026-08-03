@@ -57,6 +57,9 @@ Completed in this phase:
 - Made imports transactional at the app-state level: supported schemas and the complete routine/history/library graph are validated before mutation, a timestamped pre-import snapshot is retained, candidate files are saved before memory is committed, and failed saves trigger rollback attempts. Imported history/library order is deterministic and Settings reports specific import errors.
 - Made workout completion current-state based and idempotent: completion resolves the routine/workout graph by IDs inside the store, rejects missing or previously completed workouts, and the session UI requires an explicit acknowledgement of each planned exercise with no logged sets.
 
+- Centralized exercise domain validation across configure, edit, custom-exercise, set-logging, and import flows. It normalizes user-entered names/rep ranges, rejects impossible set/repetition counts and invalid weights, and gives inline feedback before data is saved.
+- Added active-session state normalization after routine load, migration, and imported-state application. Invalid routine IDs clear the session; invalid workout IDs return to the valid routine. Legacy migration only completes after persisted output succeeds, while unreadable legacy files remain intact and surface a migration-specific error for retry.
+
 Verification note: app and XCTest sources type-check in the terminal environment. The user has also built and installed the app in an interactive iPhone simulator, while terminal `xcodebuild` remains blocked by a separate CoreSimulator-runtime issue. XCTest execution has not yet been recorded.
 
 Exit criteria:
@@ -82,6 +85,10 @@ Scope:
 - Add routine, workout, and exercise reordering.
 - Improve workout-completion validation and skipped-exercise messaging.
 - Review category editing and duplicate exercise handling.
+
+Completed:
+
+- Defined custom exercises as reusable library entries. Creating one saves a normalized “Custom” template tagged with the selected category, immediately adds it to the current workout, and prevents case/whitespace duplicate names at the library boundary. A failed save rolls the template back and keeps the workout unchanged.
 
 Exit criteria:
 

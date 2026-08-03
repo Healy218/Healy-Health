@@ -135,24 +135,41 @@ enum AppImportValidator {
     }
 
     private static func validate(_ exercise: Exercise) throws {
-        try requireText(exercise.name, named: "exercise name")
-        try requireText(exercise.targetReps, named: "exercise target reps")
-        guard exercise.targetSets > 0 else {
-            throw ImportError.invalidData("an exercise has zero or negative target sets")
+        do {
+            _ = try ExerciseDomainValidation.configuration(
+                name: exercise.name,
+                targetSets: exercise.targetSets,
+                targetReps: exercise.targetReps,
+                currentWeight: exercise.currentWeight
+            )
+        } catch let error as ExerciseValidationError {
+            throw ImportError.invalidData(importErrorDescription(for: error, isSetLog: false))
         }
-        guard exercise.currentWeight.isFinite, exercise.currentWeight >= 0 else {
-            throw ImportError.invalidData("an exercise has an invalid weight")
-        }
+
         for log in exercise.logs {
-            guard log.weight.isFinite, log.weight >= 0 else {
-                throw ImportError.invalidData("a set log has an invalid weight")
-            }
-            guard log.reps > 0 else {
-                throw ImportError.invalidData("a set log has zero or negative reps")
+            do {
+                _ = try ExerciseDomainValidation.setLog(weight: log.weight, reps: log.reps)
+            } catch let error as ExerciseValidationError {
+                throw ImportError.invalidData(importErrorDescription(for: error, isSetLog: true))
             }
             guard log.completedDate.timeIntervalSinceReferenceDate.isFinite else {
                 throw ImportError.invalidData("a set log has an invalid date")
             }
+        }
+    }
+
+    private static func importErrorDescription(for error: ExerciseValidationError, isSetLog: Bool) -> String {
+        switch error {
+        case .emptyName:
+            return "an exercise name is empty"
+        case .invalidTargetSets:
+            return "an exercise has zero or negative target sets"
+        case .emptyTargetReps:
+            return "an exercise target reps is empty"
+        case .invalidWeight:
+            return isSetLog ? "a set log has an invalid weight" : "an exercise has an invalid weight"
+        case .invalidLogReps:
+            return "a set log has zero or negative reps"
         }
     }
 

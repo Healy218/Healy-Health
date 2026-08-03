@@ -12,19 +12,46 @@ struct AddCustomExerciseView: View {
     @State private var targetSets: String = "3"
     @State private var targetReps: String = "8-12"
     @State private var selectedCategory: ExerciseCategory = .weightlifting
+    @State private var libraryErrorMessage: String?
 
     private var theme: AppTheme { themeManager.current }
 
     var isDuplicate: Bool {
-        let trimmed = exerciseName.trimmingCharacters(in: .whitespaces).lowercased()
-        return !trimmed.isEmpty && exerciseManager.exercises.contains { $0.name.lowercased() == trimmed }
+        let normalizedName = ExerciseDomainValidation.trimmedText(exerciseName).lowercased()
+        return !normalizedName.isEmpty && exerciseManager.exercises.contains {
+            ExerciseDomainValidation.trimmedText($0.name).lowercased() == normalizedName
+        }
+    }
+
+    private var validatedConfiguration: Result<ValidatedExerciseConfiguration, ExerciseValidationError> {
+        guard let sets = Int(targetSets) else { return .failure(.invalidTargetSets) }
+        do {
+            return .success(try ExerciseDomainValidation.configuration(
+                name: exerciseName,
+                targetSets: sets,
+                targetReps: targetReps,
+                currentWeight: 0
+            ))
+        } catch let error as ExerciseValidationError {
+            return .failure(error)
+        } catch {
+            return .failure(.invalidWeight)
+        }
     }
 
     var isFormValid: Bool {
-        !exerciseName.trimmingCharacters(in: .whitespaces).isEmpty &&
-        Int(targetSets) != nil &&
-        !targetReps.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !isDuplicate
+        if case .success = validatedConfiguration { return !isDuplicate }
+        return false
+    }
+
+    private var validationMessage: String? {
+        if let libraryErrorMessage { return libraryErrorMessage }
+        if isDuplicate { return nil }
+        if case .failure(let error) = validatedConfiguration {
+            if error == .emptyName && exerciseName.isEmpty { return nil }
+            return error.localizedDescription
+        }
+        return nil
     }
 
     var body: some View {
@@ -87,6 +114,13 @@ struct AddCustomExerciseView: View {
             fieldRow(label: "Sets", placeholder: "e.g. 3", text: $targetSets, keyboard: .numberPad)
             Divider().padding(.leading)
             fieldRow(label: "Rep Range", placeholder: "e.g. 8-12", text: $targetReps, keyboard: .default)
+            if let validationMessage {
+                Text(validationMessage)
+                    .font(.custom("ChalkboardSE-Regular", size: 13))
+                    .foregroundColor(.red)
+                    .padding(.horizontal)
+                    .padding(.bottom, 10)
+            }
         }
         .background(theme.rowBackground)
         .cornerRadius(14)
@@ -124,10 +158,32 @@ struct AddCustomExerciseView: View {
     }
 
     private func addExercise() {
-        let name = exerciseName.trimmingCharacters(in: .whitespaces)
-        let reps = targetReps.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty, let sets = Int(targetSets), !reps.isEmpty else { return }
-        onAdd(Exercise(name: name, targetSets: sets, targetReps: reps, currentWeight: 0.0, category: selectedCategory))
+        guard case .success(let configuration) = validatedConfiguration, !isDuplicate else { return }
+        let template = ExerciseTemplate(
+            name: configuration.name,
+            primaryMuscleGroup: selectedCategory.displayName,
+            equipmentType: "Custom"
+        )
+        switch exerciseManager.addExercise(template) {
+        case .added:
+            break
+        case .invalidName:
+            libraryErrorMessage = "Enter an exercise name."
+            return
+        case .duplicateName:
+            libraryErrorMessage = "An exercise with this name already exists in the library."
+            return
+        case .persistenceFailed:
+            libraryErrorMessage = "Couldn’t save this custom exercise. Please try again."
+            return
+        }
+        onAdd(Exercise(
+            name: configuration.name,
+            targetSets: configuration.targetSets,
+            targetReps: configuration.targetReps,
+            currentWeight: configuration.currentWeight,
+            category: selectedCategory
+        ))
         dismiss()
     }
 }

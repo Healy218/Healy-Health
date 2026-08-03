@@ -33,6 +33,7 @@ struct SetInputView: View {
     @Binding var selectedDuration: Double
     @Binding var showCustomTimerAlert: Bool
     var isCustomDuration: Bool
+    var validationMessage: String?
     var onLogSet: () -> Void
     @EnvironmentObject var themeManager: ThemeManager
 
@@ -83,6 +84,14 @@ struct SetInputView: View {
                     .background(theme.onPrimaryText).cornerRadius(10)
             }
             .padding(.horizontal)
+
+            if let validationMessage {
+                Text(validationMessage)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
         }
         .padding(.vertical)
     }

@@ -21,6 +21,7 @@ enum PersistenceResource: String {
 enum PersistenceOperation: String {
     case load
     case save
+    case migration
 }
 
 struct PersistenceError: LocalizedError, Identifiable {
@@ -38,6 +39,8 @@ struct PersistenceError: LocalizedError, Identifiable {
             return "Couldn’t load your \(resource.displayName)."
         case .save:
             return "Couldn’t save your \(resource.displayName)."
+        case .migration:
+            return "Couldn’t migrate your legacy \(resource.displayName)."
         }
     }
 
@@ -47,6 +50,8 @@ struct PersistenceError: LocalizedError, Identifiable {
             return "The existing file was left unchanged. Please keep the app open and try again after freeing storage or restoring a backup."
         case .save:
             return "No existing saved file was overwritten. Please keep the app open and try again after freeing storage."
+        case .migration:
+            return "Your legacy data was left unchanged. Please keep the app open and try again after freeing storage or restoring a backup."
         }
     }
 }
@@ -165,46 +170,76 @@ class RoutineStore: ObservableObject {
         var focus: String
         var exercises: [Exercise]
     }
+
+    private struct LegacyMigrationReadError: LocalizedError {
+        let fileName: String
+        let underlyingError: Error
+
+        var errorDescription: String? {
+            "Couldn’t read \(fileName): \(underlyingError.localizedDescription)"
+        }
+    }
     
     private func performMigration() {
         var migratedRoutines: [Routine] = []
-        
         let urlSchedule = getDocumentsDirectory().appendingPathComponent(legacyScheduleFileName)
-        
-        // 1. Migrate Main Schedule
-        if let data = try? Data(contentsOf: urlSchedule),
-           let decoded = try? JSONDecoder().decode([LegacyWorkoutDay].self, from: data) {
-            let workouts = decoded.map { Workout(id: $0.id, name: $0.dayName, focus: $0.focus, exercises: $0.exercises) }
-            if !workouts.isEmpty {
-                let mainRoutine = Routine(name: "Legacy Weekly Schedule", workouts: workouts)
-                migratedRoutines.append(mainRoutine)
-            }
-        }
-        
-        // 2. Migrate Custom Workouts
         let urlCustom = getDocumentsDirectory().appendingPathComponent(legacyCustomWorkoutsFileName)
-        if let data = try? Data(contentsOf: urlCustom),
-           let decoded = try? JSONDecoder().decode([LegacyWorkoutDay].self, from: data) {
-            let workouts = decoded.map { Workout(id: $0.id, name: $0.dayName, focus: $0.focus, exercises: $0.exercises) }
-            if !workouts.isEmpty {
-                let customRoutine = Routine(name: "Legacy Custom Workouts", workouts: workouts)
-                migratedRoutines.append(customRoutine)
-            }
+
+        let scheduleDays: [LegacyWorkoutDay]?
+        switch readLegacyWorkouts(from: urlSchedule) {
+        case .success(let days):
+            scheduleDays = days
+        case .failure(let error):
+            recordPersistenceError(resource: .routines, operation: .migration, error: error)
+            return
         }
-        
-        // Save the migrated routines
+
+        let customDays: [LegacyWorkoutDay]?
+        switch readLegacyWorkouts(from: urlCustom) {
+        case .success(let days):
+            customDays = days
+        case .failure(let error):
+            recordPersistenceError(resource: .routines, operation: .migration, error: error)
+            return
+        }
+
+        appendMigratedRoutine(named: "Legacy Weekly Schedule", from: scheduleDays, to: &migratedRoutines)
+        appendMigratedRoutine(named: "Legacy Custom Workouts", from: customDays, to: &migratedRoutines)
+
         if migratedRoutines.isEmpty {
-            loadDefaultRoutines()
+            guard loadDefaultRoutines(immediatelyPersist: true) else { return }
         } else {
             self.routines = migratedRoutines
-            saveRoutines()
+            guard performSaveRoutines() else { return }
         }
-        
-        // 3. Keep History the same, just load it
+
         loadHistory()
-        
-        // Mark as migrated
         userDefaults.set(true, forKey: hasMigratedKey)
+    }
+
+    private func readLegacyWorkouts(from url: URL) -> Result<[LegacyWorkoutDay]?, Error> {
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return .success(nil)
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            return .success(try decode([LegacyWorkoutDay].self, from: data))
+        } catch {
+            return .failure(LegacyMigrationReadError(fileName: url.lastPathComponent, underlyingError: error))
+        }
+    }
+
+    private func appendMigratedRoutine(
+        named name: String,
+        from legacyDays: [LegacyWorkoutDay]?,
+        to routines: inout [Routine]
+    ) {
+        guard let legacyDays, !legacyDays.isEmpty else { return }
+        let workouts = legacyDays.map {
+            Workout(id: $0.id, name: $0.dayName, focus: $0.focus, exercises: $0.exercises)
+        }
+        routines.append(Routine(name: name, workouts: workouts))
     }
     
     // MARK: - Actions
@@ -406,6 +441,7 @@ class RoutineStore: ObservableObject {
         self.completedWorkouts = completedWorkouts
         self.activeRoutineId = activeRoutineId
         self.activeWorkoutId = activeWorkoutId
+        normalizeActiveState()
     }
 
     private func loadRoutines() {
@@ -452,15 +488,32 @@ class RoutineStore: ObservableObject {
     }
 
     private func loadActiveState() {
-        if let rIdStr = userDefaults.string(forKey: "activeRoutineId"), let rId = UUID(uuidString: rIdStr) {
-            activeRoutineId = rId
+        activeRoutineId = userDefaults.string(forKey: "activeRoutineId").flatMap(UUID.init(uuidString:))
+        activeWorkoutId = userDefaults.string(forKey: "activeWorkoutId").flatMap(UUID.init(uuidString:))
+        normalizeActiveState()
+    }
+
+    /// Repairs persisted active-session references after routines have been loaded or migrated.
+    /// A workout without its owning routine cannot be resumed, while a missing workout simply
+    /// returns the person to the valid routine overview.
+    private func normalizeActiveState() {
+        guard let activeRoutineId,
+              let routine = routines.first(where: { $0.id == activeRoutineId }) else {
+            if self.activeRoutineId != nil || self.activeWorkoutId != nil {
+                self.activeRoutineId = nil
+                self.activeWorkoutId = nil
+            }
+            return
         }
-        if let wIdStr = userDefaults.string(forKey: "activeWorkoutId"), let wId = UUID(uuidString: wIdStr) {
-            activeWorkoutId = wId
+
+        guard let activeWorkoutId else { return }
+        if !routine.workouts.contains(where: { $0.id == activeWorkoutId }) {
+            self.activeWorkoutId = nil
         }
     }
     
-    private func loadDefaultRoutines() {
+    @discardableResult
+    private func loadDefaultRoutines(immediatelyPersist: Bool = false) -> Bool {
         let defaultWorkouts = [
             Workout(
                 name: "Push Day",
@@ -498,6 +551,10 @@ class RoutineStore: ObservableObject {
         
         let defaultRoutine = Routine(name: "Push Pull Legs", workouts: defaultWorkouts)
         self.routines = [defaultRoutine]
+        if immediatelyPersist {
+            return performSaveRoutines()
+        }
         saveRoutines()
+        return true
     }
 }

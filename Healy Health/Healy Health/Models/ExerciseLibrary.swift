@@ -11,6 +11,13 @@ struct ExerciseTemplate: Identifiable, Codable {
     var equipmentType: String 
 }
 
+enum ExerciseLibraryAddResult: Equatable {
+    case added
+    case invalidName
+    case duplicateName
+    case persistenceFailed
+}
+
 class ExerciseManager: ObservableObject {
     static let shared = ExerciseManager()
     
@@ -18,13 +25,16 @@ class ExerciseManager: ObservableObject {
     @Published private(set) var persistenceError: PersistenceError?
     
     private let libraryFileName = "exercise_library.json"
+    private let documentsDirectory: URL
     
-    private init() {
+    init(documentsDirectory: URL? = nil) {
+        self.documentsDirectory = documentsDirectory
+            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         loadLibrary()
     }
     
     private func getDocumentsDirectory() -> URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        documentsDirectory
     }
 
     /// Writes an import candidate without changing the currently displayed library.
@@ -68,11 +78,28 @@ class ExerciseManager: ObservableObject {
         }
     }
     
-    func addExercise(_ template: ExerciseTemplate) {
-        exercises.append(template)
-        // Sort alphabetically
-        exercises.sort { $0.name < $1.name }
-        saveLibrary()
+    /// Adds a reusable custom exercise to the library. Names are normalized and unique regardless
+    /// of case or surrounding whitespace, so the library cannot accumulate accidental duplicates.
+    @discardableResult
+    func addExercise(_ template: ExerciseTemplate) -> ExerciseLibraryAddResult {
+        let normalizedName = ExerciseDomainValidation.trimmedText(template.name)
+        guard !normalizedName.isEmpty else { return .invalidName }
+        guard !exercises.contains(where: {
+            ExerciseDomainValidation.trimmedText($0.name).localizedCaseInsensitiveCompare(normalizedName) == .orderedSame
+        }) else {
+            return .duplicateName
+        }
+
+        let previousExercises = exercises
+        var normalizedTemplate = template
+        normalizedTemplate.name = normalizedName
+        exercises.append(normalizedTemplate)
+        exercises.sort(by: templateNameAscending)
+        guard saveLibrary() else {
+            exercises = previousExercises
+            return .persistenceFailed
+        }
+        return .added
     }
     
     private func loadDefaultExercises() {
@@ -100,7 +127,12 @@ class ExerciseManager: ObservableObject {
             ExerciseTemplate(name: "Hill Sprints", primaryMuscleGroup: "Cardio", equipmentType: "Treadmill/Track")
         ]
         
-        exercises.sort { $0.name < $1.name }
+        exercises.sort(by: templateNameAscending)
+    }
+
+    private func templateNameAscending(_ lhs: ExerciseTemplate, _ rhs: ExerciseTemplate) -> Bool {
+        let comparison = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+        return comparison == .orderedSame ? lhs.id.uuidString < rhs.id.uuidString : comparison == .orderedAscending
     }
 
     func clearPersistenceError() {
