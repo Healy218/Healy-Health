@@ -26,6 +26,17 @@ class ExerciseManager: ObservableObject {
     private func getDocumentsDirectory() -> URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
+
+    /// Writes an import candidate without changing the currently displayed library.
+    func persistImportCandidate(_ templates: [ExerciseTemplate]) throws {
+        let data = try JSONEncoder().encode(templates)
+        let url = getDocumentsDirectory().appendingPathComponent(libraryFileName)
+        try data.write(to: url, options: .atomic)
+    }
+
+    func applyImportedLibrary(_ templates: [ExerciseTemplate]) {
+        exercises = templates
+    }
     
     @discardableResult
     func saveLibrary() -> Bool {

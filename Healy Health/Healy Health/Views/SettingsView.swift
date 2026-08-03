@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var showExportErrorAlert = false
     @State private var showImportSuccessAlert = false
     @State private var showImportErrorAlert = false
+    @State private var importErrorMessage = "The selected file could not be imported."
 
     private var theme: AppTheme { themeManager.current }
     private var totalWorkoutsCompleted: Int { store.completedWorkouts.count }
@@ -96,10 +97,22 @@ struct SettingsView: View {
         .fileImporter(isPresented: $isImporting, allowedContentTypes: [UTType.json]) { result in
             switch result {
             case .success(let url):
-                guard url.startAccessingSecurityScopedResource() else { showImportErrorAlert = true; return }
+                guard url.startAccessingSecurityScopedResource() else {
+                    importErrorMessage = "The selected file could not be accessed."
+                    showImportErrorAlert = true
+                    return
+                }
                 defer { url.stopAccessingSecurityScopedResource() }
-                if ExportManager.shared.importJSONData(from: url) { showImportSuccessAlert = true } else { showImportErrorAlert = true }
-            case .failure: showImportErrorAlert = true
+                switch ExportManager.shared.importJSONData(from: url) {
+                case .success:
+                    showImportSuccessAlert = true
+                case .failure(let error):
+                    importErrorMessage = error.localizedDescription
+                    showImportErrorAlert = true
+                }
+            case .failure:
+                importErrorMessage = "The selected file could not be accessed."
+                showImportErrorAlert = true
             }
         }
         .alert("Export Successful", isPresented: $showExportSuccessAlert) { Button("OK", role: .cancel) { } }
@@ -109,7 +122,7 @@ struct SettingsView: View {
         .alert("Import Successful", isPresented: $showImportSuccessAlert) { Button("OK", role: .cancel) { } }
             message: { Text("Your app data has been fully restored.") }
         .alert("Import Failed", isPresented: $showImportErrorAlert) { Button("OK", role: .cancel) { } }
-            message: { Text("The file selected was invalid or could not be read.") }
+            message: { Text(importErrorMessage) }
     }
 }
 

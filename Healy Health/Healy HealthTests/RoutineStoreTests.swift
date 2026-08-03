@@ -267,6 +267,68 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertTrue(cancelledRequestIDs[0].hasPrefix("restTimer-"))
     }
 
+    func testImportValidationRejectsDuplicateWorkoutIdentifiers() {
+        let duplicateWorkoutID = UUID()
+        let routine = Routine(
+            name: "Strength",
+            workouts: [
+                Workout(id: duplicateWorkoutID, name: "Upper", focus: "Upper", exercises: []),
+                Workout(id: duplicateWorkoutID, name: "Lower", focus: "Lower", exercises: [])
+            ]
+        )
+        let export = makeExport(routines: [routine])
+
+        XCTAssertThrowsError(try AppImportValidator.normalizedCandidate(from: export)) { error in
+            XCTAssertEqual(error as? ImportError, .invalidData("duplicate workout identifiers"))
+        }
+    }
+
+    func testImportValidationRejectsDanglingActiveWorkout() {
+        let routine = makeRoutine(name: "Strength")
+        let export = AppExportData(
+            schemaVersion: 1,
+            exportedAt: Date(),
+            routines: [routine],
+            completedWorkouts: [],
+            exerciseLibrary: [],
+            selectedTheme: .light,
+            activeRoutineId: routine.id,
+            activeWorkoutId: UUID()
+        )
+
+        XCTAssertThrowsError(try AppImportValidator.normalizedCandidate(from: export)) { error in
+            XCTAssertEqual(
+                error as? ImportError,
+                .invalidData("the active workout does not belong to the active routine")
+            )
+        }
+    }
+
+    func testImportValidationSortsHistoryNewestFirstWithStableTieBreak() throws {
+        let older = CompletedWorkout(
+            date: Date(timeIntervalSinceReferenceDate: 1),
+            dayName: "Older",
+            focus: "Full body",
+            exercises: [],
+            routineId: nil,
+            workoutId: nil
+        )
+        let newer = CompletedWorkout(
+            date: Date(timeIntervalSinceReferenceDate: 2),
+            dayName: "Newer",
+            focus: "Full body",
+            exercises: [],
+            routineId: nil,
+            workoutId: nil
+        )
+
+        let normalized = try AppImportValidator.normalizedCandidate(
+            from: makeExport(completedWorkouts: [older, newer])
+        )
+
+        XCTAssertEqual(normalized.completedWorkouts.map(\.id), [newer.id, older.id])
+    }
+
     private func makeEmptyStore() -> RoutineStore {
         RoutineStore(
             documentsDirectory: storageDirectory,
@@ -279,6 +341,22 @@ final class RoutineStoreTests: XCTestCase {
         Routine(
             name: name,
             workouts: [Workout(name: "Workout", focus: "Focus", exercises: [])]
+        )
+    }
+
+    private func makeExport(
+        routines: [Routine] = [],
+        completedWorkouts: [CompletedWorkout] = []
+    ) -> AppExportData {
+        AppExportData(
+            schemaVersion: 1,
+            exportedAt: Date(),
+            routines: routines,
+            completedWorkouts: completedWorkouts,
+            exerciseLibrary: [],
+            selectedTheme: .light,
+            activeRoutineId: nil,
+            activeWorkoutId: nil
         )
     }
 }

@@ -54,6 +54,7 @@ Completed in this phase:
 - Made routine and workout deletion ID-based, preventing multi-row index shifts and clearing invalid active state; covered single/multi-routine and active-workout deletion.
 - Hardened routine, history, and exercise-library persistence with atomic writes and visible failure state. Routine/history save requests are now independent, backgrounding flushes pending store data, and failed/corrupt files are retained rather than silently replaced.
 - Hardened the rest timer: durations are finite, positive, and capped at 24 hours; notification permission is requested at timer use; and authorization/scheduling failures reach the user without stopping the visible countdown. A backgrounded timer continues, while leaving/completing its exercise or launching a new app process clears its pending notification.
+- Made imports transactional at the app-state level: supported schemas and the complete routine/history/library graph are validated before mutation, a timestamped pre-import snapshot is retained, candidate files are saved before memory is committed, and failed saves trigger rollback attempts. Imported history/library order is deterministic and Settings reports specific import errors.
 
 Verification note: app and XCTest sources type-check in the terminal environment. The user has also built and installed the app in an interactive iPhone simulator, while terminal `xcodebuild` remains blocked by a separate CoreSimulator-runtime issue. XCTest execution has not yet been recorded.
 
@@ -98,9 +99,9 @@ Scope:
 
 - Introduce stable exercise identity so renames and same-name exercises do not split or merge analytics incorrectly.
 - Define a single meaning of “session” and use it consistently in summary counts and charts.
-- Sort imported and loaded history deterministically.
+- Sort loaded history deterministically and use explicit sorted views; imports already normalize newest-first ordering.
 - Add history deletion/correction with confirmation.
-- Version and validate exports; document backward-compatibility guarantees.
+- Version and validate exports; document backward-compatibility guarantees and a supported recovery path for retained pre-import backups.
 - Display the app version from the bundle rather than hard-coded copy.
 - Clarify routine versus workout metadata in history details.
 

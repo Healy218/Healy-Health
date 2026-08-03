@@ -13,6 +13,172 @@ struct AppExportData: Codable {
     let activeWorkoutId: UUID?
 }
 
+enum ImportError: LocalizedError, Equatable {
+    case unreadableFile
+    case unsupportedSchema(Int)
+    case invalidData(String)
+    case backupFailed
+    case persistenceFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .unreadableFile:
+            return "The selected file could not be read or is not a Healy Health export."
+        case .unsupportedSchema(let version):
+            return "This export uses unsupported data version \(version)."
+        case .invalidData(let reason):
+            return "This export contains invalid data: \(reason)"
+        case .backupFailed:
+            return "Your current data could not be backed up, so nothing was imported."
+        case .persistenceFailed:
+            return "The import could not be saved. Your previous data remains available in the pre-import backup."
+        }
+    }
+}
+
+enum AppImportValidator {
+    static let currentSchemaVersion = 1
+
+    static func normalizedCandidate(from export: AppExportData) throws -> AppExportData {
+        guard (0...currentSchemaVersion).contains(export.schemaVersion) else {
+            throw ImportError.unsupportedSchema(export.schemaVersion)
+        }
+        try validateRoutines(export.routines)
+        try validateCompletedWorkouts(export.completedWorkouts)
+        try validateTemplates(export.exerciseLibrary)
+        try validateActiveReferences(
+            routines: export.routines,
+            activeRoutineId: export.activeRoutineId,
+            activeWorkoutId: export.activeWorkoutId
+        )
+
+        return AppExportData(
+            schemaVersion: export.schemaVersion,
+            exportedAt: export.exportedAt,
+            routines: export.routines,
+            completedWorkouts: export.completedWorkouts.sorted(by: newestFirst),
+            exerciseLibrary: export.exerciseLibrary.sorted(by: templateNameAscending),
+            selectedTheme: export.selectedTheme,
+            activeRoutineId: export.activeRoutineId,
+            activeWorkoutId: export.activeWorkoutId
+        )
+    }
+
+    private static func validateRoutines(_ routines: [Routine]) throws {
+        try requireUnique(routines.map(\.id), named: "routine")
+        var workoutIDs: [UUID] = []
+        var exerciseIDs: [UUID] = []
+        var logIDs: [UUID] = []
+        for routine in routines {
+            try requireText(routine.name, named: "routine name")
+            guard routine.dateCreated.timeIntervalSinceReferenceDate.isFinite else {
+                throw ImportError.invalidData("a routine has an invalid creation date")
+            }
+            for workout in routine.workouts {
+                workoutIDs.append(workout.id)
+                try requireText(workout.name, named: "workout name")
+                try requireText(workout.focus, named: "workout focus")
+                for exercise in workout.exercises {
+                    exerciseIDs.append(exercise.id)
+                    try validate(exercise)
+                    logIDs.append(contentsOf: exercise.logs.map(\.id))
+                }
+            }
+        }
+        try requireUnique(workoutIDs, named: "workout")
+        try requireUnique(exerciseIDs, named: "exercise")
+        try requireUnique(logIDs, named: "set log")
+    }
+
+    private static func validateCompletedWorkouts(_ workouts: [CompletedWorkout]) throws {
+        try requireUnique(workouts.map(\.id), named: "completed workout")
+        var exerciseIDs: [UUID] = []
+        var logIDs: [UUID] = []
+        for workout in workouts {
+            guard workout.date.timeIntervalSinceReferenceDate.isFinite else {
+                throw ImportError.invalidData("a completed workout has an invalid date")
+            }
+            try requireText(workout.dayName, named: "completed workout name")
+            try requireText(workout.focus, named: "completed workout focus")
+            for exercise in workout.exercises {
+                exerciseIDs.append(exercise.id)
+                try validate(exercise)
+                logIDs.append(contentsOf: exercise.logs.map(\.id))
+            }
+        }
+        try requireUnique(exerciseIDs, named: "history exercise")
+        try requireUnique(logIDs, named: "history set log")
+    }
+
+    private static func validateTemplates(_ templates: [ExerciseTemplate]) throws {
+        try requireUnique(templates.map(\.id), named: "exercise library item")
+        for template in templates {
+            try requireText(template.name, named: "exercise library item name")
+            try requireText(template.primaryMuscleGroup, named: "exercise library muscle group")
+            try requireText(template.equipmentType, named: "exercise library equipment")
+        }
+    }
+
+    private static func validateActiveReferences(routines: [Routine], activeRoutineId: UUID?, activeWorkoutId: UUID?) throws {
+        guard let activeRoutineId else {
+            guard activeWorkoutId == nil else {
+                throw ImportError.invalidData("an active workout is missing its active routine")
+            }
+            return
+        }
+        guard let routine = routines.first(where: { $0.id == activeRoutineId }) else {
+            throw ImportError.invalidData("the active routine does not exist")
+        }
+        if let activeWorkoutId, !routine.workouts.contains(where: { $0.id == activeWorkoutId }) {
+            throw ImportError.invalidData("the active workout does not belong to the active routine")
+        }
+    }
+
+    private static func validate(_ exercise: Exercise) throws {
+        try requireText(exercise.name, named: "exercise name")
+        try requireText(exercise.targetReps, named: "exercise target reps")
+        guard exercise.targetSets > 0 else {
+            throw ImportError.invalidData("an exercise has zero or negative target sets")
+        }
+        guard exercise.currentWeight.isFinite, exercise.currentWeight >= 0 else {
+            throw ImportError.invalidData("an exercise has an invalid weight")
+        }
+        for log in exercise.logs {
+            guard log.weight.isFinite, log.weight >= 0 else {
+                throw ImportError.invalidData("a set log has an invalid weight")
+            }
+            guard log.reps > 0 else {
+                throw ImportError.invalidData("a set log has zero or negative reps")
+            }
+            guard log.completedDate.timeIntervalSinceReferenceDate.isFinite else {
+                throw ImportError.invalidData("a set log has an invalid date")
+            }
+        }
+    }
+
+    private static func requireText(_ value: String, named name: String) throws {
+        guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw ImportError.invalidData("a \(name) is empty")
+        }
+    }
+
+    private static func requireUnique(_ ids: [UUID], named name: String) throws {
+        guard Set(ids).count == ids.count else {
+            throw ImportError.invalidData("duplicate \(name) identifiers")
+        }
+    }
+
+    private static func newestFirst(_ lhs: CompletedWorkout, _ rhs: CompletedWorkout) -> Bool {
+        if lhs.date != rhs.date { return lhs.date > rhs.date }
+        return lhs.id.uuidString < rhs.id.uuidString
+    }
+
+    private static func templateNameAscending(_ lhs: ExerciseTemplate, _ rhs: ExerciseTemplate) -> Bool {
+        let result = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+        return result == .orderedSame ? lhs.id.uuidString < rhs.id.uuidString : result == .orderedAscending
+    }
+}
+
 struct AppExportDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.json] }
 
@@ -74,27 +240,86 @@ final class ExportManager {
         }
     }
 
-    func importJSONData(from url: URL) -> Bool {
-        guard let data = try? Data(contentsOf: url) else { return false }
+    func importJSONData(from url: URL) -> Result<Void, ImportError> {
+        guard let data = try? Data(contentsOf: url) else { return .failure(.unreadableFile) }
         return importJSONData(from: data)
     }
 
-    func importJSONData(from data: Data) -> Bool {
-        guard let decoded = decodeExportData(from: data) else { return false }
+    func importJSONData(from data: Data) -> Result<Void, ImportError> {
+        guard let decoded = decodeExportData(from: data) else { return .failure(.unreadableFile) }
 
-        RoutineStore.shared.routines = decoded.routines
-        RoutineStore.shared.completedWorkouts = decoded.completedWorkouts
-        RoutineStore.shared.activeRoutineId = decoded.activeRoutineId
-        RoutineStore.shared.activeWorkoutId = decoded.activeWorkoutId
-        RoutineStore.shared.performSaveHistory()
-        RoutineStore.shared.saveRoutines()
+        let candidate: AppExportData
+        do {
+            candidate = try AppImportValidator.normalizedCandidate(from: decoded)
+        } catch let error as ImportError {
+            return .failure(error)
+        } catch {
+            return .failure(.invalidData("validation could not be completed"))
+        }
 
-        ExerciseManager.shared.exercises = decoded.exerciseLibrary.sorted { $0.name < $1.name }
-        ExerciseManager.shared.saveLibrary()
+        let store = RoutineStore.shared
+        let library = ExerciseManager.shared
+        let previous = AppExportData(
+            schemaVersion: AppImportValidator.currentSchemaVersion,
+            exportedAt: Date(),
+            routines: store.routines,
+            completedWorkouts: store.completedWorkouts,
+            exerciseLibrary: library.exercises,
+            selectedTheme: ThemeManager.shared.current,
+            activeRoutineId: store.activeRoutineId,
+            activeWorkoutId: store.activeWorkoutId
+        )
 
-        ThemeManager.shared.current = decoded.selectedTheme
+        guard createBackup(previous, in: store.persistenceDirectory) else {
+            return .failure(.backupFailed)
+        }
 
-        return true
+        do {
+            try store.persistImportCandidate(
+                routines: candidate.routines,
+                completedWorkouts: candidate.completedWorkouts
+            )
+            try library.persistImportCandidate(candidate.exerciseLibrary)
+        } catch {
+            // Each write is atomic. Restore any earlier candidate files before returning, and
+            // retain the pre-import snapshot for recovery if a restore write also fails.
+            try? store.persistImportCandidate(
+                routines: previous.routines,
+                completedWorkouts: previous.completedWorkouts
+            )
+            try? library.persistImportCandidate(previous.exerciseLibrary)
+            return .failure(.persistenceFailed)
+        }
+
+        store.applyImportedState(
+            routines: candidate.routines,
+            completedWorkouts: candidate.completedWorkouts,
+            activeRoutineId: candidate.activeRoutineId,
+            activeWorkoutId: candidate.activeWorkoutId
+        )
+        library.applyImportedLibrary(candidate.exerciseLibrary)
+        ThemeManager.shared.current = candidate.selectedTheme
+        return .success(())
+    }
+
+    private func createBackup(_ export: AppExportData, in directory: URL) -> Bool {
+        let backupsDirectory = directory.appendingPathComponent("Import Backups", isDirectory: true)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd_HHmmss_SSS"
+        let filename = "HealyHealth_PreImport_\(formatter.string(from: Date())).json"
+
+        do {
+            try FileManager.default.createDirectory(at: backupsDirectory, withIntermediateDirectories: true)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            encoder.dateEncodingStrategy = .iso8601
+            let data = try encoder.encode(export)
+            try data.write(to: backupsDirectory.appendingPathComponent(filename), options: .atomic)
+            return true
+        } catch {
+            return false
+        }
     }
 
     private func decodeExportData(from data: Data) -> AppExportData? {

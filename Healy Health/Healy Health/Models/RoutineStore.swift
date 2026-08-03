@@ -96,6 +96,10 @@ class RoutineStore: ObservableObject {
     private let legacyScheduleFileName = "workout_schedule.json"
     private let legacyCustomWorkoutsFileName = "custom_workouts.json"
     private let hasMigratedKey = "hasMigratedToRoutines"
+
+    /// The directory containing the app's routine and history files. Import/export uses this
+    /// to keep its recovery snapshots alongside the data they protect.
+    var persistenceDirectory: URL { documentsDirectory }
     
     init(
         documentsDirectory: URL? = nil,
@@ -340,15 +344,39 @@ class RoutineStore: ObservableObject {
     @discardableResult
     private func save<T: Encodable>(_ value: T, to fileName: String, resource: PersistenceResource) -> Bool {
         do {
-            let data = try iso8601Encoder.encode(value)
-            let url = getDocumentsDirectory().appendingPathComponent(fileName)
-            try dataWriter(data, url)
+            try write(value, to: fileName)
             clearPersistenceError(for: resource)
             return true
         } catch {
             recordPersistenceError(resource: resource, operation: .save, error: error)
             return false
         }
+    }
+
+    private func write<T: Encodable>(_ value: T, to fileName: String) throws {
+        let data = try iso8601Encoder.encode(value)
+        let url = getDocumentsDirectory().appendingPathComponent(fileName)
+        try dataWriter(data, url)
+    }
+
+    /// Writes an import candidate without changing the published store. Keeping the write and
+    /// the in-memory commit separate lets `ExportManager` roll back if another import resource
+    /// cannot be saved.
+    func persistImportCandidate(routines: [Routine], completedWorkouts: [CompletedWorkout]) throws {
+        try write(routines, to: routinesFileName)
+        try write(completedWorkouts, to: historyFileName)
+    }
+
+    func applyImportedState(
+        routines: [Routine],
+        completedWorkouts: [CompletedWorkout],
+        activeRoutineId: UUID?,
+        activeWorkoutId: UUID?
+    ) {
+        self.routines = routines
+        self.completedWorkouts = completedWorkouts
+        self.activeRoutineId = activeRoutineId
+        self.activeWorkoutId = activeWorkoutId
     }
 
     private func loadRoutines() {

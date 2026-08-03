@@ -6,70 +6,69 @@ Current roadmap phase: Phase 1 — Data safety and crash prevention
 
 ## Completed this session
 
-- **HH-103:** Hardened the rest timer before `UNTimeIntervalNotificationTrigger` creation. Durations must be finite, greater than zero, and no longer than 24 hours.
-- Moved notification permission from app launch to the first rest-timer use. Authorization denial and notification-center scheduling failures are returned to the exercise screen as a visible notice while the in-app countdown continues.
-- Defined the timer lifecycle: it continues while the app is backgrounded; leaving or completing an exercise cancels its timer; a newly launched process clears any pending rest-timer notifications because timer state is view-local and cannot be resumed safely.
-- Made each timer notification identifiable and cancellation-safe, including when the user leaves while an authorization request is still in flight. Added regression coverage for duration bounds, contextual authorization, notification-center failures, and cancellation during authorization.
-- Reconciled `TODO.md`, `ROADMAP.md`, and this handoff with the implementation.
+- **HH-104:** Made imports transactional and validation-first. Supported schemas are 0 (legacy) and 1; imports reject duplicate identifiers, blank required text, invalid numeric/log values, and active routine/workout references that do not resolve within the imported routine graph.
+- Before any import write, the app saves a timestamped pre-import JSON snapshot at `Documents/Import Backups/HealyHealth_PreImport_*.json`. Routine, history, and exercise-library candidates are persisted before published state changes; a failure attempts rollback and retains the snapshot for recovery.
+- Imported workout history now sorts newest-first, with UUID tie-breaking; the exercise library has deterministic case-insensitive name ordering. Settings presents the specific import error instead of a generic failure.
+- Added regression coverage for duplicate workout IDs, dangling active workouts, and import-history ordering.
+- Reconciled `TODO.md` and `ROADMAP.md`: HH-104 is complete; HH-303 now covers remaining load/UI ordering; HH-305 owns documenting or exposing pre-import-backup recovery.
 
 ## Next actions
 
-1. **HH-104:** Make import validation transactional with schema/graph checks, a recoverable backup, deterministic history ordering, and specific errors.
-2. **HH-105:** Make workout completion resolve current store state by ID, reject duplicate completion, and handle skipped/unlogged work explicitly.
-3. **HH-106:** Apply shared domain validation to configuration, editing, custom exercises, and set logging.
-4. **HH-107:** Repair active routine/workout IDs after every load and migration.
-5. **HH-100:** Run the `Healy HealthTests` target in the interactive Xcode/simulator environment and record its result before treating the persistence/timer regressions as runtime-tested.
+1. **HH-105:** Make workout completion resolve current store state by ID, reject duplicate completion, and handle skipped/unlogged work explicitly.
+2. **HH-106:** Apply shared domain validation to configuration, editing, custom exercises, and set logging.
+3. **HH-107:** Repair active routine/workout IDs after every load and migration.
+4. **HH-100:** Run the `Healy HealthTests` target in the interactive Xcode/simulator environment and record its result before treating the regressions as runtime-tested.
 
 ## Verification
 
-Passed in the terminal environment:
+Passed in the terminal environment on 2026-08-03:
 
 ```sh
 xcrun swiftc -typecheck -module-cache-path /tmp/HealyHealthSwiftModuleCache -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios16.0 -module-name Healy_Health "Healy Health"/*.swift "Healy Health"/Models/*.swift "Healy Health"/Views/*.swift "Healy Health"/Helpers/*.swift
 
-xcrun swiftc -emit-module -emit-module-path /tmp/HealyHealthTestModule/Healy_Health.swiftmodule -enable-testing -module-cache-path /tmp/HealyHealthSwiftModuleCache -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios16.0 -module-name Healy_Health "Healy Health"/*.swift "Healy Health"/Models/*.swift "Healy Health"/Views/*.swift "Healy Health"/Helpers/*.swift
+rm -rf /tmp/HealyHealthTestModule && mkdir -p /tmp/HealyHealthTestModule && xcrun swiftc -emit-module -emit-module-path /tmp/HealyHealthTestModule/Healy_Health.swiftmodule -enable-testing -module-cache-path /tmp/HealyHealthSwiftModuleCache -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios16.0 -module-name Healy_Health "Healy Health"/*.swift "Healy Health"/Models/*.swift "Healy Health"/Views/*.swift "Healy Health"/Helpers/*.swift
 
 xcrun swiftc -typecheck -module-cache-path /tmp/HealyHealthSwiftModuleCache -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios16.0 -I /tmp/HealyHealthTestModule -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/Frameworks "Healy HealthTests/RoutineStoreTests.swift"
 
-plutil -lint "Healy Health.xcodeproj/project.pbxproj"
-
 git -C .. diff --check
+
+plutil -lint "Healy Health.xcodeproj/project.pbxproj"
 
 xcodebuild -list -project "Healy Health.xcodeproj"
 ```
 
-All commands above completed successfully. `xcodebuild -list` reports the app and test targets but still logs the known CoreSimulator connection warnings. The app and test target sources type-check. XCTest execution still requires the interactive Xcode/simulator environment.
+All commands passed. `xcodebuild -list` reported the app and test targets but logged the known CoreSimulator connection warnings. XCTest execution remains unavailable in this terminal because CoreSimulator has no usable runtime; run the `Healy HealthTests` target from interactive Xcode/simulator.
 
 ## Known blockers and risks
 
-- The terminal CoreSimulator service has no usable runtime, so this shell cannot build assets or execute XCTest. Use the interactive Xcode simulator for test execution.
-- The rest timer deliberately does not survive process relaunch. This prevents stale notifications while active session/timer persistence remains deferred to HH-203.
-- HH-104 through HH-107 data-safety work remains. In particular, active IDs are not normalized after load/migration and import is not yet transactional.
+- The terminal CoreSimulator service has no usable runtime, so this shell cannot execute XCTest or complete simulator-based builds.
+- Retained pre-import backups are not yet discoverable/restorable in Settings; HH-305 now tracks the supported recovery path.
+- Active IDs are validated on import, but existing stored IDs are not normalized after routine/history load or migration (HH-107).
+- The rest timer deliberately does not survive process relaunch; this avoids stale notifications until persisted active-session/timer state is addressed in HH-203.
 
 ## Important decisions and context
 
-- Rest timers are allowed to notify while the app is backgrounded. The displayed deadline uses `Date`, so returning to the app recalculates the remaining time accurately.
-- The exercise screen owns timer state. Back navigation, Skip Rest, and Finish Exercise all cancel its notification; a new launch removes any outstanding rest-timer notifications rather than pretending to resume a missing countdown.
-- Timer notification requests use individual IDs. If navigation cancels a timer during a permission prompt, the delayed authorization callback cannot add that timer afterward.
-- Atomic `Data.write` is used for every routine, history, and exercise-library write. A failed save leaves a previous complete file in place.
-- A present-but-corrupt routine/history/library file is treated as an error, not as a signal to create defaults. Defaults are created only for a missing file.
-- `RoutineStore` accepts an injected `dataWriter` and save-debounce interval solely as deterministic test seams; production keeps the one-second debounce and atomic writer.
-- iOS has no reliable termination callback, so store flushing remains attached to the SwiftUI scene’s background transition.
+- Import schemas 0 and 1 are supported. Schema 0 is the legacy routines/history-only shape and preserves the current library/theme; future or negative versions are rejected.
+- Import failure never changes the published singleton state. Candidate file writes are atomic; if a later resource write fails, the app attempts to restore the previous files and leaves the pre-import snapshot in place.
+- Imported history ordering is normalized now; stored history load/UI ordering remains a separate HH-303 concern.
+- Atomic `Data.write` is used for routine, history, and exercise-library writes. A failed individual write leaves the prior complete file in place.
+- `RoutineStore` has injected storage/defaults/data-writer seams exclusively for deterministic tests; production retains a one-second debounce and atomic writer.
 - The git repository root is `/Users/healy218macbook/Coding/Fitness App`; the app workspace is its `Healy Health` subdirectory.
 
 ## Working-tree notes
 
-Pre-existing/user-environment changes preserved:
+Pre-existing/user-environment changes preserved and excluded from the commit:
 
 - `/Users/healy218macbook/Coding/Fitness App/.DS_Store`
 - `/Users/healy218macbook/Coding/Fitness App/AGimports/.DS_Store`
 - `/Users/healy218macbook/Coding/Fitness App/Healy Health/.DS_Store`
 - `/Users/healy218macbook/Coding/Fitness App/Healy Health/Healy Health.xcodeproj/project.xcworkspace/xcuserdata/healy218macbook.xcuserdatad/UserInterfaceState.xcuserstate`
 
-Current implementation/session changes:
+This session's commit scope:
 
-- `Healy Health/Healy_HealthApp.swift`
-- `Healy Health/Helpers/NotificationManager.swift`
-- `Healy Health/Views/ExerciseDetailView.swift`
+- `Healy Health/Helpers/ExportManager.swift`
+- `Healy Health/Models/RoutineStore.swift`
+- `Healy Health/Models/ExerciseLibrary.swift`
+- `Healy Health/Views/SettingsView.swift`
 - `Healy HealthTests/RoutineStoreTests.swift`
 - `TODO.md`, `ROADMAP.md`, and `handoff.md`
