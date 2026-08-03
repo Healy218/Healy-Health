@@ -133,11 +133,17 @@ struct WorkoutSessionView: View {
     let workout: Workout
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
+    @State private var showUnloggedWorkConfirmation = false
+    @State private var completionErrorMessage: String?
 
     private var theme: AppTheme { themeManager.current }
 
     private var currentWorkout: Workout? {
         store.activeRoutine?.workouts.first { $0.id == workout.id }
+    }
+
+    private var unloggedExercises: [Exercise] {
+        currentWorkout?.exercises.filter { $0.logs.isEmpty } ?? []
     }
 
     var body: some View {
@@ -146,7 +152,7 @@ struct WorkoutSessionView: View {
                 Text(routine.name)
                     .font(.custom("ChalkboardSE-Regular", size: 16))
                     .foregroundColor(theme.onPrimaryText.opacity(0.8))
-                Text(workout.name)
+                Text(currentWorkout?.name ?? workout.name)
                     .font(.custom("ChalkboardSE-Regular", size: 24)).bold()
                     .foregroundColor(theme.onPrimaryText)
             }
@@ -180,15 +186,58 @@ struct WorkoutSessionView: View {
                         .padding().frame(maxWidth: .infinity)
                         .background(Color.white.opacity(0.2)).cornerRadius(12)
                 }
-                Button(action: { store.finishWorkout(routine: routine, workout: workout) }) {
+                Button(action: requestWorkoutCompletion) {
                     Text("Finish Workout")
                         .font(.custom("ChalkboardSE-Regular", size: 16)).bold()
                         .foregroundColor(theme.accentColor)
                         .padding().frame(maxWidth: .infinity)
                         .background(theme.rowBackground).cornerRadius(12)
                 }
+                .disabled(currentWorkout?.isCompleted != false)
             }
             .padding()
+        }
+        .confirmationDialog(
+            "Finish With Unlogged Exercises?",
+            isPresented: $showUnloggedWorkConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Finish Anyway", role: .destructive, action: finishWorkout)
+            Button("Keep Logging", role: .cancel) {}
+        } message: {
+            Text(unloggedWorkMessage)
+        }
+        .alert("Couldn’t Finish Workout", isPresented: Binding(
+            get: { completionErrorMessage != nil },
+            set: { if !$0 { completionErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { completionErrorMessage = nil }
+        } message: {
+            Text(completionErrorMessage ?? "")
+        }
+    }
+
+    private var unloggedWorkMessage: String {
+        let names = unloggedExercises.map(\.name)
+        guard !names.isEmpty else { return "" }
+        let exerciseLabel = names.count == 1 ? "exercise has" : "exercises have"
+        return "\(names.count) planned \(exerciseLabel) no logged sets: \(names.joined(separator: ", ")). Finish anyway?"
+    }
+
+    private func requestWorkoutCompletion() {
+        if unloggedExercises.isEmpty {
+            finishWorkout()
+        } else {
+            showUnloggedWorkConfirmation = true
+        }
+    }
+
+    private func finishWorkout() {
+        switch store.finishWorkout(routineId: routine.id, workoutId: workout.id) {
+        case .success:
+            break
+        case .failure(let error):
+            completionErrorMessage = error.localizedDescription
         }
     }
 }

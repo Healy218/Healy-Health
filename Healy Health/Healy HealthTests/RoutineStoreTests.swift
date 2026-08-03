@@ -329,12 +329,96 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertEqual(normalized.completedWorkouts.map(\.id), [newer.id, older.id])
     }
 
+    func testFinishWorkoutResolvesTheCurrentStoredWorkoutByID() {
+        let routine = makeRoutine(name: "Original routine")
+        let workoutID = routine.workouts[0].id
+        let exercise = Exercise(
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 135,
+            logs: [SetLog(weight: 155, reps: 8, completedDate: Date())]
+        )
+        var currentRoutine = routine
+        currentRoutine.name = "Updated routine"
+        currentRoutine.workouts[0].name = "Updated workout"
+        currentRoutine.workouts[0].focus = "Updated focus"
+        currentRoutine.workouts[0].exercises = [exercise]
+        let store = makeEmptyStore()
+        store.routines = [currentRoutine]
+        store.activeRoutineId = routine.id
+        store.activeWorkoutId = workoutID
+
+        XCTAssertCompletionSucceeds(store.finishWorkout(routineId: routine.id, workoutId: workoutID))
+        XCTAssertEqual(store.completedWorkouts.count, 1)
+        XCTAssertEqual(store.completedWorkouts[0].dayName, "Updated workout")
+        XCTAssertEqual(store.completedWorkouts[0].focus, "Updated focus")
+        XCTAssertEqual(store.completedWorkouts[0].exercises.map(\.id), [exercise.id])
+        XCTAssertEqual(store.completedWorkouts[0].exercises[0].logs.count, 1)
+        XCTAssertEqual(store.completedWorkouts[0].exercises[0].logs[0].weight, 155)
+        XCTAssertTrue(store.routines[0].workouts[0].isCompleted)
+        XCTAssertNil(store.activeWorkoutId)
+    }
+
+    func testFinishWorkoutRejectsDuplicateCompletionWithoutAddingHistory() {
+        let routine = makeRoutine(name: "Strength")
+        let workoutID = routine.workouts[0].id
+        let store = makeEmptyStore()
+        store.routines = [routine]
+
+        XCTAssertCompletionSucceeds(store.finishWorkout(routineId: routine.id, workoutId: workoutID))
+        XCTAssertCompletionFails(
+            store.finishWorkout(routineId: routine.id, workoutId: workoutID),
+            with: .alreadyCompleted
+        )
+        XCTAssertEqual(store.completedWorkouts.count, 1)
+    }
+
+    func testFinishWorkoutRejectsMissingRoutineOrWorkoutWithoutAddingHistory() {
+        let routine = makeRoutine(name: "Strength")
+        let store = makeEmptyStore()
+        store.routines = [routine]
+
+        XCTAssertCompletionFails(
+            store.finishWorkout(routineId: UUID(), workoutId: routine.workouts[0].id),
+            with: .routineNotFound
+        )
+        XCTAssertCompletionFails(
+            store.finishWorkout(routineId: routine.id, workoutId: UUID()),
+            with: .workoutNotFound
+        )
+        XCTAssertTrue(store.completedWorkouts.isEmpty)
+        XCTAssertFalse(store.routines[0].workouts[0].isCompleted)
+    }
+
     private func makeEmptyStore() -> RoutineStore {
         RoutineStore(
             documentsDirectory: storageDirectory,
             userDefaults: defaults,
             initialLoadBehavior: .empty
         )
+    }
+
+    private func XCTAssertCompletionSucceeds(
+        _ result: Result<Void, WorkoutCompletionError>,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        if case .failure(let error) = result {
+            XCTFail("Expected workout completion to succeed, got: \(error.localizedDescription)", file: file, line: line)
+        }
+    }
+
+    private func XCTAssertCompletionFails(
+        _ result: Result<Void, WorkoutCompletionError>,
+        with expectedError: WorkoutCompletionError,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        guard case .failure(let error) = result else {
+            return XCTFail("Expected workout completion to fail with \(expectedError)", file: file, line: line)
+        }
+        XCTAssertEqual(error, expectedError, file: file, line: line)
     }
 
     private func makeRoutine(name: String) -> Routine {

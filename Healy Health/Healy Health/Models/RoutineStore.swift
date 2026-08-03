@@ -51,6 +51,23 @@ struct PersistenceError: LocalizedError, Identifiable {
     }
 }
 
+enum WorkoutCompletionError: LocalizedError, Equatable {
+    case routineNotFound
+    case workoutNotFound
+    case alreadyCompleted
+
+    var errorDescription: String? {
+        switch self {
+        case .routineNotFound:
+            return "This routine is no longer available."
+        case .workoutNotFound:
+            return "This workout is no longer available in the selected routine."
+        case .alreadyCompleted:
+            return "This workout has already been completed."
+        }
+    }
+}
+
 class RoutineStore: ObservableObject {
     static let shared = RoutineStore()
 
@@ -200,8 +217,22 @@ class RoutineStore: ObservableObject {
         }
     }
     
-    func finishWorkout(routine: Routine, workout: Workout) {
-        // Record in history
+    /// Completes the workout currently stored under the supplied IDs. Resolving it here avoids
+    /// recording stale view snapshots and makes a second completion attempt a no-op.
+    @discardableResult
+    func finishWorkout(routineId: UUID, workoutId: UUID) -> Result<Void, WorkoutCompletionError> {
+        guard let routineIndex = routines.firstIndex(where: { $0.id == routineId }) else {
+            return .failure(.routineNotFound)
+        }
+        guard let workoutIndex = routines[routineIndex].workouts.firstIndex(where: { $0.id == workoutId }) else {
+            return .failure(.workoutNotFound)
+        }
+        guard !routines[routineIndex].workouts[workoutIndex].isCompleted else {
+            return .failure(.alreadyCompleted)
+        }
+
+        let routine = routines[routineIndex]
+        let workout = routines[routineIndex].workouts[workoutIndex]
         let finishedWorkout = CompletedWorkout(
             date: Date(),
             dayName: workout.name,
@@ -213,15 +244,13 @@ class RoutineStore: ObservableObject {
         completedWorkouts.insert(finishedWorkout, at: 0)
         performSaveHistory()
 
-        // Mark this workout as completed within the routine (don't reset yet)
-        if let rIndex = routines.firstIndex(where: { $0.id == routine.id }),
-           let wIndex = routines[rIndex].workouts.firstIndex(where: { $0.id == workout.id }) {
-            routines[rIndex].workouts[wIndex].isCompleted = true
-            performSaveRoutines()
-        }
+        // Mark this workout as completed within the routine (don't reset yet).
+        routines[routineIndex].workouts[workoutIndex].isCompleted = true
+        performSaveRoutines()
 
         // Return to the routine workout list
         activeWorkoutId = nil
+        return .success(())
     }
 
     /// Called when the user finishes the entire routine.
