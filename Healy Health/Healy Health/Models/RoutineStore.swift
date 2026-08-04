@@ -96,6 +96,17 @@ enum SetLogMutationError: LocalizedError, Equatable {
     }
 }
 
+/// The rest countdown belongs to the active workout, rather than an individual exercise screen.
+/// Keeping its absolute deadline lets the UI accurately resume after navigation, backgrounding,
+/// or a new app process.
+struct ActiveRestTimerState: Codable, Equatable {
+    let routineId: UUID
+    let workoutId: UUID
+    let exerciseId: UUID
+    var endTime: Date
+    var notificationId: UUID
+}
+
 class RoutineStore: ObservableObject {
     static let shared = RoutineStore()
 
@@ -116,6 +127,12 @@ class RoutineStore: ObservableObject {
         didSet { saveActiveState() }
     }
     @Published var activeWorkoutId: UUID? {
+        didSet { saveActiveState() }
+    }
+    @Published private(set) var activeWorkoutStartedAt: Date? {
+        didSet { saveActiveState() }
+    }
+    @Published private(set) var activeRestTimer: ActiveRestTimerState? {
         didSet { saveActiveState() }
     }
     
@@ -141,6 +158,10 @@ class RoutineStore: ObservableObject {
     private let legacyScheduleFileName = "workout_schedule.json"
     private let legacyCustomWorkoutsFileName = "custom_workouts.json"
     private let hasMigratedKey = "hasMigratedToRoutines"
+    private let activeRoutineIdKey = "activeRoutineId"
+    private let activeWorkoutIdKey = "activeWorkoutId"
+    private let activeWorkoutStartedAtKey = "activeWorkoutStartedAt"
+    private let activeRestTimerKey = "activeRestTimer"
 
     /// The directory containing the app's routine and history files. Import/export uses this
     /// to keep its recovery snapshots alongside the data they protect.
@@ -266,6 +287,99 @@ class RoutineStore: ObservableObject {
     }
     
     // MARK: - Actions
+    /// Starts (or resumes) a routine while intentionally retaining a rest timer when returning
+    /// to the same routine. Switching routines discards the previous session context.
+    func startRoutine(routineId: UUID) {
+        guard routines.contains(where: { $0.id == routineId }) else { return }
+
+        if activeRoutineId != routineId {
+            cancelActiveRestTimer()
+            activeWorkoutStartedAt = nil
+        }
+        activeRoutineId = routineId
+        activeWorkoutId = nil
+    }
+
+    /// Starts a workout with a durable start timestamp. Re-selecting the same workout preserves
+    /// its original timestamp; choosing a different workout starts a new session.
+    func startWorkout(routineId: UUID, workoutId: UUID, startedAt: Date = Date()) {
+        guard let routine = routines.first(where: { $0.id == routineId }),
+              routine.workouts.contains(where: { $0.id == workoutId }) else {
+            return
+        }
+
+        let isNewWorkout = activeRoutineId != routineId || activeWorkoutId != workoutId
+        if isNewWorkout {
+            cancelActiveRestTimer()
+            activeWorkoutStartedAt = startedAt
+        }
+        activeRoutineId = routineId
+        activeWorkoutId = workoutId
+    }
+
+    /// Stores a rest timer against the exact exercise that created it. Notification scheduling
+    /// remains in the view so notification authorization errors can be presented there.
+    @discardableResult
+    func startRestTimer(
+        routineId: UUID,
+        workoutId: UUID,
+        exerciseId: UUID,
+        duration: TimeInterval,
+        now: Date = Date()
+    ) -> ActiveRestTimerState? {
+        guard case .success(let validDuration) = RestTimerDuration.validate(duration),
+              routines.first(where: { $0.id == routineId })?.workouts.first(where: { $0.id == workoutId })?.exercises.contains(where: { $0.id == exerciseId }) == true else {
+            return nil
+        }
+
+        cancelActiveRestTimer()
+        let timer = ActiveRestTimerState(
+            routineId: routineId,
+            workoutId: workoutId,
+            exerciseId: exerciseId,
+            endTime: now.addingTimeInterval(validDuration),
+            notificationId: UUID()
+        )
+        activeRestTimer = timer
+        return timer
+    }
+
+    /// Adds time by replacing the notification identity, since a cancelled notification cannot
+    /// be safely reused while an authorization request is in flight.
+    @discardableResult
+    func addRestTime(
+        routineId: UUID,
+        workoutId: UUID,
+        exerciseId: UUID,
+        seconds: TimeInterval = 30
+    ) -> ActiveRestTimerState? {
+        guard case .success(let validSeconds) = RestTimerDuration.validate(seconds),
+              var timer = matchingRestTimer(routineId: routineId, workoutId: workoutId, exerciseId: exerciseId) else {
+            return nil
+        }
+
+        NotificationManager.shared.cancelTimer(identifier: timer.notificationId)
+        timer.endTime = timer.endTime.addingTimeInterval(validSeconds)
+        timer.notificationId = UUID()
+        activeRestTimer = timer
+        return timer
+    }
+
+    func cancelRestTimer(routineId: UUID, workoutId: UUID, exerciseId: UUID) {
+        guard matchingRestTimer(routineId: routineId, workoutId: workoutId, exerciseId: exerciseId) != nil else {
+            return
+        }
+        cancelActiveRestTimer()
+    }
+
+    /// Clears an elapsed timer and returns whether the countdown finished during this call.
+    @discardableResult
+    func clearExpiredRestTimer(now: Date = Date()) -> Bool {
+        guard let timer = activeRestTimer, timer.endTime <= now else { return false }
+        cancelActiveRestTimer()
+        return true
+    }
+
     func toggleExerciseCompletion(routineId: UUID, workoutId: UUID, exerciseId: UUID) {
         if let rIndex = routines.firstIndex(where: { $0.id == routineId }),
            let wIndex = routines[rIndex].workouts.firstIndex(where: { $0.id == workoutId }),
@@ -378,6 +492,8 @@ class RoutineStore: ObservableObject {
         performSaveRoutines()
 
         // Return to the routine workout list
+        cancelRestTimerForWorkout(routineId: routineId, workoutId: workoutId)
+        activeWorkoutStartedAt = nil
         activeWorkoutId = nil
         return .success(())
     }
@@ -395,6 +511,8 @@ class RoutineStore: ObservableObject {
             }
             performSaveRoutines()
         }
+        cancelActiveRestTimer()
+        activeWorkoutStartedAt = nil
         activeWorkoutId = nil
         if startNew { activeRoutineId = nil }
     }
@@ -422,6 +540,8 @@ class RoutineStore: ObservableObject {
         routines.removeAll { ids.contains($0.id) }
 
         if removedActiveRoutine {
+            cancelActiveRestTimer()
+            activeWorkoutStartedAt = nil
             activeRoutineId = nil
             activeWorkoutId = nil
         }
@@ -437,7 +557,12 @@ class RoutineStore: ObservableObject {
         routines[routineIndex].workouts.removeAll { ids.contains($0.id) }
         if activeRoutineId == routineId,
            activeWorkoutId.map(ids.contains) ?? false {
+            cancelRestTimerForWorkout(routineId: routineId, workoutId: activeWorkoutId!)
+            activeWorkoutStartedAt = nil
             activeWorkoutId = nil
+        }
+        if let timer = activeRestTimer, timer.routineId == routineId, ids.contains(timer.workoutId) {
+            cancelActiveRestTimer()
         }
         saveRoutines()
     }
@@ -531,6 +656,11 @@ class RoutineStore: ObservableObject {
         activeRoutineId: UUID?,
         activeWorkoutId: UUID?
     ) {
+        // Exports deliberately contain only durable routine/history state and active IDs. A
+        // live start timestamp or rest deadline from the pre-import session must never attach
+        // itself to imported data, even if identifiers happen to match.
+        activeWorkoutStartedAt = nil
+        cancelActiveRestTimer()
         self.routines = routines
         self.completedWorkouts = completedWorkouts
         self.activeRoutineId = activeRoutineId
@@ -577,14 +707,27 @@ class RoutineStore: ObservableObject {
     }
     
     private func saveActiveState() {
-        userDefaults.set(activeRoutineId?.uuidString, forKey: "activeRoutineId")
-        userDefaults.set(activeWorkoutId?.uuidString, forKey: "activeWorkoutId")
+        userDefaults.set(activeRoutineId?.uuidString, forKey: activeRoutineIdKey)
+        userDefaults.set(activeWorkoutId?.uuidString, forKey: activeWorkoutIdKey)
+        userDefaults.set(activeWorkoutStartedAt, forKey: activeWorkoutStartedAtKey)
+
+        if let activeRestTimer,
+           let encodedTimer = try? iso8601Encoder.encode(activeRestTimer) {
+            userDefaults.set(encodedTimer, forKey: activeRestTimerKey)
+        } else {
+            userDefaults.removeObject(forKey: activeRestTimerKey)
+        }
     }
 
     private func loadActiveState() {
-        activeRoutineId = userDefaults.string(forKey: "activeRoutineId").flatMap(UUID.init(uuidString:))
-        activeWorkoutId = userDefaults.string(forKey: "activeWorkoutId").flatMap(UUID.init(uuidString:))
+        activeRoutineId = userDefaults.string(forKey: activeRoutineIdKey).flatMap(UUID.init(uuidString:))
+        activeWorkoutId = userDefaults.string(forKey: activeWorkoutIdKey).flatMap(UUID.init(uuidString:))
+        activeWorkoutStartedAt = userDefaults.object(forKey: activeWorkoutStartedAtKey) as? Date
+        if let data = userDefaults.data(forKey: activeRestTimerKey) {
+            activeRestTimer = try? decode(ActiveRestTimerState.self, from: data)
+        }
         normalizeActiveState()
+        NotificationManager.shared.cancelPendingTimers(except: activeRestTimer?.notificationId)
     }
 
     /// Repairs persisted active-session references after routines have been loaded or migrated.
@@ -597,13 +740,58 @@ class RoutineStore: ObservableObject {
                 self.activeRoutineId = nil
                 self.activeWorkoutId = nil
             }
+            activeWorkoutStartedAt = nil
+            cancelActiveRestTimer()
             return
         }
 
-        guard let activeWorkoutId else { return }
+        guard let activeWorkoutId else {
+            // A person may have navigated back to the routine list while a rest timer is still
+            // running. Keep a valid timer in that case, but discard malformed or expired state.
+            normalizeActiveRestTimer()
+            return
+        }
         if !routine.workouts.contains(where: { $0.id == activeWorkoutId }) {
             self.activeWorkoutId = nil
+            activeWorkoutStartedAt = nil
         }
+        normalizeActiveRestTimer()
+    }
+
+    private func normalizeActiveRestTimer(now: Date = Date()) {
+        guard let timer = activeRestTimer else { return }
+        guard timer.endTime > now,
+              routines.first(where: { $0.id == timer.routineId })?.workouts.first(where: { $0.id == timer.workoutId })?.exercises.contains(where: { $0.id == timer.exerciseId }) == true else {
+            cancelActiveRestTimer()
+            return
+        }
+    }
+
+    private func matchingRestTimer(routineId: UUID, workoutId: UUID, exerciseId: UUID) -> ActiveRestTimerState? {
+        guard let timer = activeRestTimer,
+              timer.routineId == routineId,
+              timer.workoutId == workoutId,
+              timer.exerciseId == exerciseId,
+              timer.endTime > Date() else {
+            return nil
+        }
+        return timer
+    }
+
+    private func cancelRestTimerForWorkout(routineId: UUID, workoutId: UUID) {
+        guard let timer = activeRestTimer,
+              timer.routineId == routineId,
+              timer.workoutId == workoutId else {
+            return
+        }
+        cancelActiveRestTimer()
+    }
+
+    private func cancelActiveRestTimer() {
+        if let notificationId = activeRestTimer?.notificationId {
+            NotificationManager.shared.cancelTimer(identifier: notificationId)
+        }
+        activeRestTimer = nil
     }
     
     @discardableResult

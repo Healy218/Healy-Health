@@ -171,6 +171,67 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertNil(defaults.string(forKey: "activeWorkoutId"))
     }
 
+    func testActiveWorkoutStartAndRestTimerSurviveStoreReload() throws {
+        let exercise = Exercise(name: "Bench Press", targetSets: 3, targetReps: "8", currentWeight: 135)
+        let workout = Workout(name: "Upper", focus: "Chest", exercises: [exercise])
+        let routine = Routine(name: "Strength", workouts: [workout])
+        let store = makeEmptyStore()
+        store.routines = [routine]
+        XCTAssertTrue(store.flushSaves())
+        defaults.set(true, forKey: "hasMigratedToRoutines")
+
+        let startedAt = Date(timeIntervalSinceReferenceDate: 1_000)
+        let timerStart = Date(timeIntervalSinceReferenceDate: 900_000_000)
+        store.startWorkout(routineId: routine.id, workoutId: workout.id, startedAt: startedAt)
+        let timer = try XCTUnwrap(store.startRestTimer(
+            routineId: routine.id,
+            workoutId: workout.id,
+            exerciseId: exercise.id,
+            duration: 3_600,
+            now: timerStart
+        ))
+
+        let reloadedStore = RoutineStore(
+            documentsDirectory: storageDirectory,
+            userDefaults: defaults,
+            initialLoadBehavior: .normal
+        )
+
+        XCTAssertEqual(reloadedStore.activeRoutineId, routine.id)
+        XCTAssertEqual(reloadedStore.activeWorkoutId, workout.id)
+        XCTAssertEqual(reloadedStore.activeWorkoutStartedAt, startedAt)
+        XCTAssertEqual(reloadedStore.activeRestTimer, timer)
+    }
+
+    func testLoadCancelsAnExpiredRestTimerButKeepsTheActiveWorkout() throws {
+        let exercise = Exercise(name: "Bench Press", targetSets: 3, targetReps: "8", currentWeight: 135)
+        let workout = Workout(name: "Upper", focus: "Chest", exercises: [exercise])
+        let routine = Routine(name: "Strength", workouts: [workout])
+        let store = makeEmptyStore()
+        store.routines = [routine]
+        XCTAssertTrue(store.flushSaves())
+        defaults.set(true, forKey: "hasMigratedToRoutines")
+        store.startWorkout(routineId: routine.id, workoutId: workout.id)
+        XCTAssertNotNil(store.startRestTimer(
+            routineId: routine.id,
+            workoutId: workout.id,
+            exerciseId: exercise.id,
+            duration: 1,
+            now: Date(timeIntervalSinceReferenceDate: 0)
+        ))
+
+        let reloadedStore = RoutineStore(
+            documentsDirectory: storageDirectory,
+            userDefaults: defaults,
+            initialLoadBehavior: .normal
+        )
+
+        XCTAssertEqual(reloadedStore.activeRoutineId, routine.id)
+        XCTAssertEqual(reloadedStore.activeWorkoutId, workout.id)
+        XCTAssertNil(reloadedStore.activeRestTimer)
+        XCTAssertNil(defaults.data(forKey: "activeRestTimer"))
+    }
+
     func testMigrationReportsUnreadableLegacyDataAndRetriesOnNextLaunch() throws {
         let legacyURL = storageDirectory.appendingPathComponent("workout_schedule.json")
         try Data("not valid JSON".utf8).write(to: legacyURL, options: .atomic)

@@ -40,8 +40,7 @@ struct RoutinesView: View {
                             .listRowBackground(theme.rowBackground)
                             .swipeActions(edge: .leading) {
                                 Button {
-                                    store.activeRoutineId = routine.id
-                                    store.activeWorkoutId = nil
+                                    store.startRoutine(routineId: routine.id)
                                     store.selectedTab = 1
                                 } label: {
                                     Label("Start", systemImage: "star.fill")

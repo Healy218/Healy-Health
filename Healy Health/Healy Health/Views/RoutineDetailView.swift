@@ -52,8 +52,7 @@ struct RoutineDetailView: View {
                                 .listRowBackground(theme.rowBackground)
                                 .swipeActions(edge: .leading) {
                                     Button {
-                                        store.activeRoutineId = cr.id
-                                        store.activeWorkoutId = workout.id
+                                        store.startWorkout(routineId: cr.id, workoutId: workout.id)
                                         store.selectedTab = 1
                                     } label: { Label("Set Active", systemImage: "star.fill") }
                                     .tint(.green)

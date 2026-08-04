@@ -160,9 +160,14 @@ final class NotificationManager {
         timerCanceler([timerNotificationIdentifier(identifier)])
     }
 
-    func cancelPendingTimers() {
+    /// Removes orphaned rest-timer notifications while preserving the one restored with the
+    /// active session, if any. This keeps pre-persistence notifications from firing later.
+    func cancelPendingTimers(except activeTimerID: UUID? = nil) {
         UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            let timerIDs = requests.map(\.identifier).filter { $0.hasPrefix(Self.timerIdentifierPrefix) }
+            let activeRequestID = activeTimerID.map(self.timerNotificationIdentifier)
+            let timerIDs = requests.map(\.identifier).filter {
+                $0.hasPrefix(Self.timerIdentifierPrefix) && $0 != activeRequestID
+            }
             UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: timerIDs)
         }
     }

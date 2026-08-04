@@ -25,19 +25,29 @@ struct ExerciseDetailView: View {
     @Environment(\.scenePhase) var scenePhase
     @State private var weightInput: String = ""
     @State private var repsInput: String = ""
-    @State private var timerActive = false
-    @State private var timerEndTime: Date?
     @State private var timeRemaining: TimeInterval = 0
     @State private var timer: Publishers.Autoconnect<Timer.TimerPublisher> = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     @State private var selectedDuration: Double = 120
     @State private var showCustomTimerAlert = false
     @State private var customTimerInput = ""
     @State private var timerErrorMessage: String?
-    @State private var timerNotificationID: UUID?
     @State private var setLogErrorMessage: String?
     @State private var logBeingEdited: SetLog?
     @State private var logPendingDeletionID: UUID?
     @State private var setMutationErrorMessage: String?
+
+    private var activeRestTimer: ActiveRestTimerState? {
+        guard let timer = store.activeRestTimer,
+              timer.routineId == routineId,
+              timer.workoutId == workoutId,
+              timer.exerciseId == exerciseId,
+              timer.endTime > Date() else {
+            return nil
+        }
+        return timer
+    }
+
+    private var timerActive: Bool { activeRestTimer != nil }
 
     var body: some View {
         ZStack {
@@ -113,12 +123,12 @@ struct ExerciseDetailView: View {
                 weightInput = ex.logs.last.map { String(format: "%.0f", $0.weight) } ?? String(format: "%.0f", ex.currentWeight)
                 repsInput = ex.logs.last.map { String(format: "%d", $0.reps) } ?? ""
             }
+            updateTimerDisplay()
         }
         .onChange(of: weightInput) { _ in setLogErrorMessage = nil }
         .onChange(of: repsInput) { _ in setLogErrorMessage = nil }
         .onReceive(timer) { _ in if timerActive { updateTimerDisplay() } }
-        .onChange(of: scenePhase) { newPhase in if newPhase == .active && timerActive { updateTimerDisplay() } }
-        .onDisappear(perform: cancelRestTimer)
+        .onChange(of: scenePhase) { newPhase in if newPhase == .active { updateTimerDisplay() } }
         .alert("Custom Timer", isPresented: $showCustomTimerAlert, actions: {
             TextField("Seconds", text: $customTimerInput).keyboardType(.numberPad)
             Button("Set") { setCustomDuration() }
@@ -205,18 +215,33 @@ struct ExerciseDetailView: View {
             return
         }
 
-        timerEndTime = Date().addingTimeInterval(duration)
-        timerActive = true
+        guard let timer = store.startRestTimer(
+            routineId: routineId,
+            workoutId: workoutId,
+            exerciseId: exerciseId,
+            duration: duration
+        ) else {
+            timerErrorMessage = "Couldn’t start this rest timer."
+            return
+        }
         updateTimerDisplay()
-        scheduleTimerNotification(seconds: duration)
+        scheduleTimerNotification(for: timer)
     }
 
     func updateTimerDisplay() {
-        guard let endTime = timerEndTime else { return }
-        let remaining = endTime.timeIntervalSinceNow
-        if remaining > 0 { timeRemaining = remaining } else {
-            timeRemaining = 0; timerActive = false; timerEndTime = nil
-            cancelTimerNotification()
+        guard let timer = activeRestTimer else {
+            if store.clearExpiredRestTimer() {
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
+            timeRemaining = 0
+            return
+        }
+        let remaining = timer.endTime.timeIntervalSinceNow
+        if remaining > 0 {
+            timeRemaining = remaining
+        } else {
+            timeRemaining = 0
+            store.clearExpiredRestTimer()
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
     }
@@ -236,18 +261,20 @@ struct ExerciseDetailView: View {
     }
 
     func addRestTime() {
-        guard let endTime = timerEndTime, timerActive else { return }
-        let updatedEndTime = endTime.addingTimeInterval(30)
-        timerEndTime = updatedEndTime
-        cancelTimerNotification()
+        guard let timer = store.addRestTime(
+            routineId: routineId,
+            workoutId: workoutId,
+            exerciseId: exerciseId
+        ) else { return }
         updateTimerDisplay()
-        scheduleTimerNotification(seconds: max(updatedEndTime.timeIntervalSinceNow, 1))
+        scheduleTimerNotification(for: timer)
     }
 
-    func scheduleTimerNotification(seconds: TimeInterval) {
-        let notificationID = UUID()
-        timerNotificationID = notificationID
-        NotificationManager.shared.scheduleTimer(seconds: seconds, identifier: notificationID) { result in
+    func scheduleTimerNotification(for timer: ActiveRestTimerState) {
+        NotificationManager.shared.scheduleTimer(
+            seconds: max(timer.endTime.timeIntervalSinceNow, 1),
+            identifier: timer.notificationId
+        ) { result in
             if case .failure(let error) = result {
                 timerErrorMessage = error.localizedDescription
             }
@@ -261,17 +288,8 @@ struct ExerciseDetailView: View {
     }
 
     func cancelRestTimer() {
-        timerActive = false
-        timerEndTime = nil
         timeRemaining = 0
-        cancelTimerNotification()
-    }
-
-    func cancelTimerNotification() {
-        if let timerNotificationID {
-            NotificationManager.shared.cancelTimer(identifier: timerNotificationID)
-            self.timerNotificationID = nil
-        }
+        store.cancelRestTimer(routineId: routineId, workoutId: workoutId, exerciseId: exerciseId)
     }
 
     func skipRest() { cancelRestTimer() }

@@ -53,7 +53,7 @@ Completed in this phase:
 - Added the `Healy HealthTests` unit-test target and a `RoutineStore` test seam that uses injected temporary storage and `UserDefaults`.
 - Made routine and workout deletion ID-based, preventing multi-row index shifts and clearing invalid active state; covered single/multi-routine and active-workout deletion.
 - Hardened routine, history, and exercise-library persistence with atomic writes and visible failure state. Routine/history save requests are now independent, backgrounding flushes pending store data, and failed/corrupt files are retained rather than silently replaced.
-- Hardened the rest timer: durations are finite, positive, and capped at 24 hours; notification permission is requested at timer use; and authorization/scheduling failures reach the user without stopping the visible countdown. A backgrounded timer continues, while leaving/completing its exercise or launching a new app process clears its pending notification.
+- Hardened the rest timer: durations are finite, positive, and capped at 24 hours; notification permission is requested at timer use; and authorization/scheduling failures reach the user without stopping the visible countdown. A backgrounded timer continues, while finishing or explicitly skipping its exercise cancels its pending notification.
 - Made imports transactional at the app-state level: supported schemas and the complete routine/history/library graph are validated before mutation, a timestamped pre-import snapshot is retained, candidate files are saved before memory is committed, and failed saves trigger rollback attempts. Imported history/library order is deterministic and Settings reports specific import errors.
 - Made workout completion current-state based and idempotent: completion resolves the routine/workout graph by IDs inside the store, rejects missing or previously completed workouts, and the session UI requires an explicit acknowledgement of each planned exercise with no logged sets.
 
@@ -90,11 +90,12 @@ Completed:
 
 - Defined custom exercises as reusable library entries. Creating one saves a normalized “Custom” template tagged with the selected category, immediately adds it to the current workout, and prevents case/whitespace duplicate names at the library boundary. A failed save rolls the template back and keeps the workout unchanged.
 - Added safe logged-set correction. Each set can be edited or deleted from the exercise history; edits use the existing domain rules, deletions are confirmed, all mutations resolve the current routine/workout/exercise/log by ID and persist immediately, and a deletion below the target-set count clears the completed state. Regression coverage verifies successful and rejected mutations, persistence, and completion repair.
+- Active workout start times and rest-timer deadlines now live in `RoutineStore`, persist across navigation/relaunch, and resume from their absolute deadline. Completion, deletion, import, and expiry clear their associated notification and session state; launch also removes orphaned rest notifications.
 
 Exit criteria:
 
 - [x] Accidental set entries are reversible.
-- [ ] Active workout and timer state behave predictably after navigation and app relaunch.
+- [x] Active workout and timer state behave predictably after navigation and app relaunch.
 - [ ] Destructive workout actions require confirmation.
 - [ ] Routine and workout organization can be changed without rebuilding content.
 

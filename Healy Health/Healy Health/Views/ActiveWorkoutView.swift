@@ -74,7 +74,9 @@ struct RoutineWorkoutListView: View {
                 List {
                     ForEach(routine.workouts) { workout in
                         Button {
-                            if !workout.isCompleted { store.activeWorkoutId = workout.id }
+                            if !workout.isCompleted {
+                                store.startWorkout(routineId: routine.id, workoutId: workout.id)
+                            }
                         } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
