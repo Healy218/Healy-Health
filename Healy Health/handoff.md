@@ -31,6 +31,10 @@ git diff --check
 - `git diff --check`: passed.
 - Build emits two existing Swift concurrency warnings in `ExportManager` sorting helpers; they do not fail the build or tests.
 
+## Publication
+
+- Commit `17c2b9d` (`Complete workout editing consistency`) was pushed to `origin/agent/data-safety-tests-and-deletion` on 2026-08-03.
+
 ## Known blockers or risks
 
 - iPhone 17 Pro Max, iOS 26.2 crashes the XCTest test host while deallocating `RoutineStore`, producing repeated “Healy Health quit unexpectedly” alerts. Use iOS 26.5 for local XCTest until the 26.2 runtime is updated/fixed.
@@ -47,16 +51,7 @@ git diff --check
 
 Include in the next commit:
 
-- `Healy Health/Models/RoutineStore.swift`
-- `Healy Health/Models/WorkoutPlanningValidation.swift`
-- `Healy Health/Views/AddCustomExerciseView.swift`
-- `Healy Health/Views/CategoryExerciseListView.swift`
-- `Healy Health/Views/EditExerciseView.swift`
-- `Healy Health/Views/RoutineDetailView.swift`
-- `Healy Health/Views/RoutinesView.swift`
-- `Healy Health/Views/WorkoutDetailView.swift`
-- `Healy HealthTests/RoutineStoreTests.swift`
-- `TODO.md`, `ROADMAP.md`, and `handoff.md`
+- No uncommitted app or tracking changes; the HH-206 implementation was committed and pushed as `17c2b9d`.
 
 Pre-existing machine/user changes to preserve and exclude:
 
