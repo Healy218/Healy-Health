@@ -37,14 +37,19 @@ enum ImportError: LocalizedError, Equatable {
 }
 
 enum AppImportValidator {
-    static let currentSchemaVersion = 1
+    static let currentSchemaVersion = 2
 
     static func normalizedCandidate(from export: AppExportData) throws -> AppExportData {
         guard (0...currentSchemaVersion).contains(export.schemaVersion) else {
             throw ImportError.unsupportedSchema(export.schemaVersion)
         }
-        try validateRoutines(export.routines)
-        try validateCompletedWorkouts(export.completedWorkouts)
+        let migration = ExerciseIdentityMigration.migrated(
+            routines: export.routines,
+            completedWorkouts: export.completedWorkouts,
+            templates: export.exerciseLibrary
+        )
+        try validateRoutines(migration.routines)
+        try validateCompletedWorkouts(migration.completedWorkouts)
         try validateTemplates(export.exerciseLibrary)
         try validateActiveReferences(
             routines: export.routines,
@@ -55,8 +60,8 @@ enum AppImportValidator {
         return AppExportData(
             schemaVersion: export.schemaVersion,
             exportedAt: export.exportedAt,
-            routines: export.routines,
-            completedWorkouts: export.completedWorkouts.sorted(by: newestFirst),
+            routines: migration.routines,
+            completedWorkouts: migration.completedWorkouts.sorted(by: CompletedWorkout.newestFirst),
             exerciseLibrary: export.exerciseLibrary.sorted(by: templateNameAscending),
             selectedTheme: export.selectedTheme,
             activeRoutineId: export.activeRoutineId,
@@ -184,11 +189,6 @@ enum AppImportValidator {
         }
     }
 
-    private static func newestFirst(_ lhs: CompletedWorkout, _ rhs: CompletedWorkout) -> Bool {
-        if lhs.date != rhs.date { return lhs.date > rhs.date }
-        return lhs.id.uuidString < rhs.id.uuidString
-    }
-
     private static func templateNameAscending(_ lhs: ExerciseTemplate, _ rhs: ExerciseTemplate) -> Bool {
         let result = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
         return result == .orderedSame ? lhs.id.uuidString < rhs.id.uuidString : result == .orderedAscending
@@ -234,7 +234,7 @@ final class ExportManager {
 
     func generateJSONData() -> Data? {
         let exportData = AppExportData(
-            schemaVersion: 1,
+            schemaVersion: AppImportValidator.currentSchemaVersion,
             exportedAt: Date(),
             routines: RoutineStore.shared.routines,
             completedWorkouts: RoutineStore.shared.completedWorkouts,

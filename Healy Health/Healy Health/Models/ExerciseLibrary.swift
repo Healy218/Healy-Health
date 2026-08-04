@@ -66,6 +66,7 @@ class ExerciseManager: ObservableObject {
         let url = getDocumentsDirectory().appendingPathComponent(libraryFileName)
         guard FileManager.default.fileExists(atPath: url.path) else {
             loadDefaultExercises()
+            _ = saveLibrary()
             return
         }
 

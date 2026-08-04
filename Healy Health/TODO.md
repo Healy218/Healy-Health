@@ -1,6 +1,6 @@
 # Healy Health TODO
 
-Last updated: 2026-08-03
+Last updated: 2026-08-04
 
 This is the actionable backlog for `ROADMAP.md`. Work top-to-bottom within the active phase unless a user request changes the priority.
 
@@ -54,11 +54,11 @@ Priority legend:
 
 ## Phase 3 — History, analytics, and data management
 
-- [ ] **HH-301 (P1) Make session counts consistent.** `ExercisesListView` counts every planned exercise in a completed workout, including exercises with no logs, while the top chart counts only logged exercises. Define “trained/session” once and share the aggregation logic.
+- [x] **HH-301 (P1) Make session counts consistent.** A trained session now means an exercise with one or more logged sets in a completed workout. The exercise list, top chart, and exercise-progress history all use the shared `ExerciseAnalytics` aggregation; unlogged planned exercises are excluded. Regression coverage verifies matching counts and history.
 
-- [ ] **HH-302 (P1) Add stable exercise identity.** Analytics currently group by exact display name; renames split progress and unrelated same-name movements merge. Add a stable template/exercise identity with a backward-compatible migration.
+- [x] **HH-302 (P1) Add stable exercise identity.** Exercises now retain a durable tracking ID sourced from their library template, while completed snapshots preserve it independently of their snapshot IDs. Legacy routine/history/import data migrates by normalized name and persists immediately; analytics group by tracking ID so renames retain progress and same-name movements remain distinct.
 
-- [ ] **HH-303 (P1) Make history ordering deterministic.** Import now sorts history newest-first with a UUID tie-breaker, but load and UI presentation still trust stored order. Sort on load and use explicit sorted views as a defensive measure.
+- [x] **HH-303 (P1) Make history ordering deterministic.** Completed workout history now uses one newest-first comparator with UUID tie-breaks when importing, loading, completing, and presenting history. Exercise progress session ordering and summary ties are also stable.
 
 - [ ] **HH-304 (P1) Add safe history correction/deletion.** Include confirmations, immediate persistence, and analytics refresh.
 
@@ -66,7 +66,7 @@ Priority legend:
 
 - [ ] **HH-306 (P2) Correct history metadata and version display.** Store/show routine name separately from workout name, and read marketing/build versions from `Bundle` instead of hard-coding `1.0 (Beta)`.
 
-- [ ] **HH-307 (P2) Make chart behavior deterministic and honest.** Add tie-breaking for “Most Trained,” consolidate duplicate exercise entries within one workout session, and consider linear interpolation to avoid Catmull-Rom visual overshoot.
+- [ ] **HH-307 (P2) Make chart behavior honest.** “Most Trained” and history ordering now have stable tie-breaks. Consolidate duplicate exercise entries within one workout session, and consider linear interpolation to avoid Catmull-Rom visual overshoot.
 
 ## Phase 4 — Accessibility and polish
 
@@ -97,7 +97,7 @@ Priority legend:
 ## Current baseline notes
 
 - The project contains the `Healy Health` application target and the `Healy HealthTests` XCTest target.
-- `xcodebuild test` passed all 40 `Healy HealthTests` on 2026-08-03 using iPhone 17 Pro Max, iOS 26.5. The iOS 26.2 simulator runtime crashes the XCTest test host while deallocating `RoutineStore`; do not use it for tests.
+- `xcodebuild test` passed all 47 `Healy HealthTests` on 2026-08-04 using iPhone 17 Pro Max, iOS 26.5. The iOS 26.2 simulator runtime crashes the XCTest test host while deallocating `RoutineStore`; do not use it for tests.
 - Active-session reload now restores all persisted fields as a unit before saving normalized state, preventing `activeWorkoutId`, start time, and timer state from being erased during load.
 - The git root is the parent `Fitness App` directory; this app lives in its `Healy Health` subdirectory.
 - Pre-existing tracked machine files were already dirty during the audit and were not modified by the audit.

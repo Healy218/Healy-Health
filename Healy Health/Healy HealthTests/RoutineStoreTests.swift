@@ -62,6 +62,117 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertEqual(reloadedStore.routines.map(\.id), [routine.id])
     }
 
+    func testLoadMigratesAndPersistsLegacyExerciseTrackingIDs() throws {
+        let template = ExerciseTemplate(
+            name: "Bench Press",
+            primaryMuscleGroup: "Chest",
+            equipmentType: "Barbell"
+        )
+        let legacyExercise = Exercise(
+            trackingId: nil,
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 135
+        )
+        let routine = Routine(
+            name: "Strength",
+            workouts: [Workout(name: "Upper", focus: "Chest", exercises: [legacyExercise])]
+        )
+        let history = CompletedWorkout(
+            date: Date(),
+            dayName: "Upper",
+            focus: "Chest",
+            exercises: [legacyExercise],
+            routineId: routine.id,
+            workoutId: routine.workouts[0].id
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode([routine]).write(
+            to: storageDirectory.appendingPathComponent("routines.json"),
+            options: .atomic
+        )
+        try encoder.encode([history]).write(
+            to: storageDirectory.appendingPathComponent("workout_history.json"),
+            options: .atomic
+        )
+        defaults.set(true, forKey: "hasMigratedToRoutines")
+
+        let reloadedStore = RoutineStore(
+            documentsDirectory: storageDirectory,
+            userDefaults: defaults,
+            initialLoadBehavior: .normal,
+            exerciseTemplatesProvider: { [template] },
+            cancelTimerNotification: { _ in },
+            cancelPendingTimerNotifications: { _ in }
+        )
+
+        XCTAssertEqual(reloadedStore.routines[0].workouts[0].exercises[0].trackingId, template.id)
+        XCTAssertEqual(reloadedStore.completedWorkouts[0].exercises[0].trackingId, template.id)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let savedRoutines = try decoder.decode(
+            [Routine].self,
+            from: Data(contentsOf: storageDirectory.appendingPathComponent("routines.json"))
+        )
+        let savedHistory = try decoder.decode(
+            [CompletedWorkout].self,
+            from: Data(contentsOf: storageDirectory.appendingPathComponent("workout_history.json"))
+        )
+        XCTAssertEqual(savedRoutines[0].workouts[0].exercises[0].trackingId, template.id)
+        XCTAssertEqual(savedHistory[0].exercises[0].trackingId, template.id)
+    }
+
+    func testLoadSortsHistoryNewestFirstWithUUIDTieBreak() throws {
+        let date = Date(timeIntervalSinceReferenceDate: 1_000)
+        let oldest = CompletedWorkout(
+            date: Date(timeIntervalSinceReferenceDate: 900),
+            dayName: "Oldest",
+            focus: "Full body",
+            exercises: [],
+            routineId: nil,
+            workoutId: nil
+        )
+        let firstTie = CompletedWorkout(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+            date: date,
+            dayName: "Second tie",
+            focus: "Full body",
+            exercises: [],
+            routineId: nil,
+            workoutId: nil
+        )
+        let secondTie = CompletedWorkout(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+            date: date,
+            dayName: "First tie",
+            focus: "Full body",
+            exercises: [],
+            routineId: nil,
+            workoutId: nil
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode([oldest, firstTie, secondTie]).write(
+            to: storageDirectory.appendingPathComponent("workout_history.json"),
+            options: .atomic
+        )
+        defaults.set(true, forKey: "hasMigratedToRoutines")
+
+        let reloadedStore = RoutineStore(
+            documentsDirectory: storageDirectory,
+            userDefaults: defaults,
+            initialLoadBehavior: .normal,
+            exerciseTemplatesProvider: { [] },
+            cancelTimerNotification: { _ in },
+            cancelPendingTimerNotifications: { _ in }
+        )
+
+        XCTAssertEqual(reloadedStore.completedWorkouts.map(\.id), [secondTie.id, firstTie.id, oldest.id])
+    }
+
     func testRoutineSaveDoesNotWriteHistory() {
         var writtenFileNames: [String] = []
         let store = RoutineStore(
@@ -80,6 +191,146 @@ final class RoutineStoreTests: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(0.1))
 
         XCTAssertEqual(writtenFileNames, ["routines.json"])
+    }
+
+    func testExerciseAnalyticsCountsOnlyLoggedExercisesAsTrainedSessions() {
+        let firstDate = Date(timeIntervalSinceReferenceDate: 100)
+        let secondDate = Date(timeIntervalSinceReferenceDate: 200)
+        let benchTrackingID = UUID()
+        let firstBench = Exercise(
+            trackingId: benchTrackingID,
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 135,
+            logs: [SetLog(weight: 135, reps: 8, completedDate: firstDate)]
+        )
+        let secondBench = Exercise(
+            trackingId: benchTrackingID,
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 155,
+            logs: [SetLog(weight: 155, reps: 5, completedDate: secondDate)]
+        )
+        let unloggedSquat = Exercise(name: "Squat", targetSets: 3, targetReps: "8", currentWeight: 185)
+        let workouts = [
+            CompletedWorkout(date: secondDate, dayName: "Upper", focus: "Chest", exercises: [secondBench, unloggedSquat], routineId: nil, workoutId: nil),
+            CompletedWorkout(date: firstDate, dayName: "Upper", focus: "Chest", exercises: [firstBench], routineId: nil, workoutId: nil)
+        ]
+
+        let sessions = ExerciseAnalytics.trainedSessions(from: workouts)
+        let summaries = ExerciseAnalytics.summaries(from: sessions)
+        let history = ExerciseAnalytics.history(for: benchTrackingID, from: sessions)
+
+        XCTAssertEqual(sessions.count, 2)
+        XCTAssertEqual(summaries, [ExerciseTrainingSummary(id: benchTrackingID, name: "Bench Press", count: 2)])
+        XCTAssertEqual(history.map(\.session), [1, 2])
+        XCTAssertEqual(history.map(\.date), [firstDate, secondDate])
+        XCTAssertEqual(history.map(\.totalVolume), [1080, 775])
+    }
+
+    func testExerciseAnalyticsUsesIdentityForRenamesAndSameNameExercises() {
+        let firstIdentity = UUID()
+        let secondIdentity = UUID()
+        let firstDate = Date(timeIntervalSinceReferenceDate: 100)
+        let secondDate = Date(timeIntervalSinceReferenceDate: 200)
+        let thirdDate = Date(timeIntervalSinceReferenceDate: 300)
+        let workouts = [
+            CompletedWorkout(
+                date: firstDate,
+                dayName: "First",
+                focus: "Chest",
+                exercises: [Exercise(
+                    trackingId: firstIdentity,
+                    name: "Barbell Bench Press",
+                    targetSets: 3,
+                    targetReps: "8",
+                    currentWeight: 135,
+                    logs: [SetLog(weight: 135, reps: 8, completedDate: firstDate)]
+                )],
+                routineId: nil,
+                workoutId: nil
+            ),
+            CompletedWorkout(
+                date: secondDate,
+                dayName: "Second",
+                focus: "Chest",
+                exercises: [Exercise(
+                    trackingId: firstIdentity,
+                    name: "Competition Bench Press",
+                    targetSets: 3,
+                    targetReps: "8",
+                    currentWeight: 145,
+                    logs: [SetLog(weight: 145, reps: 8, completedDate: secondDate)]
+                )],
+                routineId: nil,
+                workoutId: nil
+            ),
+            CompletedWorkout(
+                date: thirdDate,
+                dayName: "Third",
+                focus: "Chest",
+                exercises: [Exercise(
+                    trackingId: secondIdentity,
+                    name: "Competition Bench Press",
+                    targetSets: 3,
+                    targetReps: "8",
+                    currentWeight: 95,
+                    logs: [SetLog(weight: 95, reps: 8, completedDate: thirdDate)]
+                )],
+                routineId: nil,
+                workoutId: nil
+            )
+        ]
+
+        let sessions = ExerciseAnalytics.trainedSessions(from: workouts)
+        let summaries = ExerciseAnalytics.summaries(from: sessions)
+
+        XCTAssertEqual(summaries.first { $0.id == firstIdentity }, ExerciseTrainingSummary(id: firstIdentity, name: "Competition Bench Press", count: 2))
+        XCTAssertEqual(summaries.first { $0.id == secondIdentity }, ExerciseTrainingSummary(id: secondIdentity, name: "Competition Bench Press", count: 1))
+        XCTAssertEqual(ExerciseAnalytics.history(for: firstIdentity, from: sessions).count, 2)
+        XCTAssertEqual(ExerciseAnalytics.history(for: secondIdentity, from: sessions).count, 1)
+    }
+
+    func testImportMigrationLinksLegacyExercisesToTheirLibraryTemplate() throws {
+        let template = ExerciseTemplate(
+            name: "Bench Press",
+            primaryMuscleGroup: "Chest",
+            equipmentType: "Barbell"
+        )
+        let legacyExercise = Exercise(
+            trackingId: nil,
+            name: " bench press ",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 135,
+            logs: [SetLog(weight: 135, reps: 8, completedDate: Date())]
+        )
+        let routine = Routine(name: "Strength", workouts: [Workout(name: "Upper", focus: "Chest", exercises: [legacyExercise])])
+        let history = CompletedWorkout(
+            date: Date(),
+            dayName: "Upper",
+            focus: "Chest",
+            exercises: [legacyExercise],
+            routineId: routine.id,
+            workoutId: routine.workouts[0].id
+        )
+        let export = AppExportData(
+            schemaVersion: 1,
+            exportedAt: Date(),
+            routines: [routine],
+            completedWorkouts: [history],
+            exerciseLibrary: [template],
+            selectedTheme: .light,
+            activeRoutineId: nil,
+            activeWorkoutId: nil
+        )
+
+        let normalized = try AppImportValidator.normalizedCandidate(from: export)
+
+        XCTAssertEqual(normalized.routines[0].workouts[0].exercises[0].trackingId, template.id)
+        XCTAssertEqual(normalized.completedWorkouts[0].exercises[0].trackingId, template.id)
     }
 
     func testFailedRoutineSavePreservesTheLastGoodFileAndPublishesAnError() throws {
@@ -850,6 +1101,8 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertNotEqual(snapshots[0].id, exercise.id)
         XCTAssertNotEqual(snapshots[1].id, exercise.id)
         XCTAssertNotEqual(snapshots[0].id, snapshots[1].id)
+        XCTAssertEqual(snapshots[0].trackingId, exercise.trackingId)
+        XCTAssertEqual(snapshots[1].trackingId, exercise.trackingId)
         XCTAssertNotEqual(snapshots[0].logs[0].id, log.id)
         XCTAssertNotEqual(snapshots[1].logs[0].id, log.id)
         XCTAssertNotEqual(snapshots[0].logs[0].id, snapshots[1].logs[0].id)

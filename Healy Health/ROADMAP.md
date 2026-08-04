@@ -1,6 +1,6 @@
 # Healy Health Roadmap
 
-Last updated: 2026-08-03
+Last updated: 2026-08-04
 
 ## Product goal
 
@@ -106,7 +106,7 @@ Exit criteria:
 
 ## Phase 3 — Accurate history, analytics, and data management
 
-Status: Planned
+Status: In progress
 
 Outcome: History and charts consistently reflect completed work and remain compatible as the data model evolves.
 
@@ -120,12 +120,23 @@ Scope:
 - Display the app version from the bundle rather than hard-coded copy.
 - Clarify routine versus workout metadata in history details.
 
+Completed in this phase:
+
+- Defined a trained session as one exercise occurrence with at least one logged set in a completed workout. The summary list, top chart, and progress detail now share one aggregation, excluding unlogged planned exercises consistently.
+- Added a durable exercise tracking identity. New planned exercises use their library template UUID, immutable history snapshots retain it, and schemas 0 and 1 migrate legacy exercises by normalized name (preferring a matching library template). This preserves progress through renames and keeps separately identified same-name movements apart.
+- Centralized completed-workout newest-first ordering with UUID tie-breaks across import, local load, workout completion, history presentation, progress points, and summary ties.
+
+Sequencing decisions:
+
+- HH-304 history correction/deletion remains the next P1 behavior gap; HH-305 then makes pre-import recovery discoverable and expands export compatibility coverage.
+- Schema 2 introduces durable exercise tracking IDs. Schemas 0, 1, and 2 remain import-compatible.
+
 Exit criteria:
 
-- [ ] Summary counts, charts, and history agree for the same dataset.
+- [x] Summary counts, charts, and history agree for the same dataset.
 - [ ] Export/import round-trip tests pass for current and supported legacy schemas.
 - [ ] Users can correct erroneous history safely.
-- [ ] Analytics remain stable when an exercise is renamed.
+- [x] Analytics remain stable when an exercise is renamed.
 
 ## Phase 4 — Accessibility and product polish
 

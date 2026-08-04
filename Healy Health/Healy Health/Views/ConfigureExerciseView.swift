@@ -103,6 +103,7 @@ struct ConfigureExerciseView: View {
             Button(action: {
                 if case .success(let configuration) = validatedConfiguration {
                     onAdd(Exercise(
+                        trackingId: template.id,
                         name: configuration.name,
                         targetSets: configuration.targetSets,
                         targetReps: configuration.targetReps,

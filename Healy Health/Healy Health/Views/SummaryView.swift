@@ -3,20 +3,6 @@ import Charts
 
 // MARK: - Supporting data types
 
-struct ExerciseHistoryPoint: Identifiable {
-    let id = UUID()
-    let date: Date
-    let totalVolume: Double
-    let maxWeight: Double
-    let estimatedOneRepMax: Double
-    let session: Int
-}
-
-struct ExerciseSummary: Identifiable {
-    let id: String   // exercise name used as stable identifier
-    let count: Int
-}
-
 struct ExerciseLogData: Identifiable {
     let id: UUID; let name: String; let date: Date; let maxWeight: Double; let totalVolume: Double
 }
@@ -84,25 +70,6 @@ enum ExerciseChartMetric: String, CaseIterable, Identifiable {
     }
 }
 
-private extension Exercise {
-    var totalVolume: Double {
-        logs.reduce(0) { partialResult, log in
-            partialResult + (log.weight * Double(log.reps))
-        }
-    }
-
-    var maxLoggedWeight: Double {
-        logs.map(\.weight).max() ?? 0
-    }
-
-    var estimatedOneRepMax: Double {
-        logs.map { log in
-            log.weight * (1 + (Double(log.reps) / 30.0))
-        }
-        .max() ?? 0
-    }
-}
-
 private extension Double {
     var abbreviatedVolume: String {
         let formatter = NumberFormatter()
@@ -119,7 +86,9 @@ struct SummaryView: View {
     @EnvironmentObject var themeManager: ThemeManager
     private var theme: AppTheme { themeManager.current }
 
-    private var lastWorkout: CompletedWorkout? { store.completedWorkouts.first }
+    private var lastWorkout: CompletedWorkout? {
+        store.completedWorkouts.sorted(by: CompletedWorkout.newestFirst).first
+    }
 
     var body: some View {
         ZStack {
@@ -196,14 +165,11 @@ struct TopExerciseChartCard: View {
     private var theme: AppTheme { themeManager.current }
 
     private var topData: (name: String, history: [ExerciseHistoryPoint])? {
-        var counts: [String: Int] = [:]
-        for workout in store.completedWorkouts {
-            for exercise in workout.exercises where !exercise.logs.isEmpty {
-                counts[exercise.name, default: 0] += 1
-            }
+        let sessions = ExerciseAnalytics.trainedSessions(from: store.completedWorkouts)
+        guard let topExercise = ExerciseAnalytics.summaries(from: sessions).first else {
+            return nil
         }
-        guard let topName = counts.max(by: { $0.value < $1.value })?.key else { return nil }
-        return (topName, historyFor(topName))
+        return (topExercise.name, ExerciseAnalytics.history(for: topExercise.id, from: sessions))
     }
 
     private var selectedMetric: ExerciseChartMetric {
@@ -252,26 +218,6 @@ struct TopExerciseChartCard: View {
         }
     }
 
-    private func historyFor(_ name: String) -> [ExerciseHistoryPoint] {
-        var points: [ExerciseHistoryPoint] = []
-        let sorted = store.completedWorkouts.sorted { $0.date < $1.date }
-        var session = 1
-        for workout in sorted {
-            for exercise in workout.exercises where exercise.name == name && !exercise.logs.isEmpty {
-                points.append(
-                    ExerciseHistoryPoint(
-                        date: workout.date,
-                        totalVolume: exercise.totalVolume,
-                        maxWeight: exercise.maxLoggedWeight,
-                        estimatedOneRepMax: exercise.estimatedOneRepMax,
-                        session: session
-                    )
-                )
-                session += 1
-            }
-        }
-        return points
-    }
 }
 
 // MARK: - Shared line chart component
@@ -376,24 +322,24 @@ struct ExercisesListView: View {
     @EnvironmentObject var themeManager: ThemeManager
     private var theme: AppTheme { themeManager.current }
 
-    private var exercises: [ExerciseSummary] {
-        var counts: [String: Int] = [:]
-        for workout in store.completedWorkouts {
-            for exercise in workout.exercises {
-                counts[exercise.name, default: 0] += 1
+    private var exercises: [ExerciseTrainingSummary] {
+        ExerciseAnalytics.summaries(
+            from: ExerciseAnalytics.trainedSessions(from: store.completedWorkouts)
+        )
+            .sorted { lhs, rhs in
+                if lhs.count != rhs.count { return lhs.count > rhs.count }
+                let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+                return nameOrder == .orderedSame ? lhs.id.uuidString < rhs.id.uuidString : nameOrder == .orderedAscending
             }
-        }
-        return counts.map { ExerciseSummary(id: $0.key, count: $0.value) }
-            .sorted { $0.count > $1.count }
     }
 
     var body: some View {
         ZStack {
             theme.primaryColor.ignoresSafeArea()
             List(exercises) { item in
-                NavigationLink(destination: ExerciseProgressView(exerciseName: item.id)) {
+                NavigationLink(destination: ExerciseProgressView(exerciseId: item.id, exerciseName: item.name)) {
                     HStack {
-                        Text(item.id).foregroundColor(theme.rowText)
+                        Text(item.name).foregroundColor(theme.rowText)
                         Spacer()
                         Text("\(item.count) session\(item.count == 1 ? "" : "s")")
                             .font(.caption)
@@ -416,6 +362,7 @@ struct ExerciseProgressView: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
     @AppStorage("preferredExerciseChartMetric") private var selectedMetricRawValue = ExerciseChartMetric.volume.rawValue
+    let exerciseId: UUID
     let exerciseName: String
     private var theme: AppTheme { themeManager.current }
 
@@ -432,24 +379,10 @@ struct ExerciseProgressView: View {
     }
 
     private var history: [ExerciseHistoryPoint] {
-        var points: [ExerciseHistoryPoint] = []
-        let sorted = store.completedWorkouts.sorted { $0.date < $1.date }
-        var session = 1
-        for workout in sorted {
-            for exercise in workout.exercises where exercise.name == exerciseName && !exercise.logs.isEmpty {
-                points.append(
-                    ExerciseHistoryPoint(
-                        date: workout.date,
-                        totalVolume: exercise.totalVolume,
-                        maxWeight: exercise.maxLoggedWeight,
-                        estimatedOneRepMax: exercise.estimatedOneRepMax,
-                        session: session
-                    )
-                )
-                session += 1
-            }
-        }
-        return points
+        ExerciseAnalytics.history(
+            for: exerciseId,
+            from: ExerciseAnalytics.trainedSessions(from: store.completedWorkouts)
+        )
     }
 
     var body: some View {
@@ -534,7 +467,7 @@ struct WorkoutHistoryView: View {
     var body: some View {
         ZStack {
             theme.primaryColor.ignoresSafeArea()
-            List(store.completedWorkouts) { workout in
+            List(store.completedWorkouts.sorted(by: CompletedWorkout.newestFirst)) { workout in
                 NavigationLink(destination: SummaryDetailView(workout: workout)) {
                     VStack(alignment: .leading) {
                         Text(workout.date.formatted(date: .long, time: .shortened))

@@ -180,6 +180,7 @@ struct AddCustomExerciseView: View {
             return
         }
         onAdd(Exercise(
+            trackingId: template.id,
             name: configuration.name,
             targetSets: configuration.targetSets,
             targetReps: configuration.targetReps,

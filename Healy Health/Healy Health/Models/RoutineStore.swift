@@ -161,6 +161,7 @@ class RoutineStore: ObservableObject {
     private let dataWriter: (Data, URL) throws -> Void
     private let cancelTimerNotification: (UUID) -> Void
     private let cancelPendingTimerNotifications: (UUID?) -> Void
+    private let exerciseTemplatesProvider: () -> [ExerciseTemplate]
     private var isRestoringActiveState = false
     
     // Legacy file names for migration
@@ -184,6 +185,7 @@ class RoutineStore: ObservableObject {
         dataWriter: @escaping (Data, URL) throws -> Void = { data, url in
             try data.write(to: url, options: .atomic)
         },
+        exerciseTemplatesProvider: @escaping () -> [ExerciseTemplate] = { ExerciseManager.shared.exercises },
         cancelTimerNotification: @escaping (UUID) -> Void = { identifier in
             NotificationManager.shared.cancelTimer(identifier: identifier)
         },
@@ -195,6 +197,7 @@ class RoutineStore: ObservableObject {
             ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         self.userDefaults = userDefaults
         self.dataWriter = dataWriter
+        self.exerciseTemplatesProvider = exerciseTemplatesProvider
         self.cancelTimerNotification = cancelTimerNotification
         self.cancelPendingTimerNotifications = cancelPendingTimerNotifications
 
@@ -218,6 +221,7 @@ class RoutineStore: ObservableObject {
                 loadRoutines()
                 loadHistory()
             }
+            migrateExerciseIdentitiesIfNeeded()
             loadActiveState()
         case .empty:
             break
@@ -557,7 +561,8 @@ class RoutineStore: ObservableObject {
             routineId: routine.id,
             workoutId: workout.id
         )
-        completedWorkouts.insert(finishedWorkout, at: 0)
+        completedWorkouts.append(finishedWorkout)
+        completedWorkouts.sort(by: CompletedWorkout.newestFirst)
         performSaveHistory()
 
         // Mark this workout as completed within the routine (don't reset yet).
@@ -937,6 +942,24 @@ class RoutineStore: ObservableObject {
         normalizeActiveState()
     }
 
+    /// Persists the one-time legacy-name association before analytics reads the data. New
+    /// exercises already carry their library template identity and leave both files untouched.
+    @discardableResult
+    func migrateExerciseIdentitiesIfNeeded() -> Bool {
+        let migration = ExerciseIdentityMigration.migrated(
+            routines: routines,
+            completedWorkouts: completedWorkouts,
+            templates: exerciseTemplatesProvider()
+        )
+        guard migration.didChange else { return true }
+
+        routines = migration.routines
+        completedWorkouts = migration.completedWorkouts
+        let routinesSaved = !migration.routinesChanged || performSaveRoutines()
+        let historySaved = !migration.historyChanged || performSaveHistory()
+        return routinesSaved && historySaved
+    }
+
     private func loadRoutines() {
         let url = getDocumentsDirectory().appendingPathComponent(routinesFileName)
         guard FileManager.default.fileExists(atPath: url.path) else {
@@ -957,6 +980,7 @@ class RoutineStore: ObservableObject {
 
         do {
             completedWorkouts = try decode([CompletedWorkout].self, from: Data(contentsOf: url))
+                .sorted(by: CompletedWorkout.newestFirst)
         } catch {
             recordPersistenceError(resource: .history, operation: .load, error: error)
         }
@@ -1128,37 +1152,55 @@ class RoutineStore: ObservableObject {
     
     @discardableResult
     private func loadDefaultRoutines(immediatelyPersist: Bool = false) -> Bool {
+        let templateIDs = exerciseTemplatesProvider().reduce(into: [String: UUID]()) { result, template in
+            result[ExerciseDomainValidation.trimmedText(template.name).lowercased(), default: template.id] = template.id
+        }
+        func defaultExercise(
+            name: String,
+            targetSets: Int,
+            targetReps: String,
+            currentWeight: Double
+        ) -> Exercise {
+            Exercise(
+                trackingId: templateIDs[ExerciseDomainValidation.trimmedText(name).lowercased()],
+                name: name,
+                targetSets: targetSets,
+                targetReps: targetReps,
+                currentWeight: currentWeight
+            )
+        }
+
         let defaultWorkouts = [
             Workout(
                 name: "Push Day",
                 focus: "Chest, Shoulders, Triceps",
                 exercises: [
-                    Exercise(name: "Barbell Bench Press", targetSets: 4, targetReps: "8-10", currentWeight: 135.0),
-                    Exercise(name: "Overhead Press", targetSets: 3, targetReps: "8-12", currentWeight: 95.0),
-                    Exercise(name: "Incline Dumbbell Press", targetSets: 3, targetReps: "10-12", currentWeight: 45.0),
-                    Exercise(name: "Lateral Raises", targetSets: 4, targetReps: "12-15", currentWeight: 20.0),
-                    Exercise(name: "Tricep Pushdowns", targetSets: 3, targetReps: "12-15", currentWeight: 40.0)
+                    defaultExercise(name: "Barbell Bench Press", targetSets: 4, targetReps: "8-10", currentWeight: 135.0),
+                    defaultExercise(name: "Overhead Press", targetSets: 3, targetReps: "8-12", currentWeight: 95.0),
+                    defaultExercise(name: "Incline Dumbbell Press", targetSets: 3, targetReps: "10-12", currentWeight: 45.0),
+                    defaultExercise(name: "Lateral Raises", targetSets: 4, targetReps: "12-15", currentWeight: 20.0),
+                    defaultExercise(name: "Tricep Pushdowns", targetSets: 3, targetReps: "12-15", currentWeight: 40.0)
                 ]
             ),
             Workout(
                 name: "Pull Day",
                 focus: "Back, Biceps",
                 exercises: [
-                    Exercise(name: "Deadlift", targetSets: 3, targetReps: "5", currentWeight: 225.0),
-                    Exercise(name: "Pull-Ups (Assisted)", targetSets: 3, targetReps: "8-10", currentWeight: 0.0),
-                    Exercise(name: "Barbell Rows", targetSets: 4, targetReps: "8-10", currentWeight: 135.0),
-                    Exercise(name: "Face Pulls", targetSets: 3, targetReps: "15-20", currentWeight: 35.0),
-                    Exercise(name: "Bicep Curls", targetSets: 3, targetReps: "10-12", currentWeight: 30.0)
+                    defaultExercise(name: "Deadlift", targetSets: 3, targetReps: "5", currentWeight: 225.0),
+                    defaultExercise(name: "Pull-Ups (Assisted)", targetSets: 3, targetReps: "8-10", currentWeight: 0.0),
+                    defaultExercise(name: "Barbell Rows", targetSets: 4, targetReps: "8-10", currentWeight: 135.0),
+                    defaultExercise(name: "Face Pulls", targetSets: 3, targetReps: "15-20", currentWeight: 35.0),
+                    defaultExercise(name: "Bicep Curls", targetSets: 3, targetReps: "10-12", currentWeight: 30.0)
                 ]
             ),
             Workout(
                 name: "Legs & Push Hybrid",
                 focus: "Legs, Push",
                 exercises: [
-                    Exercise(name: "Squats", targetSets: 4, targetReps: "6-8", currentWeight: 185.0),
-                    Exercise(name: "Leg Press", targetSets: 3, targetReps: "10-12", currentWeight: 270.0),
-                    Exercise(name: "Incline Bench Press", targetSets: 3, targetReps: "8-10", currentWeight: 115.0),
-                    Exercise(name: "Bulgarian Split Squats", targetSets: 3, targetReps: "10 each", currentWeight: 0.0)
+                    defaultExercise(name: "Squats", targetSets: 4, targetReps: "6-8", currentWeight: 185.0),
+                    defaultExercise(name: "Leg Press", targetSets: 3, targetReps: "10-12", currentWeight: 270.0),
+                    defaultExercise(name: "Incline Bench Press", targetSets: 3, targetReps: "8-10", currentWeight: 115.0),
+                    defaultExercise(name: "Bulgarian Split Squats", targetSets: 3, targetReps: "10 each", currentWeight: 0.0)
                 ]
             )
         ]
