@@ -377,6 +377,77 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertThrowsError(try ExerciseDomainValidation.configuration(name: "Bench", targetSets: 3, targetReps: "8", currentWeight: .nan))
     }
 
+    func testWorkoutPlanningValidationTrimsNamesAndDetectsDuplicateExercisesWithinOneWorkout() throws {
+        XCTAssertEqual(try WorkoutPlanningValidation.routineName("  Strength \n"), "Strength")
+        XCTAssertEqual(try WorkoutPlanningValidation.workoutName(" Upper Body "), "Upper Body")
+        XCTAssertEqual(WorkoutPlanningValidation.focus(" Chest \n"), "Chest")
+        XCTAssertThrowsError(try WorkoutPlanningValidation.routineName(" \n"))
+        XCTAssertThrowsError(try WorkoutPlanningValidation.workoutName(" \n"))
+
+        let exercise = Exercise(name: "Bench Press", targetSets: 3, targetReps: "8", currentWeight: 135)
+        XCTAssertTrue(WorkoutPlanningValidation.hasDuplicateExerciseName("  bench press ", in: [exercise]))
+        XCTAssertFalse(WorkoutPlanningValidation.hasDuplicateExerciseName("Bench Press", in: [exercise], excludingID: exercise.id))
+    }
+
+    func testPlanningMutationsTrimNamesChangeCategoryAndRejectDuplicateExercises() throws {
+        let store = makeEmptyStore()
+        let routine: Routine
+        switch store.createRoutine(named: "  Strength \n") {
+        case .success(let value): routine = value
+        case .failure(let error): return XCTFail(error.localizedDescription)
+        }
+
+        let workout: Workout
+        switch store.addWorkout(routineId: routine.id, name: " Upper ", focus: " Chest ") {
+        case .success(let value): workout = value
+        case .failure(let error): return XCTFail(error.localizedDescription)
+        }
+        let bench = Exercise(
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 135,
+            category: .weightlifting
+        )
+        if case .failure(let error) = store.addExercise(routineId: routine.id, workoutId: workout.id, exercise: bench) {
+            XCTFail(error.localizedDescription)
+        }
+        if case .failure(let error) = store.addExercise(
+            routineId: routine.id,
+            workoutId: workout.id,
+            exercise: Exercise(name: " bench press ", targetSets: 3, targetReps: "8", currentWeight: 0)
+        ) {
+            XCTAssertEqual(error, .duplicateExerciseName)
+        } else {
+            XCTFail("Expected duplicate exercise to be rejected")
+        }
+        if case .failure(let error) = store.updateExerciseConfiguration(
+            routineId: routine.id,
+            workoutId: workout.id,
+            exerciseId: bench.id,
+            targetSets: 4,
+            targetReps: " 10-12 ",
+            currentWeight: 145,
+            category: .cardio
+        ) {
+            XCTFail(error.localizedDescription)
+        }
+        XCTAssertEqual(store.routines[0].name, "Strength")
+        XCTAssertEqual(store.routines[0].workouts[0].name, "Upper")
+        XCTAssertEqual(store.routines[0].workouts[0].focus, "Chest")
+        XCTAssertEqual(store.routines[0].workouts[0].exercises[0].targetReps, "10-12")
+        XCTAssertEqual(store.routines[0].workouts[0].exercises[0].category, .cardio)
+
+        store.flushSaves()
+        let data = try Data(contentsOf: storageDirectory.appendingPathComponent("routines.json"))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let savedRoutines = try decoder.decode([Routine].self, from: data)
+        XCTAssertEqual(savedRoutines[0].name, "Strength")
+        XCTAssertEqual(savedRoutines[0].workouts[0].name, "Upper")
+        XCTAssertEqual(savedRoutines[0].workouts[0].exercises[0].category, .cardio)
+    }
+
     func testSetLogValidationRejectsNegativeWeightAndNonpositiveReps() throws {
         XCTAssertEqual(try ExerciseDomainValidation.setLog(weight: 0, reps: 1), ValidatedSetLog(weight: 0, reps: 1))
 

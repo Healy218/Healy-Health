@@ -590,6 +590,139 @@ class RoutineStore: ObservableObject {
         routines.append(routine)
         saveRoutines()
     }
+
+    @discardableResult
+    func createRoutine(named name: String) -> Result<Routine, WorkoutPlanningValidationError> {
+        do {
+            let routine = Routine(name: try WorkoutPlanningValidation.routineName(name), workouts: [])
+            addRoutine(routine)
+            return .success(routine)
+        } catch let error as WorkoutPlanningValidationError {
+            return .failure(error)
+        } catch {
+            return .failure(.emptyRoutineName)
+        }
+    }
+
+    @discardableResult
+    func renameRoutine(id: UUID, name: String) -> Result<Void, WorkoutPlanningValidationError> {
+        guard let index = routines.firstIndex(where: { $0.id == id }) else { return .success(()) }
+        do {
+            routines[index].name = try WorkoutPlanningValidation.routineName(name)
+            saveRoutines()
+            return .success(())
+        } catch let error as WorkoutPlanningValidationError {
+            return .failure(error)
+        } catch {
+            return .failure(.emptyRoutineName)
+        }
+    }
+
+    @discardableResult
+    func addWorkout(
+        routineId: UUID,
+        name: String,
+        focus: String
+    ) -> Result<Workout, WorkoutPlanningValidationError> {
+        guard let routineIndex = routines.firstIndex(where: { $0.id == routineId }) else {
+            return .failure(.emptyWorkoutName)
+        }
+        do {
+            let workout = Workout(
+                name: try WorkoutPlanningValidation.workoutName(name),
+                focus: WorkoutPlanningValidation.focus(focus),
+                exercises: []
+            )
+            routines[routineIndex].workouts.append(workout)
+            saveRoutines()
+            return .success(workout)
+        } catch let error as WorkoutPlanningValidationError {
+            return .failure(error)
+        } catch {
+            return .failure(.emptyWorkoutName)
+        }
+    }
+
+    @discardableResult
+    func updateWorkoutDetails(
+        routineId: UUID,
+        workoutId: UUID,
+        name: String,
+        focus: String
+    ) -> Result<Void, WorkoutPlanningValidationError> {
+        guard let routineIndex = routines.firstIndex(where: { $0.id == routineId }),
+              let workoutIndex = routines[routineIndex].workouts.firstIndex(where: { $0.id == workoutId }) else {
+            return .failure(.emptyWorkoutName)
+        }
+        do {
+            routines[routineIndex].workouts[workoutIndex].name = try WorkoutPlanningValidation.workoutName(name)
+            routines[routineIndex].workouts[workoutIndex].focus = WorkoutPlanningValidation.focus(focus)
+            saveRoutines()
+            return .success(())
+        } catch let error as WorkoutPlanningValidationError {
+            return .failure(error)
+        } catch {
+            return .failure(.emptyWorkoutName)
+        }
+    }
+
+    @discardableResult
+    func addExercise(
+        routineId: UUID,
+        workoutId: UUID,
+        exercise: Exercise
+    ) -> Result<Void, WorkoutPlanningValidationError> {
+        guard let routineIndex = routines.firstIndex(where: { $0.id == routineId }),
+              let workoutIndex = routines[routineIndex].workouts.firstIndex(where: { $0.id == workoutId }) else {
+            return .failure(.duplicateExerciseName)
+        }
+        guard !WorkoutPlanningValidation.hasDuplicateExerciseName(
+            exercise.name,
+            in: routines[routineIndex].workouts[workoutIndex].exercises
+        ) else {
+            return .failure(.duplicateExerciseName)
+        }
+
+        routines[routineIndex].workouts[workoutIndex].exercises.append(exercise)
+        saveRoutines()
+        return .success(())
+    }
+
+    @discardableResult
+    func updateExerciseConfiguration(
+        routineId: UUID,
+        workoutId: UUID,
+        exerciseId: UUID,
+        targetSets: Int,
+        targetReps: String,
+        currentWeight: Double,
+        category: ExerciseCategory
+    ) -> Result<Void, ExerciseValidationError> {
+        guard let routineIndex = routines.firstIndex(where: { $0.id == routineId }),
+              let workoutIndex = routines[routineIndex].workouts.firstIndex(where: { $0.id == workoutId }),
+              let exerciseIndex = routines[routineIndex].workouts[workoutIndex].exercises.firstIndex(where: { $0.id == exerciseId }) else {
+            return .failure(.emptyName)
+        }
+
+        do {
+            let configuration = try ExerciseDomainValidation.configuration(
+                name: routines[routineIndex].workouts[workoutIndex].exercises[exerciseIndex].name,
+                targetSets: targetSets,
+                targetReps: targetReps,
+                currentWeight: currentWeight
+            )
+            routines[routineIndex].workouts[workoutIndex].exercises[exerciseIndex].targetSets = configuration.targetSets
+            routines[routineIndex].workouts[workoutIndex].exercises[exerciseIndex].targetReps = configuration.targetReps
+            routines[routineIndex].workouts[workoutIndex].exercises[exerciseIndex].currentWeight = configuration.currentWeight
+            routines[routineIndex].workouts[workoutIndex].exercises[exerciseIndex].category = category
+            saveRoutines()
+            return .success(())
+        } catch let error as ExerciseValidationError {
+            return .failure(error)
+        } catch {
+            return .failure(.invalidWeight)
+        }
+    }
     
     func updateRoutine(_ routine: Routine) {
         if let index = routines.firstIndex(where: { $0.id == routine.id }) {

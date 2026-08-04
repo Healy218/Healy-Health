@@ -6,6 +6,7 @@ struct AddCustomExerciseView: View {
     @ObservedObject private var exerciseManager = ExerciseManager.shared
 
     var presetCategory: ExerciseCategory = .weightlifting
+    var isNameInUse: (String) -> Bool = { _ in false }
     var onAdd: (Exercise) -> Void
 
     @State private var exerciseName: String = ""
@@ -18,7 +19,8 @@ struct AddCustomExerciseView: View {
 
     var isDuplicate: Bool {
         let normalizedName = ExerciseDomainValidation.trimmedText(exerciseName).lowercased()
-        return !normalizedName.isEmpty && exerciseManager.exercises.contains {
+        guard !normalizedName.isEmpty else { return false }
+        return isNameInUse(exerciseName) || exerciseManager.exercises.contains {
             ExerciseDomainValidation.trimmedText($0.name).lowercased() == normalizedName
         }
     }
@@ -104,7 +106,7 @@ struct AddCustomExerciseView: View {
         VStack(spacing: 0) {
             fieldRow(label: "Exercise Name", placeholder: "e.g. Hamstring Stretch", text: $exerciseName, keyboard: .default)
             if isDuplicate {
-                Text("An exercise with this name already exists in the library.")
+                Text("An exercise with this name already exists in this workout or the library.")
                     .font(.custom("ChalkboardSE-Regular", size: 13))
                     .foregroundColor(.red)
                     .padding(.horizontal)
@@ -171,7 +173,7 @@ struct AddCustomExerciseView: View {
             libraryErrorMessage = "Enter an exercise name."
             return
         case .duplicateName:
-            libraryErrorMessage = "An exercise with this name already exists in the library."
+            libraryErrorMessage = "An exercise with this name already exists in this workout or the library."
             return
         case .persistenceFailed:
             libraryErrorMessage = "Couldn’t save this custom exercise. Please try again."

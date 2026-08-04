@@ -2,33 +2,32 @@
 
 Last updated: 2026-08-03
 
-Current roadmap phase: Phase 2 — Complete the core workout experience
+Current roadmap phase: Phase 3 — Accurate history, analytics, and data management
 
 ## What was completed this session
 
-- **HH-204:** Added explicit, confirmed abandon/reset flows for workouts and routines. A live workout can no longer be silently replaced; keep-progress and reset-progress choices both clear its rest timer.
-- **HH-205:** Added immediately persisted drag reordering for routines, workouts, and category-filtered exercises while retaining active IDs and the positions of exercises outside the moved category.
-- **Export compatibility:** Schema-1 imports now accept exercise/log IDs reused in separate completed-workout snapshots. Newly recorded history snapshots receive fresh nested IDs.
-- **HH-100 verification:** Added the shared `Healy Health` scheme with `Healy HealthTests` in its Test action. XCTest passed **40/40** on iPhone 17 Pro Max, iOS 26.5.
-- Fixed active-session restoration so loading a routine, workout, start timestamp, and rest timer cannot save a partial state and erase the remaining persisted fields.
+- **HH-206:** Made exercise, workout, and routine editing consistent. Exercises can change category; routine/workout names are trimmed and blank alert submissions are disabled; and duplicate exercise names are rejected per workout, case/whitespace-insensitively.
+- Added store-owned planning mutations for routine/workout metadata and exercises, so validated edits persist immediately. Duplicate library selections show a clear error, while custom-exercise entry prevents the duplicate before it can be saved.
+- Added regression tests for normalized routine/workout/focus text, duplicate exercise detection, category persistence, and planning-mutation persistence.
 
 ## Next actions
 
-1. **HH-206:** Improve editing consistency: category changes, duplicate-name policy, trimmed routine/workout names, and disabled invalid alert actions.
-2. **HH-301:** Define one trained/session aggregation and apply it to the exercise list and top chart.
-3. **HH-305:** Document supported export recovery and make retained pre-import backups discoverable/restorable.
+1. **HH-301:** Define one trained/session aggregation and apply it to the exercise list and top chart.
+2. **HH-302:** Add stable exercise identity with a backward-compatible migration.
+3. **HH-303:** Make history ordering deterministic on load and in UI presentation.
+4. **HH-305:** Document supported export recovery and make retained pre-import backups discoverable/restorable.
 
 ## Verification
 
 Passed on 2026-08-03:
 
 ```sh
-xcodebuild -project 'Healy Health.xcodeproj' -scheme 'Healy Health' -destination 'platform=iOS Simulator,id=594FD875-739A-4D29-8A4F-D25C9B5F69E9' -resultBundlePath '/private/tmp/healy-full-ios265-after-active-state-fix.xcresult' test -quiet
-xcrun xcresulttool get test-results summary --path '/private/tmp/healy-full-ios265-after-active-state-fix.xcresult'
+xcodebuild -project 'Healy Health.xcodeproj' -scheme 'Healy Health' -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.5' -resultBundlePath '/private/tmp/healy-hh206-rerun.xcresult' test -quiet
+xcrun xcresulttool get test-results summary --path '/private/tmp/healy-hh206-rerun.xcresult'
 git diff --check
 ```
 
-- XCTest: **40 passed, 0 failed** on iPhone 17 Pro Max, iOS 26.5.
+- XCTest: **42 passed, 0 failed** on iPhone 17 Pro Max, iOS 26.5.
 - `git diff --check`: passed.
 - Build emits two existing Swift concurrency warnings in `ExportManager` sorting helpers; they do not fail the build or tests.
 
@@ -41,21 +40,22 @@ git diff --check
 
 - Rest timers survive ordinary navigation and relaunch; only explicit skip/finish, expiry, deletion, abandonment, or import clears them.
 - Starting a different routine/workout never replaces a live session implicitly; callers must route conflicts through the explicit abandon choice.
+- Exercise names are unique inside a planned workout (case/whitespace-insensitive); the same name is allowed in different workouts. Custom-library names remain globally unique.
 - Import schemas 0 and 1 remain supported. Separate historical snapshots may reuse nested IDs; future in-app history snapshots do not.
-- The active-session fields are restored as a single transaction, then saved once after state normalization.
 
 ## Working-tree notes
 
 Include in the next commit:
 
-- `Healy Health/Helpers/ExportManager.swift`
 - `Healy Health/Models/RoutineStore.swift`
-- `Healy Health/Views/ActiveWorkoutView.swift`
+- `Healy Health/Models/WorkoutPlanningValidation.swift`
+- `Healy Health/Views/AddCustomExerciseView.swift`
 - `Healy Health/Views/CategoryExerciseListView.swift`
+- `Healy Health/Views/EditExerciseView.swift`
 - `Healy Health/Views/RoutineDetailView.swift`
 - `Healy Health/Views/RoutinesView.swift`
+- `Healy Health/Views/WorkoutDetailView.swift`
 - `Healy HealthTests/RoutineStoreTests.swift`
-- `Healy Health.xcodeproj/xcshareddata/xcschemes/Healy Health.xcscheme`
 - `TODO.md`, `ROADMAP.md`, and `handoff.md`
 
 Pre-existing machine/user changes to preserve and exclude:

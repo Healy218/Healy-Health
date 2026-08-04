@@ -50,7 +50,7 @@ Priority legend:
 
 - [x] **HH-205 (P2) Add reordering.** Routines, workouts, and category-filtered exercises now support Edit-mode drag reordering through store-owned, validated moves that persist immediately. Active IDs remain stable; moving a category's exercises preserves all other category positions. Regression tests cover persistence, active IDs, nested workout moves, and filtered exercise ordering.
 
-- [ ] **HH-206 (P2) Improve editing consistency.** Allow exercise category changes, define duplicate-name behavior, trim routine/workout names, and disable invalid alert actions before submission.
+- [x] **HH-206 (P2) Improve editing consistency.** Exercise edits can now change category. Routine and workout names trim whitespace and cannot be blank; their alert actions disable until valid. Exercise names are unique within each workout, ignoring case/whitespace (but can be reused in other workouts), with inline custom-form prevention and an explanatory library-selection error. Store-owned mutations persist these edits, with regression coverage.
 
 ## Phase 3 — History, analytics, and data management
 

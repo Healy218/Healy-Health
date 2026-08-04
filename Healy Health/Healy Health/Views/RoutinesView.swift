@@ -9,6 +9,10 @@ struct RoutinesView: View {
 
     private var theme: AppTheme { themeManager.current }
 
+    private var isNewRoutineNameValid: Bool {
+        (try? WorkoutPlanningValidation.routineName(newRoutineName)) != nil
+    }
+
     var body: some View {
         ZStack {
             theme.primaryColor.edgesIgnoringSafeArea(.all)
@@ -73,11 +77,11 @@ struct RoutinesView: View {
                 TextField("Routine Name", text: $newRoutineName)
                 Button("Cancel", role: .cancel) { newRoutineName = "" }
                 Button("Add") {
-                    if !newRoutineName.isEmpty {
-                        store.addRoutine(Routine(name: newRoutineName, workouts: []))
+                    if case .success = store.createRoutine(named: newRoutineName) {
                         newRoutineName = ""
                     }
                 }
+                .disabled(!isNewRoutineNameValid)
             }
         }
         .navigationTitle("Routines")

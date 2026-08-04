@@ -16,6 +16,10 @@ struct WorkoutDetailView: View {
         store.routines.first(where: { $0.id == routineId })?.workouts.first(where: { $0.id == workout.id })
     }
 
+    private var isEditedWorkoutNameValid: Bool {
+        (try? WorkoutPlanningValidation.workoutName(editWorkoutName)) != nil
+    }
+
     var body: some View {
         ZStack {
             theme.primaryColor.edgesIgnoringSafeArea(.all)
@@ -47,14 +51,14 @@ struct WorkoutDetailView: View {
             TextField("Focus (e.g. Legs)", text: $editWorkoutFocus)
             Button("Cancel", role: .cancel) { }
             Button("Save") {
-                guard !editWorkoutName.isEmpty,
-                      let routine = store.routines.first(where: { $0.id == routineId }),
-                      let wIndex = routine.workouts.firstIndex(where: { $0.id == workout.id }) else { return }
-                var updated = routine
-                updated.workouts[wIndex].name = editWorkoutName
-                updated.workouts[wIndex].focus = editWorkoutFocus
-                store.updateRoutine(updated)
+                _ = store.updateWorkoutDetails(
+                    routineId: routineId,
+                    workoutId: workout.id,
+                    name: editWorkoutName,
+                    focus: editWorkoutFocus
+                )
             }
+            .disabled(!isEditedWorkoutNameValid)
         }
     }
 

@@ -18,6 +18,14 @@ struct RoutineDetailView: View {
         store.routines.first(where: { $0.id == routine.id })
     }
 
+    private var isEditedRoutineNameValid: Bool {
+        (try? WorkoutPlanningValidation.routineName(editRoutineName)) != nil
+    }
+
+    private var isNewWorkoutNameValid: Bool {
+        (try? WorkoutPlanningValidation.workoutName(newWorkoutName)) != nil
+    }
+
     var body: some View {
         ZStack {
             theme.primaryColor.edgesIgnoringSafeArea(.all)
@@ -95,24 +103,27 @@ struct RoutineDetailView: View {
                 TextField("Routine Name", text: $editRoutineName)
                 Button("Cancel", role: .cancel) { }
                 Button("Save") {
-                    if !editRoutineName.isEmpty, let cr = currentRoutine {
-                        var updated = cr; updated.name = editRoutineName
-                        store.updateRoutine(updated)
+                    if let cr = currentRoutine {
+                        _ = store.renameRoutine(id: cr.id, name: editRoutineName)
                     }
                 }
+                .disabled(!isEditedRoutineNameValid)
             }
             .alert("New Workout", isPresented: $showingAddWorkout) {
                 TextField("Workout Name", text: $newWorkoutName)
                 TextField("Focus (e.g. Push, Pull, Legs)", text: $newWorkoutFocus)
                 Button("Cancel", role: .cancel) { newWorkoutName = ""; newWorkoutFocus = "" }
                 Button("Add") {
-                    if !newWorkoutName.isEmpty, let cr = currentRoutine {
-                        var updated = cr
-                        updated.workouts.append(Workout(name: newWorkoutName, focus: newWorkoutFocus, exercises: []))
-                        store.updateRoutine(updated)
+                    if let cr = currentRoutine,
+                       case .success = store.addWorkout(
+                        routineId: cr.id,
+                        name: newWorkoutName,
+                        focus: newWorkoutFocus
+                       ) {
                         newWorkoutName = ""; newWorkoutFocus = ""
                     }
                 }
+                .disabled(!isNewWorkoutNameValid)
             }
             .confirmationDialog(
                 "Replace Active Session?",

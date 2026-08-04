@@ -12,6 +12,7 @@ struct EditExerciseView: View {
     @State private var targetSets: String = ""
     @State private var targetReps: String = ""
     @State private var startingWeight: String = ""
+    @State private var selectedCategory: ExerciseCategory = .weightlifting
 
     private var theme: AppTheme { themeManager.current }
 
@@ -59,6 +60,14 @@ struct EditExerciseView: View {
         Form {
             if let exercise = currentExercise {
                 Section(header: Text("Configuration for \(exercise.name)").foregroundColor(theme.onPrimaryText)) {
+                    Picker("Category", selection: $selectedCategory) {
+                        ForEach(ExerciseCategory.allCases, id: \.self) { category in
+                            Text(category.displayName).tag(category)
+                        }
+                    }
+                    .foregroundColor(theme.rowText)
+                    .listRowBackground(theme.rowBackground)
+
                     HStack {
                         Text("Target Sets").foregroundColor(theme.rowText)
                         Spacer()
@@ -87,14 +96,15 @@ struct EditExerciseView: View {
 
                 Button(action: {
                     if case .success(let configuration) = validatedConfiguration,
-                       let rIndex = store.routines.firstIndex(where: { $0.id == routineId }),
-                       let wIndex = store.routines[rIndex].workouts.firstIndex(where: { $0.id == workoutId }),
-                       let eIndex = store.routines[rIndex].workouts[wIndex].exercises.firstIndex(where: { $0.id == exerciseId }) {
-                        var updated = store.routines[rIndex]
-                        updated.workouts[wIndex].exercises[eIndex].targetSets = configuration.targetSets
-                        updated.workouts[wIndex].exercises[eIndex].targetReps = configuration.targetReps
-                        updated.workouts[wIndex].exercises[eIndex].currentWeight = configuration.currentWeight
-                        store.updateRoutine(updated)
+                       case .success = store.updateExerciseConfiguration(
+                        routineId: routineId,
+                        workoutId: workoutId,
+                        exerciseId: exerciseId,
+                        targetSets: configuration.targetSets,
+                        targetReps: configuration.targetReps,
+                        currentWeight: configuration.currentWeight,
+                        category: selectedCategory
+                       ) {
                         dismiss()
                     }
                 }) {
@@ -116,6 +126,7 @@ struct EditExerciseView: View {
                 targetSets = "\(ex.targetSets)"
                 targetReps = ex.targetReps
                 startingWeight = "\(ex.currentWeight)"
+                selectedCategory = ex.category
             }
         }
     }

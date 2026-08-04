@@ -73,7 +73,7 @@ Exit criteria:
 
 ## Phase 2 — Complete the core workout experience
 
-Status: In progress
+Status: Complete
 
 Outcome: Users can confidently plan, start, correct, resume, abandon, and complete workouts without losing context.
 
@@ -94,6 +94,7 @@ Completed:
 - Active workout start times and rest-timer deadlines now live in `RoutineStore`, persist across navigation/relaunch, and resume from their absolute deadline. Completion, deletion, import, and expiry clear their associated notification and session state; launch also removes orphaned rest notifications.
 - Added confirmed abandon/reset flows for workouts and routines. Switching to a conflicting active context requires an explicit keep-progress or reset-progress choice; reset clears planned-workout logs and completion state, and both paths cancel the rest timer.
 - Added stable, immediately persisted drag reordering for routines, workouts, and exercises. Exercise moves work from category-filtered lists without changing the placement of exercises in other categories.
+- Made editing rules consistent: routine/workout names normalize whitespace and invalid alert actions are disabled; exercises can move categories; and duplicate exercise names are rejected within a workout regardless of case or surrounding whitespace.
 
 Exit criteria:
 
@@ -101,6 +102,7 @@ Exit criteria:
 - [x] Active workout and timer state behave predictably after navigation and app relaunch.
 - [x] Destructive workout actions require confirmation.
 - [x] Routine and workout organization can be changed without rebuilding content.
+- [x] Routine, workout, and exercise editing has consistent validation and duplicate behavior.
 
 ## Phase 3 — Accurate history, analytics, and data management
 

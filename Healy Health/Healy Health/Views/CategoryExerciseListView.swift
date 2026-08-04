@@ -9,6 +9,7 @@ struct CategoryExerciseListView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @State private var showingAddCustom = false
     @State private var showingLibrary = false
+    @State private var addExerciseErrorMessage: String?
 
     private var theme: AppTheme { themeManager.current }
 
@@ -94,19 +95,37 @@ struct CategoryExerciseListView: View {
             .padding(.bottom, 10)
         }
         .sheet(isPresented: $showingAddCustom) {
-            AddCustomExerciseView(presetCategory: category, onAdd: appendExercise)
+            AddCustomExerciseView(
+                presetCategory: category,
+                isNameInUse: { name in
+                    currentWorkout.map {
+                        WorkoutPlanningValidation.hasDuplicateExerciseName(name, in: $0.exercises)
+                    } ?? false
+                },
+                onAdd: appendExercise
+            )
         }
         .sheet(isPresented: $showingLibrary) {
             ExerciseSelectionView(presetCategory: category, onAdd: appendExercise)
         }
+        .alert("Can’t Add Exercise", isPresented: Binding(
+            get: { addExerciseErrorMessage != nil },
+            set: { if !$0 { addExerciseErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { addExerciseErrorMessage = nil }
+        } message: {
+            Text(addExerciseErrorMessage ?? "")
+        }
     }
 
     private func appendExercise(_ exercise: Exercise) {
-        guard let routine = store.routines.first(where: { $0.id == routineId }),
-              let wIndex = routine.workouts.firstIndex(where: { $0.id == workoutId }) else { return }
-        var updated = routine
-        updated.workouts[wIndex].exercises.append(exercise)
-        store.updateRoutine(updated)
+        if case .failure(let error) = store.addExercise(
+            routineId: routineId,
+            workoutId: workoutId,
+            exercise: exercise
+        ) {
+            addExerciseErrorMessage = error.localizedDescription
+        }
     }
 
     private func deleteExercise(offsets: IndexSet) {
