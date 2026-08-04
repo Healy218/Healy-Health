@@ -35,6 +35,9 @@ struct ExerciseDetailView: View {
     @State private var timerErrorMessage: String?
     @State private var timerNotificationID: UUID?
     @State private var setLogErrorMessage: String?
+    @State private var logBeingEdited: SetLog?
+    @State private var logPendingDeletionID: UUID?
+    @State private var setMutationErrorMessage: String?
 
     var body: some View {
         ZStack {
@@ -49,14 +52,27 @@ struct ExerciseDetailView: View {
                             if exercise.logs.isEmpty {
                                 Text("No sets completed yet.").foregroundColor(theme.secondaryRowText)
                             } else {
-                                ForEach(exercise.logs) { log in
+                                ForEach(Array(exercise.logs.enumerated()), id: \.element.id) { index, log in
                                     HStack {
-                                        Text("Set \(exercise.logs.firstIndex(where: { $0.id == log.id })! + 1)").fontWeight(.bold)
+                                        Text("Set \(index + 1)").fontWeight(.bold)
                                         Spacer()
                                         Text("\(log.reps) reps @ \(String(format: "%.1f", log.weight)) lbs")
                                     }
                                     .foregroundColor(theme.rowText)
                                     .listRowBackground(theme.rowBackground)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                        Button(role: .destructive) {
+                                            logPendingDeletionID = log.id
+                                        } label: {
+                                            Label("Delete Set", systemImage: "trash")
+                                        }
+                                        Button {
+                                            logBeingEdited = log
+                                        } label: {
+                                            Label("Edit Set", systemImage: "pencil")
+                                        }
+                                        .tint(theme.accentColor)
+                                    }
                                 }
                             }
                         }
@@ -116,6 +132,40 @@ struct ExerciseDetailView: View {
         }, message: {
             Text(timerErrorMessage ?? "")
         })
+        .confirmationDialog(
+            "Delete Logged Set?",
+            isPresented: Binding(
+                get: { logPendingDeletionID != nil },
+                set: { if !$0 { logPendingDeletionID = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete Set", role: .destructive, action: deletePendingSet)
+            Button("Cancel", role: .cancel) { logPendingDeletionID = nil }
+        } message: {
+            Text("This removes the set from this workout. You can’t undo it.")
+        }
+        .sheet(item: $logBeingEdited) { log in
+            EditLoggedSetView(log: log) { weight, reps in
+                store.updateLoggedSet(
+                    routineId: routineId,
+                    workoutId: workoutId,
+                    exerciseId: exerciseId,
+                    logId: log.id,
+                    weight: weight,
+                    reps: reps
+                )
+            }
+            .environmentObject(themeManager)
+        }
+        .alert("Couldn’t Update Set", isPresented: Binding(
+            get: { setMutationErrorMessage != nil },
+            set: { if !$0 { setMutationErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { setMutationErrorMessage = nil }
+        } message: {
+            Text(setMutationErrorMessage ?? "")
+        }
     }
 
     var isCustomDuration: Bool { ![120.0, 150.0, 180.0].contains(selectedDuration) }
@@ -225,10 +275,99 @@ struct ExerciseDetailView: View {
     }
 
     func skipRest() { cancelRestTimer() }
+
+    func deletePendingSet() {
+        guard let logId = logPendingDeletionID else { return }
+        logPendingDeletionID = nil
+        if case .failure(let error) = store.deleteLoggedSet(
+            routineId: routineId,
+            workoutId: workoutId,
+            exerciseId: exerciseId,
+            logId: logId
+        ) {
+            setMutationErrorMessage = error.localizedDescription
+        }
+    }
+
     func finishExercise() {
         exerciseBinding?.wrappedValue.isCompleted = true
         store.saveRoutines()
         cancelRestTimer()
         presentationMode.wrappedValue.dismiss()
+    }
+}
+
+private struct EditLoggedSetView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var themeManager: ThemeManager
+
+    let log: SetLog
+    let onSave: (Double, Int) -> Result<Void, SetLogMutationError>
+
+    @State private var weightInput: String
+    @State private var repsInput: String
+    @State private var errorMessage: String?
+
+    private var theme: AppTheme { themeManager.current }
+
+    init(
+        log: SetLog,
+        onSave: @escaping (Double, Int) -> Result<Void, SetLogMutationError>
+    ) {
+        self.log = log
+        self.onSave = onSave
+        _weightInput = State(initialValue: String(format: "%.1f", log.weight))
+        _repsInput = State(initialValue: String(log.reps))
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Set Details") {
+                    TextField("Weight (lbs)", text: $weightInput)
+                        .keyboardType(.decimalPad)
+                    TextField("Reps", text: $repsInput)
+                        .keyboardType(.numberPad)
+                }
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(theme.primaryColor)
+            .navigationTitle("Edit Set")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: save)
+                }
+            }
+        }
+        .onChange(of: weightInput) { _ in errorMessage = nil }
+        .onChange(of: repsInput) { _ in errorMessage = nil }
+    }
+
+    private func save() {
+        guard let weight = Double(weightInput.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            errorMessage = "Enter a valid weight."
+            return
+        }
+        guard let reps = Int(repsInput.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            errorMessage = "Enter reps as a whole number."
+            return
+        }
+
+        switch onSave(weight, reps) {
+        case .success:
+            dismiss()
+        case .failure(let error):
+            errorMessage = error.localizedDescription
+        }
     }
 }

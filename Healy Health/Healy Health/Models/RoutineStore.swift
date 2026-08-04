@@ -73,6 +73,29 @@ enum WorkoutCompletionError: LocalizedError, Equatable {
     }
 }
 
+enum SetLogMutationError: LocalizedError, Equatable {
+    case routineNotFound
+    case workoutNotFound
+    case exerciseNotFound
+    case logNotFound
+    case invalidLog(ExerciseValidationError)
+
+    var errorDescription: String? {
+        switch self {
+        case .routineNotFound:
+            return "This routine is no longer available."
+        case .workoutNotFound:
+            return "This workout is no longer available in the selected routine."
+        case .exerciseNotFound:
+            return "This exercise is no longer available in the selected workout."
+        case .logNotFound:
+            return "This logged set is no longer available."
+        case .invalidLog(let error):
+            return error.localizedDescription
+        }
+    }
+}
+
 class RoutineStore: ObservableObject {
     static let shared = RoutineStore()
 
@@ -250,6 +273,77 @@ class RoutineStore: ObservableObject {
             routines[rIndex].workouts[wIndex].exercises[eIndex].isCompleted.toggle()
             saveRoutines()
         }
+    }
+
+    /// Replaces one logged set using the current routine graph, then writes the change before
+    /// returning. Keeping this mutation in the store prevents a stale view from editing a
+    /// different exercise and gives all set-entry paths the same validation rules.
+    @discardableResult
+    func updateLoggedSet(
+        routineId: UUID,
+        workoutId: UUID,
+        exerciseId: UUID,
+        logId: UUID,
+        weight: Double,
+        reps: Int
+    ) -> Result<Void, SetLogMutationError> {
+        let validatedLog: ValidatedSetLog
+        do {
+            validatedLog = try ExerciseDomainValidation.setLog(weight: weight, reps: reps)
+        } catch let error as ExerciseValidationError {
+            return .failure(.invalidLog(error))
+        } catch {
+            return .failure(.invalidLog(.invalidWeight))
+        }
+
+        guard let routineIndex = routines.firstIndex(where: { $0.id == routineId }) else {
+            return .failure(.routineNotFound)
+        }
+        guard let workoutIndex = routines[routineIndex].workouts.firstIndex(where: { $0.id == workoutId }) else {
+            return .failure(.workoutNotFound)
+        }
+        guard let exerciseIndex = routines[routineIndex].workouts[workoutIndex].exercises.firstIndex(where: { $0.id == exerciseId }) else {
+            return .failure(.exerciseNotFound)
+        }
+        guard let logIndex = routines[routineIndex].workouts[workoutIndex].exercises[exerciseIndex].logs.firstIndex(where: { $0.id == logId }) else {
+            return .failure(.logNotFound)
+        }
+
+        routines[routineIndex].workouts[workoutIndex].exercises[exerciseIndex].logs[logIndex].weight = validatedLog.weight
+        routines[routineIndex].workouts[workoutIndex].exercises[exerciseIndex].logs[logIndex].reps = validatedLog.reps
+        performSaveRoutines()
+        return .success(())
+    }
+
+    /// Deletes exactly one logged set. If the correction puts a manually finished exercise below
+    /// its target, its completion state is reset so the session UI reflects the remaining work.
+    @discardableResult
+    func deleteLoggedSet(
+        routineId: UUID,
+        workoutId: UUID,
+        exerciseId: UUID,
+        logId: UUID
+    ) -> Result<Void, SetLogMutationError> {
+        guard let routineIndex = routines.firstIndex(where: { $0.id == routineId }) else {
+            return .failure(.routineNotFound)
+        }
+        guard let workoutIndex = routines[routineIndex].workouts.firstIndex(where: { $0.id == workoutId }) else {
+            return .failure(.workoutNotFound)
+        }
+        guard let exerciseIndex = routines[routineIndex].workouts[workoutIndex].exercises.firstIndex(where: { $0.id == exerciseId }) else {
+            return .failure(.exerciseNotFound)
+        }
+        guard let logIndex = routines[routineIndex].workouts[workoutIndex].exercises[exerciseIndex].logs.firstIndex(where: { $0.id == logId }) else {
+            return .failure(.logNotFound)
+        }
+
+        routines[routineIndex].workouts[workoutIndex].exercises[exerciseIndex].logs.remove(at: logIndex)
+        if routines[routineIndex].workouts[workoutIndex].exercises[exerciseIndex].logs.count
+            < routines[routineIndex].workouts[workoutIndex].exercises[exerciseIndex].targetSets {
+            routines[routineIndex].workouts[workoutIndex].exercises[exerciseIndex].isCompleted = false
+        }
+        performSaveRoutines()
+        return .success(())
     }
     
     /// Completes the workout currently stored under the supplied IDs. Resolving it here avoids

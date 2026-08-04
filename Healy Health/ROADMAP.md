@@ -89,10 +89,11 @@ Scope:
 Completed:
 
 - Defined custom exercises as reusable library entries. Creating one saves a normalized “Custom” template tagged with the selected category, immediately adds it to the current workout, and prevents case/whitespace duplicate names at the library boundary. A failed save rolls the template back and keeps the workout unchanged.
+- Added safe logged-set correction. Each set can be edited or deleted from the exercise history; edits use the existing domain rules, deletions are confirmed, all mutations resolve the current routine/workout/exercise/log by ID and persist immediately, and a deletion below the target-set count clears the completed state. Regression coverage verifies successful and rejected mutations, persistence, and completion repair.
 
 Exit criteria:
 
-- [ ] Accidental set entries are reversible.
+- [x] Accidental set entries are reversible.
 - [ ] Active workout and timer state behave predictably after navigation and app relaunch.
 - [ ] Destructive workout actions require confirmation.
 - [ ] Routine and workout organization can be changed without rebuilding content.

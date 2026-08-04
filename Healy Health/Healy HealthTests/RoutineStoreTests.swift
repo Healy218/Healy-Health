@@ -325,6 +325,167 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertThrowsError(try ExerciseDomainValidation.setLog(weight: 100, reps: -1))
     }
 
+    func testUpdateLoggedSetUpdatesOnlyTheRequestedLogAndPersistsIt() throws {
+        let firstLog = SetLog(weight: 135, reps: 8, completedDate: Date())
+        let logToUpdate = SetLog(weight: 145, reps: 6, completedDate: Date())
+        let exercise = Exercise(
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 135,
+            logs: [firstLog, logToUpdate]
+        )
+        let routine = Routine(
+            name: "Strength",
+            workouts: [Workout(name: "Upper", focus: "Chest", exercises: [exercise])]
+        )
+        let store = makeEmptyStore()
+        store.routines = [routine]
+
+        XCTAssertSetLogMutationSucceeds(store.updateLoggedSet(
+            routineId: routine.id,
+            workoutId: routine.workouts[0].id,
+            exerciseId: exercise.id,
+            logId: logToUpdate.id,
+            weight: 150,
+            reps: 10
+        ))
+
+        let logs = store.routines[0].workouts[0].exercises[0].logs
+        XCTAssertEqual(logs[0].weight, 135)
+        XCTAssertEqual(logs[0].reps, 8)
+        XCTAssertEqual(logs[1].weight, 150)
+        XCTAssertEqual(logs[1].reps, 10)
+
+        let data = try Data(contentsOf: storageDirectory.appendingPathComponent("routines.json"))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let savedRoutines = try decoder.decode([Routine].self, from: data)
+        XCTAssertEqual(savedRoutines[0].workouts[0].exercises[0].logs[1].weight, 150)
+        XCTAssertEqual(savedRoutines[0].workouts[0].exercises[0].logs[1].reps, 10)
+    }
+
+    func testUpdateLoggedSetRejectsInvalidValuesWithoutMutatingTheLog() {
+        let log = SetLog(weight: 135, reps: 8, completedDate: Date())
+        let exercise = Exercise(
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 135,
+            logs: [log]
+        )
+        let routine = Routine(
+            name: "Strength",
+            workouts: [Workout(name: "Upper", focus: "Chest", exercises: [exercise])]
+        )
+        let store = makeEmptyStore()
+        store.routines = [routine]
+
+        XCTAssertSetLogMutationFails(
+            store.updateLoggedSet(
+                routineId: routine.id,
+                workoutId: routine.workouts[0].id,
+                exerciseId: exercise.id,
+                logId: log.id,
+                weight: -.infinity,
+                reps: 8
+            ),
+            with: .invalidLog(.invalidWeight)
+        )
+        XCTAssertSetLogMutationFails(
+            store.updateLoggedSet(
+                routineId: routine.id,
+                workoutId: routine.workouts[0].id,
+                exerciseId: exercise.id,
+                logId: log.id,
+                weight: 135,
+                reps: 0
+            ),
+            with: .invalidLog(.invalidLogReps)
+        )
+        let unchangedLog = store.routines[0].workouts[0].exercises[0].logs[0]
+        XCTAssertEqual(unchangedLog.id, log.id)
+        XCTAssertEqual(unchangedLog.weight, log.weight)
+        XCTAssertEqual(unchangedLog.reps, log.reps)
+    }
+
+    func testDeleteLoggedSetResetsCompletionBelowTargetAndPersistsIt() throws {
+        let firstLog = SetLog(weight: 135, reps: 8, completedDate: Date())
+        let logToDelete = SetLog(weight: 140, reps: 8, completedDate: Date())
+        let exercise = Exercise(
+            name: "Bench Press",
+            targetSets: 2,
+            targetReps: "8",
+            currentWeight: 135,
+            isCompleted: true,
+            logs: [firstLog, logToDelete]
+        )
+        let routine = Routine(
+            name: "Strength",
+            workouts: [Workout(name: "Upper", focus: "Chest", exercises: [exercise])]
+        )
+        let store = makeEmptyStore()
+        store.routines = [routine]
+
+        XCTAssertSetLogMutationSucceeds(store.deleteLoggedSet(
+            routineId: routine.id,
+            workoutId: routine.workouts[0].id,
+            exerciseId: exercise.id,
+            logId: logToDelete.id
+        ))
+
+        let updatedExercise = store.routines[0].workouts[0].exercises[0]
+        XCTAssertEqual(updatedExercise.logs.count, 1)
+        XCTAssertEqual(updatedExercise.logs[0].id, firstLog.id)
+        XCTAssertFalse(updatedExercise.isCompleted)
+
+        let data = try Data(contentsOf: storageDirectory.appendingPathComponent("routines.json"))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let savedRoutines = try decoder.decode([Routine].self, from: data)
+        XCTAssertFalse(savedRoutines[0].workouts[0].exercises[0].isCompleted)
+    }
+
+    func testDeleteLoggedSetReportsMissingIDsWithoutMutatingTheExercise() {
+        let log = SetLog(weight: 135, reps: 8, completedDate: Date())
+        let exercise = Exercise(
+            name: "Bench Press",
+            targetSets: 2,
+            targetReps: "8",
+            currentWeight: 135,
+            logs: [log]
+        )
+        let routine = Routine(
+            name: "Strength",
+            workouts: [Workout(name: "Upper", focus: "Chest", exercises: [exercise])]
+        )
+        let store = makeEmptyStore()
+        store.routines = [routine]
+
+        XCTAssertSetLogMutationFails(
+            store.deleteLoggedSet(
+                routineId: routine.id,
+                workoutId: routine.workouts[0].id,
+                exerciseId: exercise.id,
+                logId: UUID()
+            ),
+            with: .logNotFound
+        )
+        XCTAssertSetLogMutationFails(
+            store.deleteLoggedSet(
+                routineId: routine.id,
+                workoutId: routine.workouts[0].id,
+                exerciseId: UUID(),
+                logId: log.id
+            ),
+            with: .exerciseNotFound
+        )
+        let unchangedLog = store.routines[0].workouts[0].exercises[0].logs[0]
+        XCTAssertEqual(unchangedLog.id, log.id)
+        XCTAssertEqual(unchangedLog.weight, log.weight)
+        XCTAssertEqual(unchangedLog.reps, log.reps)
+    }
+
     func testRestTimerSchedulingRequestsPermissionAtTimerUseAndAddsNotification() {
         var requestedAuthorization = false
         var scheduledRequest: UNNotificationRequest?
@@ -552,6 +713,28 @@ final class RoutineStoreTests: XCTestCase {
     ) {
         guard case .failure(let error) = result else {
             return XCTFail("Expected workout completion to fail with \(expectedError)", file: file, line: line)
+        }
+        XCTAssertEqual(error, expectedError, file: file, line: line)
+    }
+
+    private func XCTAssertSetLogMutationSucceeds(
+        _ result: Result<Void, SetLogMutationError>,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        if case .failure(let error) = result {
+            XCTFail("Expected logged-set mutation to succeed, got: \(error.localizedDescription)", file: file, line: line)
+        }
+    }
+
+    private func XCTAssertSetLogMutationFails(
+        _ result: Result<Void, SetLogMutationError>,
+        with expectedError: SetLogMutationError,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        guard case .failure(let error) = result else {
+            return XCTFail("Expected logged-set mutation to fail with \(expectedError)", file: file, line: line)
         }
         XCTAssertEqual(error, expectedError, file: file, line: line)
     }

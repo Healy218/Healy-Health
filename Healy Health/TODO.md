@@ -40,7 +40,8 @@ Priority legend:
 
 - [x] **HH-201 (P1) Finish custom exercise library wiring.** “Custom” now means reusable: creating one normalizes and persists a library template, then adds the configured exercise to the current workout. The operation is atomic—save failure leaves both the library and workout unchanged and is shown inline. The library owns case/whitespace-insensitive duplicate protection, keeps templates deterministically sorted, and has temporary-directory persistence coverage.
 
-- [ ] **HH-202 (P1) Allow set correction.** Add edit/delete controls for logged sets, recalculate completion presentation, and persist changes immediately. Confirm destructive history edits where appropriate.
+- [x] **HH-202 (P1) Allow set correction.** Logged sets now expose edit/delete swipe actions. Edits are validated and persisted through ID-based store mutations; deletion requires confirmation, persists immediately, and clears an exercise's completion state when the remaining set count falls below its target. Regression tests cover scoped edits, invalid inputs, missing IDs, completion repair, and persistence.
+  - Acceptance: set corrections are reversible; destructive deletion is confirmed; completion presentation remains accurate; and mutations persist immediately.
 
 - [ ] **HH-203 (P1) Persist active session/timer state.** Store workout start time and rest-timer end time outside view-local `@State`, then restore or explicitly cancel them after navigation/relaunch.
 
