@@ -33,7 +33,7 @@ Exit criteria:
 
 ## Phase 1 — Data safety and crash prevention
 
-Status: In progress
+Status: Complete
 
 Outcome: Routine, workout, history, timer, and imported data remain internally consistent and recoverable across all normal app lifecycle events.
 
@@ -59,20 +59,21 @@ Completed in this phase:
 
 - Centralized exercise domain validation across configure, edit, custom-exercise, set-logging, and import flows. It normalizes user-entered names/rep ranges, rejects impossible set/repetition counts and invalid weights, and gives inline feedback before data is saved.
 - Added active-session state normalization after routine load, migration, and imported-state application. Invalid routine IDs clear the session; invalid workout IDs return to the valid routine. Legacy migration only completes after persisted output succeeds, while unreadable legacy files remain intact and surface a migration-specific error for retry.
+- Made active-session restoration atomic so the property observers cannot erase the still-unread workout, start-time, or rest-timer fields. Added a shared scheme containing `Healy HealthTests`; all 40 unit tests pass on iPhone 17 Pro Max, iOS 26.5.
 
-Verification note: app and XCTest sources type-check in the terminal environment. The user has also built and installed the app in an interactive iPhone simulator, while terminal `xcodebuild` remains blocked by a separate CoreSimulator-runtime issue. XCTest execution has not yet been recorded.
+Verification note: `xcodebuild test` passed all 40 unit tests on iPhone 17 Pro Max, iOS 26.5. The iOS 26.2 simulator runtime aborts while deallocating the test host, so iOS 26.5 is the supported local test destination.
 
 Exit criteria:
 
-- [ ] No known user-entered value can create an invalid notification trigger or impossible workout configuration.
-- [ ] Deleting or importing data cannot leave dangling active IDs.
-- [ ] Critical persistence and mutation paths have automated tests.
-- [ ] Save/import failures reach the UI with an actionable message.
-- [ ] The app passes a clean build and the Phase 1 regression checklist.
+- [x] No known user-entered value can create an invalid notification trigger or impossible workout configuration.
+- [x] Deleting or importing data cannot leave dangling active IDs.
+- [x] Critical persistence and mutation paths have automated tests.
+- [x] Save/import failures reach the UI with an actionable message.
+- [x] The app passes a clean build and the Phase 1 regression checklist on the supported iOS 26.5 simulator runtime.
 
 ## Phase 2 — Complete the core workout experience
 
-Status: Planned
+Status: In progress
 
 Outcome: Users can confidently plan, start, correct, resume, abandon, and complete workouts without losing context.
 
@@ -91,13 +92,15 @@ Completed:
 - Defined custom exercises as reusable library entries. Creating one saves a normalized “Custom” template tagged with the selected category, immediately adds it to the current workout, and prevents case/whitespace duplicate names at the library boundary. A failed save rolls the template back and keeps the workout unchanged.
 - Added safe logged-set correction. Each set can be edited or deleted from the exercise history; edits use the existing domain rules, deletions are confirmed, all mutations resolve the current routine/workout/exercise/log by ID and persist immediately, and a deletion below the target-set count clears the completed state. Regression coverage verifies successful and rejected mutations, persistence, and completion repair.
 - Active workout start times and rest-timer deadlines now live in `RoutineStore`, persist across navigation/relaunch, and resume from their absolute deadline. Completion, deletion, import, and expiry clear their associated notification and session state; launch also removes orphaned rest notifications.
+- Added confirmed abandon/reset flows for workouts and routines. Switching to a conflicting active context requires an explicit keep-progress or reset-progress choice; reset clears planned-workout logs and completion state, and both paths cancel the rest timer.
+- Added stable, immediately persisted drag reordering for routines, workouts, and exercises. Exercise moves work from category-filtered lists without changing the placement of exercises in other categories.
 
 Exit criteria:
 
 - [x] Accidental set entries are reversible.
 - [x] Active workout and timer state behave predictably after navigation and app relaunch.
-- [ ] Destructive workout actions require confirmation.
-- [ ] Routine and workout organization can be changed without rebuilding content.
+- [x] Destructive workout actions require confirmation.
+- [x] Routine and workout organization can be changed without rebuilding content.
 
 ## Phase 3 — Accurate history, analytics, and data management
 

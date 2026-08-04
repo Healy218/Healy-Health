@@ -92,22 +92,21 @@ enum AppImportValidator {
 
     private static func validateCompletedWorkouts(_ workouts: [CompletedWorkout]) throws {
         try requireUnique(workouts.map(\.id), named: "completed workout")
-        var exerciseIDs: [UUID] = []
-        var logIDs: [UUID] = []
         for workout in workouts {
             guard workout.date.timeIntervalSinceReferenceDate.isFinite else {
                 throw ImportError.invalidData("a completed workout has an invalid date")
             }
             try requireText(workout.dayName, named: "completed workout name")
             try requireText(workout.focus, named: "completed workout focus")
+            // Completed workouts are immutable snapshots. A planned exercise can legitimately
+            // appear in multiple completed sessions with the same original ID, so uniqueness is
+            // required within one snapshot—not across the entire history collection.
+            try requireUnique(workout.exercises.map(\.id), named: "history exercise")
             for exercise in workout.exercises {
-                exerciseIDs.append(exercise.id)
                 try validate(exercise)
-                logIDs.append(contentsOf: exercise.logs.map(\.id))
+                try requireUnique(exercise.logs.map(\.id), named: "history set log")
             }
         }
-        try requireUnique(exerciseIDs, named: "history exercise")
-        try requireUnique(logIDs, named: "history set log")
     }
 
     private static func validateTemplates(_ templates: [ExerciseTemplate]) throws {

@@ -147,12 +147,21 @@ class RoutineStore: ObservableObject {
     var activeWorkout: Workout? {
         activeRoutine?.workouts.first { $0.id == activeWorkoutId }
     }
+
+    /// A rest timer keeps its originating workout live even after the person returns to the
+    /// routine overview. Start/abandon flows use this to avoid replacing that work silently.
+    var activeSessionWorkoutId: UUID? {
+        activeWorkoutId ?? activeRestTimer?.workoutId
+    }
     
     private let routinesFileName = "routines.json"
     private let historyFileName = "workout_history.json"
     private let documentsDirectory: URL
     private let userDefaults: UserDefaults
     private let dataWriter: (Data, URL) throws -> Void
+    private let cancelTimerNotification: (UUID) -> Void
+    private let cancelPendingTimerNotifications: (UUID?) -> Void
+    private var isRestoringActiveState = false
     
     // Legacy file names for migration
     private let legacyScheduleFileName = "workout_schedule.json"
@@ -174,12 +183,20 @@ class RoutineStore: ObservableObject {
         saveDebounceInterval: TimeInterval = 1,
         dataWriter: @escaping (Data, URL) throws -> Void = { data, url in
             try data.write(to: url, options: .atomic)
+        },
+        cancelTimerNotification: @escaping (UUID) -> Void = { identifier in
+            NotificationManager.shared.cancelTimer(identifier: identifier)
+        },
+        cancelPendingTimerNotifications: @escaping (UUID?) -> Void = { activeTimerID in
+            NotificationManager.shared.cancelPendingTimers(except: activeTimerID)
         }
     ) {
         self.documentsDirectory = documentsDirectory
             ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         self.userDefaults = userDefaults
         self.dataWriter = dataWriter
+        self.cancelTimerNotification = cancelTimerNotification
+        self.cancelPendingTimerNotifications = cancelPendingTimerNotifications
 
         // Keep routine and history saves independent so a routine edit never writes history.
         routinesSaveCancellable = routinesSaveSubject
@@ -287,34 +304,90 @@ class RoutineStore: ObservableObject {
     }
     
     // MARK: - Actions
-    /// Starts (or resumes) a routine while intentionally retaining a rest timer when returning
-    /// to the same routine. Switching routines discards the previous session context.
-    func startRoutine(routineId: UUID) {
-        guard routines.contains(where: { $0.id == routineId }) else { return }
-
-        if activeRoutineId != routineId {
-            cancelActiveRestTimer()
-            activeWorkoutStartedAt = nil
+    /// Starts or resumes a routine only when doing so cannot replace a live session. Callers
+    /// must explicitly abandon the existing workout or routine before switching context.
+    @discardableResult
+    func startRoutine(routineId: UUID) -> Bool {
+        guard routines.contains(where: { $0.id == routineId }),
+              activeRoutineId == nil || (activeRoutineId == routineId && activeWorkoutId == nil) else {
+            return false
         }
         activeRoutineId = routineId
         activeWorkoutId = nil
+        return true
     }
 
-    /// Starts a workout with a durable start timestamp. Re-selecting the same workout preserves
-    /// its original timestamp; choosing a different workout starts a new session.
-    func startWorkout(routineId: UUID, workoutId: UUID, startedAt: Date = Date()) {
+    /// Starts or resumes a workout with a durable start timestamp. A different live session is
+    /// never replaced implicitly; callers must first use an explicit abandonment action.
+    @discardableResult
+    func startWorkout(routineId: UUID, workoutId: UUID, startedAt: Date = Date()) -> Bool {
         guard let routine = routines.first(where: { $0.id == routineId }),
-              routine.workouts.contains(where: { $0.id == workoutId }) else {
-            return
+              routine.workouts.contains(where: { $0.id == workoutId }),
+              activeRoutineId == nil || activeRoutineId == routineId,
+              activeWorkoutId == nil || activeWorkoutId == workoutId,
+              activeRestTimer == nil || (
+                activeRestTimer?.routineId == routineId && activeRestTimer?.workoutId == workoutId
+              ) else {
+            return false
         }
 
-        let isNewWorkout = activeRoutineId != routineId || activeWorkoutId != workoutId
+        let isResumingTimerWorkout = activeRestTimer?.routineId == routineId
+            && activeRestTimer?.workoutId == workoutId
+        let isNewWorkout = activeRoutineId != routineId
+            || (activeWorkoutId != workoutId && !isResumingTimerWorkout)
         if isNewWorkout {
-            cancelActiveRestTimer()
             activeWorkoutStartedAt = startedAt
         }
         activeRoutineId = routineId
         activeWorkoutId = workoutId
+        return true
+    }
+
+    /// Ends an in-progress workout without adding it to history. Keeping progress preserves
+    /// logged sets in the planned workout for later correction/resumption; discarding progress
+    /// restores the workout to its unstarted state.
+    func abandonWorkout(routineId: UUID, workoutId: UUID, discardProgress: Bool) {
+        guard let routineIndex = routines.firstIndex(where: { $0.id == routineId }),
+              let workoutIndex = routines[routineIndex].workouts.firstIndex(where: { $0.id == workoutId }) else {
+            return
+        }
+
+        if discardProgress {
+            resetWorkoutProgress(at: routineIndex, workoutIndex: workoutIndex)
+            performSaveRoutines()
+        }
+        let wasActiveSessionWorkout = activeRoutineId == routineId && (
+            activeWorkoutId == workoutId || activeRestTimer?.workoutId == workoutId
+        )
+        cancelRestTimerForWorkout(routineId: routineId, workoutId: workoutId)
+
+        if wasActiveSessionWorkout {
+            activeWorkoutStartedAt = nil
+            activeWorkoutId = nil
+        }
+    }
+
+    /// Ends an active routine without recording a completed workout. Discarding progress resets
+    /// every workout in the routine; otherwise existing logs and completed-workout markers stay
+    /// available when the routine is resumed.
+    func abandonRoutine(routineId: UUID, discardProgress: Bool) {
+        guard let routineIndex = routines.firstIndex(where: { $0.id == routineId }) else { return }
+
+        if discardProgress {
+            for workoutIndex in routines[routineIndex].workouts.indices {
+                resetWorkoutProgress(at: routineIndex, workoutIndex: workoutIndex)
+            }
+            performSaveRoutines()
+        }
+
+        if activeRestTimer?.routineId == routineId {
+            cancelActiveRestTimer()
+        }
+        if activeRoutineId == routineId {
+            activeWorkoutStartedAt = nil
+            activeWorkoutId = nil
+            activeRoutineId = nil
+        }
     }
 
     /// Stores a rest timer against the exact exercise that created it. Notification scheduling
@@ -358,7 +431,7 @@ class RoutineStore: ObservableObject {
             return nil
         }
 
-        NotificationManager.shared.cancelTimer(identifier: timer.notificationId)
+        cancelTimerNotification(timer.notificationId)
         timer.endTime = timer.endTime.addingTimeInterval(validSeconds)
         timer.notificationId = UUID()
         activeRestTimer = timer
@@ -480,7 +553,7 @@ class RoutineStore: ObservableObject {
             date: Date(),
             dayName: workout.name,
             focus: workout.focus,
-            exercises: workout.exercises,
+            exercises: completedExerciseSnapshots(from: workout.exercises),
             routineId: routine.id,
             workoutId: workout.id
         )
@@ -503,11 +576,7 @@ class RoutineStore: ObservableObject {
     func finishRoutine(startNew: Bool) {
         if let rIndex = routines.firstIndex(where: { $0.id == activeRoutineId }) {
             for wIndex in routines[rIndex].workouts.indices {
-                routines[rIndex].workouts[wIndex].isCompleted = false
-                for eIndex in routines[rIndex].workouts[wIndex].exercises.indices {
-                    routines[rIndex].workouts[wIndex].exercises[eIndex].isCompleted = false
-                    routines[rIndex].workouts[wIndex].exercises[eIndex].logs.removeAll()
-                }
+                resetWorkoutProgress(at: rIndex, workoutIndex: wIndex)
             }
             performSaveRoutines()
         }
@@ -548,6 +617,17 @@ class RoutineStore: ObservableObject {
         saveRoutines()
     }
 
+    /// Moves routines by their current list offsets and persists the resulting order immediately.
+    /// IDs, rather than offsets, continue to identify any active routine/workout after the move.
+    @discardableResult
+    func moveRoutines(fromOffsets: IndexSet, toOffset: Int) -> Bool {
+        guard let reordered = reorderedItems(routines, fromOffsets: fromOffsets, toOffset: toOffset) else {
+            return false
+        }
+        routines = reordered
+        return performSaveRoutines()
+    }
+
     func deleteWorkouts(routineId: UUID, ids: Set<UUID>) {
         guard !ids.isEmpty,
               let routineIndex = routines.firstIndex(where: { $0.id == routineId }) else {
@@ -565,6 +645,62 @@ class RoutineStore: ObservableObject {
             cancelActiveRestTimer()
         }
         saveRoutines()
+    }
+
+    /// Moves workouts within one routine. The stable workout IDs keep active-session references
+    /// valid even when the workout list changes position.
+    @discardableResult
+    func moveWorkouts(routineId: UUID, fromOffsets: IndexSet, toOffset: Int) -> Bool {
+        guard let routineIndex = routines.firstIndex(where: { $0.id == routineId }),
+              let reordered = reorderedItems(
+                routines[routineIndex].workouts,
+                fromOffsets: fromOffsets,
+                toOffset: toOffset
+              ) else {
+            return false
+        }
+        routines[routineIndex].workouts = reordered
+        return performSaveRoutines()
+    }
+
+    /// Reorders a visible exercise subset while retaining every other exercise at its existing
+    /// global position. This lets category-filtered lists offer moves without accidentally
+    /// grouping or moving exercises from other categories.
+    @discardableResult
+    func moveExercises(
+        routineId: UUID,
+        workoutId: UUID,
+        orderedExerciseIDs: [UUID],
+        fromOffsets: IndexSet,
+        toOffset: Int
+    ) -> Bool {
+        guard let routineIndex = routines.firstIndex(where: { $0.id == routineId }),
+              let workoutIndex = routines[routineIndex].workouts.firstIndex(where: { $0.id == workoutId }),
+              !orderedExerciseIDs.isEmpty,
+              Set(orderedExerciseIDs).count == orderedExerciseIDs.count else {
+            return false
+        }
+
+        let exercises = routines[routineIndex].workouts[workoutIndex].exercises
+        let visibleExerciseIDs = exercises.map(\.id).filter { orderedExerciseIDs.contains($0) }
+        guard visibleExerciseIDs == orderedExerciseIDs,
+              let reorderedIDs = reorderedItems(
+                orderedExerciseIDs,
+                fromOffsets: fromOffsets,
+                toOffset: toOffset
+              ) else {
+            return false
+        }
+
+        let exercisesByID = Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0) })
+        let visibleIndices = exercises.indices.filter { orderedExerciseIDs.contains(exercises[$0].id) }
+        guard reorderedIDs.count == visibleIndices.count else { return false }
+
+        for (index, exerciseID) in zip(visibleIndices, reorderedIDs) {
+            guard let exercise = exercisesByID[exerciseID] else { return false }
+            routines[routineIndex].workouts[workoutIndex].exercises[index] = exercise
+        }
+        return performSaveRoutines()
     }
     
     // MARK: - Persistence
@@ -707,6 +843,8 @@ class RoutineStore: ObservableObject {
     }
     
     private func saveActiveState() {
+        guard !isRestoringActiveState else { return }
+
         userDefaults.set(activeRoutineId?.uuidString, forKey: activeRoutineIdKey)
         userDefaults.set(activeWorkoutId?.uuidString, forKey: activeWorkoutIdKey)
         userDefaults.set(activeWorkoutStartedAt, forKey: activeWorkoutStartedAtKey)
@@ -720,6 +858,10 @@ class RoutineStore: ObservableObject {
     }
 
     private func loadActiveState() {
+        // The published active-state properties persist themselves. Suppress those observers
+        // while restoring the four values as a unit, otherwise assigning the routine ID first
+        // clears the still-unread workout/timer values from UserDefaults.
+        isRestoringActiveState = true
         activeRoutineId = userDefaults.string(forKey: activeRoutineIdKey).flatMap(UUID.init(uuidString:))
         activeWorkoutId = userDefaults.string(forKey: activeWorkoutIdKey).flatMap(UUID.init(uuidString:))
         activeWorkoutStartedAt = userDefaults.object(forKey: activeWorkoutStartedAtKey) as? Date
@@ -727,7 +869,9 @@ class RoutineStore: ObservableObject {
             activeRestTimer = try? decode(ActiveRestTimerState.self, from: data)
         }
         normalizeActiveState()
-        NotificationManager.shared.cancelPendingTimers(except: activeRestTimer?.notificationId)
+        isRestoringActiveState = false
+        saveActiveState()
+        cancelPendingTimerNotifications(activeRestTimer?.notificationId)
     }
 
     /// Repairs persisted active-session references after routines have been loaded or migrated.
@@ -789,9 +933,64 @@ class RoutineStore: ObservableObject {
 
     private func cancelActiveRestTimer() {
         if let notificationId = activeRestTimer?.notificationId {
-            NotificationManager.shared.cancelTimer(identifier: notificationId)
+            cancelTimerNotification(notificationId)
         }
         activeRestTimer = nil
+    }
+
+    private func resetWorkoutProgress(at routineIndex: Int, workoutIndex: Int) {
+        // Mutate a local value before assigning it back. Besides keeping this nested value update
+        // easy to follow, it avoids holding a writeback access into `routines` while clearing logs.
+        var workout = routines[routineIndex].workouts[workoutIndex]
+        workout.isCompleted = false
+        for exerciseIndex in workout.exercises.indices {
+            workout.exercises[exerciseIndex].isCompleted = false
+            workout.exercises[exerciseIndex].logs.removeAll()
+        }
+        routines[routineIndex].workouts[workoutIndex] = workout
+    }
+
+    /// History is an immutable record, so its nested IDs must not alias the live workout or a
+    /// prior completion of that workout. Re-keying preserves all user-entered exercise/log data
+    /// while making each exported completed-workout snapshot independently identifiable.
+    private func completedExerciseSnapshots(from exercises: [Exercise]) -> [Exercise] {
+        exercises.map { exercise in
+            var snapshot = exercise
+            snapshot.id = UUID()
+            snapshot.logs = exercise.logs.map { log in
+                var logSnapshot = log
+                logSnapshot.id = UUID()
+                return logSnapshot
+            }
+            return snapshot
+        }
+    }
+
+    /// Mirrors SwiftUI's move behavior while validating stale/out-of-range offsets before a
+    /// mutation reaches the model.
+    private func reorderedItems<Element>(
+        _ items: [Element],
+        fromOffsets: IndexSet,
+        toOffset: Int
+    ) -> [Element]? {
+        guard !fromOffsets.isEmpty,
+              toOffset >= 0,
+              toOffset <= items.count,
+              fromOffsets.allSatisfy({ items.indices.contains($0) }) else {
+            return nil
+        }
+
+        let movingItems = fromOffsets.map { items[$0] }
+        var remainingItems = items.enumerated().compactMap { index, item in
+            fromOffsets.contains(index) ? nil : item
+        }
+        let removedBeforeDestination = fromOffsets.filter { $0 < toOffset }.count
+        let destination = toOffset - removedBeforeDestination
+        guard remainingItems.indices.contains(destination) || destination == remainingItems.count else {
+            return nil
+        }
+        remainingItems.insert(contentsOf: movingItems, at: destination)
+        return remainingItems
     }
     
     @discardableResult

@@ -12,8 +12,8 @@ Priority legend:
 
 ## Phase 1 — Data safety and crash prevention
 
-- [x] **HH-100 (P0) Add automated test targets and test seams.** Added the `Healy HealthTests` unit-test target, injected store storage/defaults dependencies, and covered temporary-directory persistence without touching live app data. UI tests are deferred because no current critical flow requires UI-only coverage.
-  - Acceptance: tests can create fresh stores, run mutations, and verify encoded data deterministically.
+- [x] **HH-100 (P0) Add automated test targets and test seams.** Added the `Healy HealthTests` unit-test target, injected store storage/defaults dependencies, and covered temporary-directory persistence without touching live app data. The shared Xcode scheme now includes the test bundle; all 40 tests passed on the iPhone 17 Pro Max iOS 26.5 simulator. UI tests are deferred because no current critical flow requires UI-only coverage.
+  - Acceptance: tests can create fresh stores, run mutations, verify encoded data deterministically, and execute from the shared scheme on the supported simulator runtime.
 
 - [x] **HH-101 (P0) Make deletion safe and repair active state.** Replaced offset-by-offset deletion with store-owned ID deletion. Deleting an active routine clears both IDs; deleting the active workout clears its workout ID. Regression tests cover single and multi-routine deletion and active-workout deletion.
   - Acceptance: delete IDs or remove offsets in one mutation; deleting an active routine clears both IDs; deleting the active workout clears its ID; tests cover single and multi-delete.
@@ -46,9 +46,9 @@ Priority legend:
 - [x] **HH-203 (P1) Persist active session/timer state.** Active workout start time and rest-timer identity/deadline now persist in the store and restore after navigation or relaunch. Expired, orphaned, deleted, completed, and imported-session timers are cleared with their notification; orphaned pending notifications are also removed on launch.
   - Acceptance: a resumed workout retains its original start time; a resumed exercise calculates rest time from its stored deadline; stale timer state and notifications are removed without disturbing a valid restored timer.
 
-- [ ] **HH-204 (P1) Add explicit abandon/reset flows.** Let users abandon a workout or routine with clear choices about partial logs. Do not rely on starting another routine to implicitly replace the active context.
+- [x] **HH-204 (P1) Add explicit abandon/reset flows.** Starting another routine or workout now refuses to replace a live session until the user explicitly chooses to keep or reset its progress. Workout and routine screens offer confirmed abandon actions; reset clears logs/completion state while both choices cancel the active rest timer. Store tests cover blocked implicit switching, partial-progress retention/reset, and routine-wide timer cleanup.
 
-- [ ] **HH-205 (P2) Add reordering.** Support stable reordering of routines, workouts, and exercises and persist the new order.
+- [x] **HH-205 (P2) Add reordering.** Routines, workouts, and category-filtered exercises now support Edit-mode drag reordering through store-owned, validated moves that persist immediately. Active IDs remain stable; moving a category's exercises preserves all other category positions. Regression tests cover persistence, active IDs, nested workout moves, and filtered exercise ordering.
 
 - [ ] **HH-206 (P2) Improve editing consistency.** Allow exercise category changes, define duplicate-name behavior, trim routine/workout names, and disable invalid alert actions before submission.
 
@@ -97,7 +97,7 @@ Priority legend:
 ## Current baseline notes
 
 - The project contains the `Healy Health` application target and the `Healy HealthTests` XCTest target.
-- App and test sources type-check passed on 2026-08-03; XCTest execution remains unverified in the terminal environment.
-- Terminal `xcodebuild build-for-testing` could not finish because its CoreSimulator service reported no available simulator runtimes during asset compilation. The user reports that their interactive Xcode instance successfully built and installed the app in an iPhone simulator.
+- `xcodebuild test` passed all 40 `Healy HealthTests` on 2026-08-03 using iPhone 17 Pro Max, iOS 26.5. The iOS 26.2 simulator runtime crashes the XCTest test host while deallocating `RoutineStore`; do not use it for tests.
+- Active-session reload now restores all persisted fields as a unit before saving normalized state, preventing `activeWorkoutId`, start time, and timer state from being erased during load.
 - The git root is the parent `Fitness App` directory; this app lives in its `Healy Health` subdirectory.
 - Pre-existing tracked machine files were already dirty during the audit and were not modified by the audit.

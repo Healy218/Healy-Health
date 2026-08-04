@@ -3,6 +3,7 @@ import SwiftUI
 struct ActiveWorkoutView: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
+    @State private var showingRoutineOverview = false
 
     private var theme: AppTheme { themeManager.current }
 
@@ -11,10 +12,17 @@ struct ActiveWorkoutView: View {
             theme.primaryColor.edgesIgnoringSafeArea(.all)
 
             if let activeRoutine = store.activeRoutine {
-                if let activeWorkout = store.activeWorkout {
-                    WorkoutSessionView(routine: activeRoutine, workout: activeWorkout)
+                if let activeWorkout = store.activeWorkout, !showingRoutineOverview {
+                    WorkoutSessionView(
+                        routine: activeRoutine,
+                        workout: activeWorkout,
+                        showingRoutineOverview: $showingRoutineOverview
+                    )
                 } else {
-                    RoutineWorkoutListView(routine: activeRoutine)
+                    RoutineWorkoutListView(
+                        routine: activeRoutine,
+                        resumeActiveWorkout: { showingRoutineOverview = false }
+                    )
                 }
             } else {
                 VStack {
@@ -34,6 +42,9 @@ struct ActiveWorkoutView: View {
         }
         .navigationTitle("Workout")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: store.activeWorkoutId) { _ in
+            showingRoutineOverview = false
+        }
     }
 }
 
@@ -41,9 +52,12 @@ struct ActiveWorkoutView: View {
 
 struct RoutineWorkoutListView: View {
     let routine: Routine
+    let resumeActiveWorkout: () -> Void
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
     @State private var showFinishDialog = false
+    @State private var showAbandonDialog = false
+    @State private var pendingWorkoutStartID: UUID?
 
     private var theme: AppTheme { themeManager.current }
     private var allDone: Bool {
@@ -74,9 +88,7 @@ struct RoutineWorkoutListView: View {
                 List {
                     ForEach(routine.workouts) { workout in
                         Button {
-                            if !workout.isCompleted {
-                                store.startWorkout(routineId: routine.id, workoutId: workout.id)
-                            }
+                            requestWorkoutStart(workout.id)
                         } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
@@ -116,6 +128,15 @@ struct RoutineWorkoutListView: View {
                         .background(theme.rowBackground).cornerRadius(14)
                 }
                 .padding()
+            } else {
+                Button(action: { showAbandonDialog = true }) {
+                    Text("Abandon Routine")
+                        .font(.custom("ChalkboardSE-Regular", size: 16))
+                        .foregroundColor(.red)
+                        .padding().frame(maxWidth: .infinity)
+                        .background(theme.rowBackground).cornerRadius(14)
+                }
+                .padding()
             }
         }
         .confirmationDialog("Routine Complete!", isPresented: $showFinishDialog, titleVisibility: .visible) {
@@ -125,6 +146,59 @@ struct RoutineWorkoutListView: View {
         } message: {
             Text("Every workout in \"\(routine.name)\" is done. What would you like to do?")
         }
+        .confirmationDialog("Abandon Routine?", isPresented: $showAbandonDialog, titleVisibility: .visible) {
+            Button("Keep Progress and End Routine") {
+                store.abandonRoutine(routineId: routine.id, discardProgress: false)
+            }
+            Button("Reset Routine Progress", role: .destructive) {
+                store.abandonRoutine(routineId: routine.id, discardProgress: true)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Keeping progress leaves logged sets and workout completion status available when you resume. Resetting clears every logged set and completion status in this routine. Any active rest timer will stop.")
+        }
+        .confirmationDialog(
+            "Switch Active Workout?",
+            isPresented: Binding(
+                get: { pendingWorkoutStartID != nil },
+                set: { if !$0 { pendingWorkoutStartID = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Keep Partial Logs and Switch") { replaceActiveWorkout(discardProgress: false) }
+            Button("Discard Partial Logs and Switch", role: .destructive) { replaceActiveWorkout(discardProgress: true) }
+            Button("Cancel", role: .cancel) { pendingWorkoutStartID = nil }
+        } message: {
+            Text("Your active workout is still in progress. Keeping partial logs lets you resume or correct them later. Discarding clears its logged sets and completion status. Any active rest timer will stop.")
+        }
+    }
+
+    private func requestWorkoutStart(_ workoutID: UUID) {
+        guard let workout = routine.workouts.first(where: { $0.id == workoutID }),
+              !workout.isCompleted else { return }
+
+        if store.activeWorkoutId == workoutID {
+            resumeActiveWorkout()
+        } else if store.startWorkout(routineId: routine.id, workoutId: workoutID) {
+            resumeActiveWorkout()
+        } else {
+            pendingWorkoutStartID = workoutID
+        }
+    }
+
+    private func replaceActiveWorkout(discardProgress: Bool) {
+        guard let targetWorkoutID = pendingWorkoutStartID,
+              let activeWorkoutID = store.activeSessionWorkoutId else { return }
+
+        store.abandonWorkout(
+            routineId: routine.id,
+            workoutId: activeWorkoutID,
+            discardProgress: discardProgress
+        )
+        pendingWorkoutStartID = nil
+        if store.startWorkout(routineId: routine.id, workoutId: targetWorkoutID) {
+            resumeActiveWorkout()
+        }
     }
 }
 
@@ -133,9 +207,11 @@ struct RoutineWorkoutListView: View {
 struct WorkoutSessionView: View {
     let routine: Routine
     let workout: Workout
+    @Binding var showingRoutineOverview: Bool
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
     @State private var showUnloggedWorkConfirmation = false
+    @State private var showAbandonWorkoutConfirmation = false
     @State private var completionErrorMessage: String?
 
     private var theme: AppTheme { themeManager.current }
@@ -181,7 +257,7 @@ struct WorkoutSessionView: View {
             }
 
             HStack(spacing: 12) {
-                Button(action: { store.activeWorkoutId = nil }) {
+                Button(action: { showingRoutineOverview = true }) {
                     Text("Back to Routine")
                         .font(.custom("ChalkboardSE-Regular", size: 16))
                         .foregroundColor(theme.onPrimaryText)
@@ -198,6 +274,14 @@ struct WorkoutSessionView: View {
                 .disabled(currentWorkout?.isCompleted != false)
             }
             .padding()
+
+            Button(action: { showAbandonWorkoutConfirmation = true }) {
+                Text("Abandon Workout")
+                    .font(.custom("ChalkboardSE-Regular", size: 16))
+                    .foregroundColor(.red)
+                    .padding(.horizontal)
+                    .padding(.bottom, 12)
+            }
         }
         .confirmationDialog(
             "Finish With Unlogged Exercises?",
@@ -208,6 +292,21 @@ struct WorkoutSessionView: View {
             Button("Keep Logging", role: .cancel) {}
         } message: {
             Text(unloggedWorkMessage)
+        }
+        .confirmationDialog(
+            "Abandon Workout?",
+            isPresented: $showAbandonWorkoutConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Keep Partial Logs") {
+                store.abandonWorkout(routineId: routine.id, workoutId: workout.id, discardProgress: false)
+            }
+            Button("Discard Partial Logs", role: .destructive) {
+                store.abandonWorkout(routineId: routine.id, workoutId: workout.id, discardProgress: true)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This workout will not be added to history. Keeping partial logs lets you resume or correct them later. Discarding clears its logged sets and completion status. Any active rest timer will stop.")
         }
         .alert("Couldn’t Finish Workout", isPresented: Binding(
             get: { completionErrorMessage != nil },

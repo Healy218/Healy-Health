@@ -54,12 +54,19 @@ struct CategoryExerciseListView: View {
                             .listRowBackground(theme.rowBackground)
                         }
                         .onDelete(perform: deleteExercise)
+                        .onMove(perform: moveExercises)
                     }
                     .scrollContentBackground(.hidden)
                 }
             }
         }
         .navigationTitle(category.displayName)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                EditButton()
+                    .foregroundColor(theme.onPrimaryText)
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 12) {
                 Button(action: { showingAddCustom = true }) {
@@ -110,5 +117,15 @@ struct CategoryExerciseListView: View {
         var updated = routine
         for i in globalIndices.sorted(by: >) { updated.workouts[wIndex].exercises.remove(at: i) }
         store.updateRoutine(updated)
+    }
+
+    private func moveExercises(fromOffsets: IndexSet, toOffset: Int) {
+        store.moveExercises(
+            routineId: routineId,
+            workoutId: workoutId,
+            orderedExerciseIDs: exercises.map(\.id),
+            fromOffsets: fromOffsets,
+            toOffset: toOffset
+        )
     }
 }

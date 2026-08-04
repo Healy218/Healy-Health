@@ -686,6 +686,41 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertEqual(normalized.completedWorkouts.map(\.id), [newer.id, older.id])
     }
 
+    func testImportValidationAcceptsRepeatedSnapshotIDsAcrossCompletedWorkouts() throws {
+        let repeatedLog = SetLog(weight: 135, reps: 8, completedDate: Date())
+        let repeatedExercise = Exercise(
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 135,
+            logs: [repeatedLog]
+        )
+        let first = CompletedWorkout(
+            date: Date(timeIntervalSinceReferenceDate: 1),
+            dayName: "Upper",
+            focus: "Chest",
+            exercises: [repeatedExercise],
+            routineId: nil,
+            workoutId: nil
+        )
+        let second = CompletedWorkout(
+            date: Date(timeIntervalSinceReferenceDate: 2),
+            dayName: "Upper",
+            focus: "Chest",
+            exercises: [repeatedExercise],
+            routineId: nil,
+            workoutId: nil
+        )
+
+        let normalized = try AppImportValidator.normalizedCandidate(
+            from: makeExport(completedWorkouts: [first, second])
+        )
+
+        XCTAssertEqual(normalized.completedWorkouts.count, 2)
+        XCTAssertEqual(normalized.completedWorkouts[0].exercises[0].id, repeatedExercise.id)
+        XCTAssertEqual(normalized.completedWorkouts[1].exercises[0].logs[0].id, repeatedLog.id)
+    }
+
     func testFinishWorkoutResolvesTheCurrentStoredWorkoutByID() {
         let routine = makeRoutine(name: "Original routine")
         let workoutID = routine.workouts[0].id
@@ -710,11 +745,43 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertEqual(store.completedWorkouts.count, 1)
         XCTAssertEqual(store.completedWorkouts[0].dayName, "Updated workout")
         XCTAssertEqual(store.completedWorkouts[0].focus, "Updated focus")
-        XCTAssertEqual(store.completedWorkouts[0].exercises.map(\.id), [exercise.id])
+        XCTAssertNotEqual(store.completedWorkouts[0].exercises.map(\.id), [exercise.id])
         XCTAssertEqual(store.completedWorkouts[0].exercises[0].logs.count, 1)
+        XCTAssertNotEqual(store.completedWorkouts[0].exercises[0].logs[0].id, exercise.logs[0].id)
         XCTAssertEqual(store.completedWorkouts[0].exercises[0].logs[0].weight, 155)
         XCTAssertTrue(store.routines[0].workouts[0].isCompleted)
         XCTAssertNil(store.activeWorkoutId)
+    }
+
+    func testFinishWorkoutCreatesIndependentHistorySnapshotIDs() {
+        let log = SetLog(weight: 135, reps: 8, completedDate: Date())
+        let exercise = Exercise(
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 135,
+            logs: [log]
+        )
+        let workout = Workout(name: "Upper", focus: "Chest", exercises: [exercise])
+        let routine = Routine(name: "Strength", workouts: [workout])
+        let store = makeEmptyStore()
+        store.routines = [routine]
+
+        XCTAssertTrue(store.startWorkout(routineId: routine.id, workoutId: workout.id))
+        XCTAssertCompletionSucceeds(store.finishWorkout(routineId: routine.id, workoutId: workout.id))
+        store.finishRoutine(startNew: false)
+        store.routines[0].workouts[0].exercises[0].logs = [log]
+        XCTAssertTrue(store.startWorkout(routineId: routine.id, workoutId: workout.id))
+        XCTAssertCompletionSucceeds(store.finishWorkout(routineId: routine.id, workoutId: workout.id))
+
+        let snapshots = store.completedWorkouts.map { $0.exercises[0] }
+        XCTAssertEqual(snapshots.count, 2)
+        XCTAssertNotEqual(snapshots[0].id, exercise.id)
+        XCTAssertNotEqual(snapshots[1].id, exercise.id)
+        XCTAssertNotEqual(snapshots[0].id, snapshots[1].id)
+        XCTAssertNotEqual(snapshots[0].logs[0].id, log.id)
+        XCTAssertNotEqual(snapshots[1].logs[0].id, log.id)
+        XCTAssertNotEqual(snapshots[0].logs[0].id, snapshots[1].logs[0].id)
     }
 
     func testFinishWorkoutRejectsDuplicateCompletionWithoutAddingHistory() {
@@ -748,11 +815,197 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertFalse(store.routines[0].workouts[0].isCompleted)
     }
 
+    func testStartingAnotherRoutineDoesNotImplicitlyReplaceAnActiveWorkout() {
+        let first = makeRoutine(name: "First")
+        let second = makeRoutine(name: "Second")
+        let store = makeEmptyStore()
+        store.routines = [first, second]
+
+        XCTAssertTrue(store.startWorkout(routineId: first.id, workoutId: first.workouts[0].id))
+        XCTAssertFalse(store.startRoutine(routineId: second.id))
+
+        XCTAssertEqual(store.activeRoutineId, first.id)
+        XCTAssertEqual(store.activeWorkoutId, first.workouts[0].id)
+        store.abandonRoutine(routineId: first.id, discardProgress: false)
+        XCTAssertTrue(store.startRoutine(routineId: second.id))
+        XCTAssertEqual(store.activeRoutineId, second.id)
+    }
+
+    func testStartingAnotherWorkoutDoesNotImplicitlyReplaceAnActiveWorkout() {
+        let firstWorkout = Workout(name: "Upper", focus: "Chest", exercises: [])
+        let secondWorkout = Workout(name: "Lower", focus: "Legs", exercises: [])
+        let routine = Routine(name: "Strength", workouts: [firstWorkout, secondWorkout])
+        let store = makeEmptyStore()
+        store.routines = [routine]
+
+        XCTAssertTrue(store.startWorkout(routineId: routine.id, workoutId: firstWorkout.id))
+        XCTAssertFalse(store.startWorkout(routineId: routine.id, workoutId: secondWorkout.id))
+
+        XCTAssertEqual(store.activeRoutineId, routine.id)
+        XCTAssertEqual(store.activeWorkoutId, firstWorkout.id)
+    }
+
+    func testAbandonWorkoutCanKeepOrDiscardPartialProgress() {
+        let exercise = Exercise(
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 135,
+            isCompleted: true,
+            logs: [SetLog(weight: 135, reps: 8, completedDate: Date())]
+        )
+        let workout = Workout(name: "Upper", focus: "Chest", exercises: [exercise], isCompleted: true)
+        let routine = Routine(name: "Strength", workouts: [workout])
+        let store = makeEmptyStore()
+        store.routines = [routine]
+
+        XCTAssertTrue(store.startWorkout(routineId: routine.id, workoutId: workout.id))
+        store.abandonWorkout(routineId: routine.id, workoutId: workout.id, discardProgress: false)
+        XCTAssertEqual(store.routines[0].workouts[0].exercises[0].logs.count, 1)
+        XCTAssertTrue(store.routines[0].workouts[0].isCompleted)
+        XCTAssertNil(store.activeWorkoutId)
+
+        XCTAssertTrue(store.startWorkout(routineId: routine.id, workoutId: workout.id))
+        store.abandonWorkout(routineId: routine.id, workoutId: workout.id, discardProgress: true)
+        XCTAssertTrue(store.routines[0].workouts[0].exercises[0].logs.isEmpty)
+        XCTAssertFalse(store.routines[0].workouts[0].exercises[0].isCompleted)
+        XCTAssertFalse(store.routines[0].workouts[0].isCompleted)
+        XCTAssertNil(store.activeWorkoutId)
+    }
+
+    func testAbandonRoutineDiscardingProgressClearsEveryWorkoutAndRestTimer() {
+        let firstExercise = Exercise(
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 135,
+            isCompleted: true,
+            logs: [SetLog(weight: 135, reps: 8, completedDate: Date())]
+        )
+        let secondExercise = Exercise(
+            name: "Row",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 95,
+            isCompleted: true,
+            logs: [SetLog(weight: 95, reps: 8, completedDate: Date())]
+        )
+        let firstWorkout = Workout(name: "Upper", focus: "Chest", exercises: [firstExercise], isCompleted: true)
+        let secondWorkout = Workout(name: "Back", focus: "Back", exercises: [secondExercise], isCompleted: true)
+        let routine = Routine(name: "Strength", workouts: [firstWorkout, secondWorkout])
+        let store = makeEmptyStore()
+        store.routines = [routine]
+
+        XCTAssertTrue(store.startWorkout(routineId: routine.id, workoutId: firstWorkout.id))
+        XCTAssertNotNil(store.startRestTimer(
+            routineId: routine.id,
+            workoutId: firstWorkout.id,
+            exerciseId: firstExercise.id,
+            duration: 60
+        ))
+        store.abandonRoutine(routineId: routine.id, discardProgress: true)
+
+        XCTAssertTrue(store.routines[0].workouts.allSatisfy { !$0.isCompleted })
+        XCTAssertTrue(store.routines[0].workouts.allSatisfy { $0.exercises.allSatisfy { $0.logs.isEmpty && !$0.isCompleted } })
+        XCTAssertNil(store.activeRoutineId)
+        XCTAssertNil(store.activeWorkoutId)
+        XCTAssertNil(store.activeRestTimer)
+    }
+
+    func testMoveRoutinesPersistsOrderAndRetainsActiveIDs() throws {
+        let first = makeRoutine(name: "First")
+        let second = makeRoutine(name: "Second")
+        let third = makeRoutine(name: "Third")
+        let store = makeEmptyStore()
+        store.routines = [first, second, third]
+        store.activeRoutineId = second.id
+        store.activeWorkoutId = second.workouts[0].id
+
+        XCTAssertTrue(store.moveRoutines(fromOffsets: [0], toOffset: 3))
+        XCTAssertEqual(store.routines.map(\.id), [second.id, third.id, first.id])
+        XCTAssertEqual(store.activeRoutineId, second.id)
+        XCTAssertEqual(store.activeWorkoutId, second.workouts[0].id)
+
+        let savedData = try Data(contentsOf: storageDirectory.appendingPathComponent("routines.json"))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        XCTAssertEqual(try decoder.decode([Routine].self, from: savedData).map(\.id), [second.id, third.id, first.id])
+    }
+
+    func testMoveWorkoutsPersistsOrderAndRetainsActiveWorkoutID() {
+        let first = Workout(name: "First", focus: "A", exercises: [])
+        let second = Workout(name: "Second", focus: "B", exercises: [])
+        let third = Workout(name: "Third", focus: "C", exercises: [])
+        let routine = Routine(name: "Strength", workouts: [first, second, third])
+        let store = makeEmptyStore()
+        store.routines = [routine]
+        store.activeRoutineId = routine.id
+        store.activeWorkoutId = second.id
+
+        XCTAssertTrue(store.moveWorkouts(routineId: routine.id, fromOffsets: [2], toOffset: 0))
+        XCTAssertEqual(store.routines[0].workouts.map(\.id), [third.id, first.id, second.id])
+        XCTAssertEqual(store.activeWorkoutId, second.id)
+    }
+
+    func testMoveCategoryExercisesPreservesOtherCategoryPositions() {
+        let cardioFirst = Exercise(
+            name: "Run",
+            targetSets: 1,
+            targetReps: "20 min",
+            currentWeight: 0,
+            category: .cardio
+        )
+        let weights = Exercise(
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 135,
+            category: .weightlifting
+        )
+        let cardioSecond = Exercise(
+            name: "Bike",
+            targetSets: 1,
+            targetReps: "20 min",
+            currentWeight: 0,
+            category: .cardio
+        )
+        let stretch = Exercise(
+            name: "Hamstring Stretch",
+            targetSets: 1,
+            targetReps: "30 sec",
+            currentWeight: 0,
+            category: .stretch
+        )
+        let workout = Workout(
+            name: "Mixed",
+            focus: "Full body",
+            exercises: [cardioFirst, weights, cardioSecond, stretch]
+        )
+        let routine = Routine(name: "Strength", workouts: [workout])
+        let store = makeEmptyStore()
+        store.routines = [routine]
+
+        XCTAssertTrue(store.moveExercises(
+            routineId: routine.id,
+            workoutId: workout.id,
+            orderedExerciseIDs: [cardioFirst.id, cardioSecond.id],
+            fromOffsets: [1],
+            toOffset: 0
+        ))
+
+        XCTAssertEqual(
+            store.routines[0].workouts[0].exercises.map(\.id),
+            [cardioSecond.id, weights.id, cardioFirst.id, stretch.id]
+        )
+    }
+
     private func makeEmptyStore() -> RoutineStore {
         RoutineStore(
             documentsDirectory: storageDirectory,
             userDefaults: defaults,
-            initialLoadBehavior: .empty
+            initialLoadBehavior: .empty,
+            cancelTimerNotification: { _ in },
+            cancelPendingTimerNotifications: { _ in }
         )
     }
 

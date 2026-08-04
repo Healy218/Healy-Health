@@ -5,6 +5,7 @@ struct RoutinesView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @State private var showingAddRoutine = false
     @State private var newRoutineName = ""
+    @State private var pendingRoutineStartID: UUID?
 
     private var theme: AppTheme { themeManager.current }
 
@@ -36,19 +37,20 @@ struct RoutinesView: View {
                                     }
                                 }
                                 .padding(.vertical, 4)
+
                             }
-                            .listRowBackground(theme.rowBackground)
-                            .swipeActions(edge: .leading) {
-                                Button {
-                                    store.startRoutine(routineId: routine.id)
-                                    store.selectedTab = 1
-                                } label: {
-                                    Label("Start", systemImage: "star.fill")
-                                }
+                                .listRowBackground(theme.rowBackground)
+                                .swipeActions(edge: .leading) {
+                                    Button {
+                                        requestRoutineStart(routine.id)
+                                    } label: {
+                                        Label("Start", systemImage: "star.fill")
+                                    }
                                 .tint(.green)
                             }
                         }
                         .onDelete(perform: deleteRoutine)
+                        .onMove(perform: moveRoutines)
                     }
                     .scrollContentBackground(.hidden)
                 }
@@ -85,10 +87,68 @@ struct RoutinesView: View {
                 EditButton().foregroundColor(theme.onPrimaryText)
             }
         }
+        .confirmationDialog(
+            replacementTitle,
+            isPresented: Binding(
+                get: { pendingRoutineStartID != nil },
+                set: { if !$0 { pendingRoutineStartID = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Keep Progress and Switch") { replaceActiveSession(discardProgress: false) }
+            Button("Reset Progress and Switch", role: .destructive) { replaceActiveSession(discardProgress: true) }
+            Button("Cancel", role: .cancel) { pendingRoutineStartID = nil }
+        } message: {
+            Text(replacementMessage)
+        }
     }
 
     private func deleteRoutine(offsets: IndexSet) {
         let routineIDs = Set(offsets.compactMap { store.routines.indices.contains($0) ? store.routines[$0].id : nil })
         store.deleteRoutines(ids: routineIDs)
+    }
+
+    private func moveRoutines(fromOffsets: IndexSet, toOffset: Int) {
+        store.moveRoutines(fromOffsets: fromOffsets, toOffset: toOffset)
+    }
+
+    private func requestRoutineStart(_ routineID: UUID) {
+        if store.startRoutine(routineId: routineID) {
+            store.selectedTab = 1
+        } else {
+            pendingRoutineStartID = routineID
+        }
+    }
+
+    private var replacementTitle: String {
+        if store.activeRoutineId == pendingRoutineStartID, store.activeSessionWorkoutId != nil {
+            return "Leave Active Workout?"
+        }
+        return "Switch Active Routine?"
+    }
+
+    private var replacementMessage: String {
+        let activeName = store.activeWorkout?.name ?? store.activeRoutine?.name ?? "current session"
+        return "\"\(activeName)\" is still active. Keeping progress preserves its logged sets and workout completion status; resetting progress clears both. Any active rest timer will stop."
+    }
+
+    private func replaceActiveSession(discardProgress: Bool) {
+        guard let targetRoutineID = pendingRoutineStartID else { return }
+
+        if store.activeRoutineId == targetRoutineID,
+           let activeWorkoutID = store.activeSessionWorkoutId {
+            store.abandonWorkout(
+                routineId: targetRoutineID,
+                workoutId: activeWorkoutID,
+                discardProgress: discardProgress
+            )
+        } else if let activeRoutineID = store.activeRoutineId {
+            store.abandonRoutine(routineId: activeRoutineID, discardProgress: discardProgress)
+        }
+
+        pendingRoutineStartID = nil
+        if store.startRoutine(routineId: targetRoutineID) {
+            store.selectedTab = 1
+        }
     }
 }
