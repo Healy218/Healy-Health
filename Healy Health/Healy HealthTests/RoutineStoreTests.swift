@@ -173,6 +173,89 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertEqual(reloadedStore.completedWorkouts.map(\.id), [secondTie.id, firstTie.id, oldest.id])
     }
 
+    func testCompletedWorkoutUpdateNormalizesPersistsAndRefreshesOrder() throws {
+        let store = makeEmptyStore()
+        let originalDate = Date(timeIntervalSinceReferenceDate: 100)
+        let newer = CompletedWorkout(
+            date: Date(timeIntervalSinceReferenceDate: 200),
+            dayName: "Newer",
+            focus: "Full body",
+            exercises: [],
+            routineId: nil,
+            workoutId: nil
+        )
+        let editable = CompletedWorkout(
+            date: originalDate,
+            dayName: "Original",
+            focus: "Chest",
+            exercises: [],
+            routineId: nil,
+            workoutId: nil
+        )
+        store.completedWorkouts = [newer, editable]
+
+        XCTAssertHistoryMutationSucceeds(
+            store.updateCompletedWorkout(
+                id: editable.id,
+                date: Date(timeIntervalSinceReferenceDate: 300),
+                dayName: "  Corrected Upper  ",
+                focus: "  Chest and Triceps  "
+            )
+        )
+        XCTAssertEqual(store.completedWorkouts.map(\.id), [editable.id, newer.id])
+        XCTAssertEqual(store.completedWorkouts[0].dayName, "Corrected Upper")
+        XCTAssertEqual(store.completedWorkouts[0].focus, "Chest and Triceps")
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let savedHistory = try decoder.decode(
+            [CompletedWorkout].self,
+            from: Data(contentsOf: storageDirectory.appendingPathComponent("workout_history.json"))
+        )
+        XCTAssertEqual(savedHistory.map(\.id), [editable.id, newer.id])
+        XCTAssertEqual(savedHistory[0].dayName, "Corrected Upper")
+    }
+
+    func testCompletedWorkoutDeletePersistsAndFailedDeleteRestoresHistory() throws {
+        let workout = CompletedWorkout(
+            date: Date(),
+            dayName: "Upper",
+            focus: "Chest",
+            exercises: [],
+            routineId: nil,
+            workoutId: nil
+        )
+        let store = makeEmptyStore()
+        store.completedWorkouts = [workout]
+
+        XCTAssertHistoryMutationSucceeds(store.deleteCompletedWorkout(id: workout.id))
+        XCTAssertTrue(store.completedWorkouts.isEmpty)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let savedHistory = try decoder.decode(
+            [CompletedWorkout].self,
+            from: Data(contentsOf: storageDirectory.appendingPathComponent("workout_history.json"))
+        )
+        XCTAssertTrue(savedHistory.isEmpty)
+
+        let failingStore = RoutineStore(
+            documentsDirectory: storageDirectory,
+            userDefaults: defaults,
+            initialLoadBehavior: .empty,
+            dataWriter: { _, _ in throw CocoaError(.fileWriteNoPermission) },
+            cancelTimerNotification: { _ in },
+            cancelPendingTimerNotifications: { _ in }
+        )
+        failingStore.completedWorkouts = [workout]
+
+        XCTAssertHistoryMutationFails(
+            failingStore.deleteCompletedWorkout(id: workout.id),
+            with: .persistenceFailed
+        )
+        XCTAssertEqual(failingStore.completedWorkouts.map(\.id), [workout.id])
+    }
+
     func testRoutineSaveDoesNotWriteHistory() {
         var writtenFileNames: [String] = []
         let store = RoutineStore(
@@ -1043,6 +1126,70 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertEqual(normalized.completedWorkouts[1].exercises[0].logs[0].id, repeatedLog.id)
     }
 
+    func testCurrentExportDataRoundTripDecodesAndValidates() throws {
+        let routine = makeRoutine(name: "Strength")
+        let history = CompletedWorkout(
+            date: Date(),
+            dayName: "Upper",
+            focus: "Chest",
+            exercises: [],
+            routineId: routine.id,
+            workoutId: routine.workouts[0].id
+        )
+        let export = AppExportData(
+            schemaVersion: AppImportValidator.currentSchemaVersion,
+            exportedAt: Date(),
+            routines: [routine],
+            completedWorkouts: [history],
+            exerciseLibrary: [],
+            selectedTheme: .light,
+            activeRoutineId: nil,
+            activeWorkoutId: nil
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+
+        let decoded = try XCTUnwrap(ExportManager.shared.decodedExportData(from: try encoder.encode(export)))
+        let normalized = try AppImportValidator.normalizedCandidate(from: decoded)
+
+        XCTAssertEqual(decoded.schemaVersion, AppImportValidator.currentSchemaVersion)
+        XCTAssertEqual(normalized.routines.map(\.id), [routine.id])
+        XCTAssertEqual(normalized.completedWorkouts.map(\.id), [history.id])
+    }
+
+    func testLegacyExportDataDecodesIntoSupportedSchemaZeroCandidate() throws {
+        struct LegacyExportFixture: Codable {
+            let routines: [Routine]
+            let completedWorkouts: [CompletedWorkout]
+        }
+
+        let routine = makeRoutine(name: "Strength")
+        let fixture = LegacyExportFixture(routines: [routine], completedWorkouts: [])
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+
+        let decoded = try XCTUnwrap(ExportManager.shared.decodedExportData(from: try encoder.encode(fixture)))
+        let normalized = try AppImportValidator.normalizedCandidate(from: decoded)
+
+        XCTAssertEqual(decoded.schemaVersion, 0)
+        XCTAssertEqual(normalized.routines.map(\.id), [routine.id])
+    }
+
+    func testImportBackupDiscoveryFiltersAndOrdersAppSnapshots() throws {
+        let backupsDirectory = storageDirectory.appendingPathComponent("Import Backups", isDirectory: true)
+        try FileManager.default.createDirectory(at: backupsDirectory, withIntermediateDirectories: true)
+        let older = backupsDirectory.appendingPathComponent("HealyHealth_PreImport_2026-08-04_100000_000.json")
+        let newer = backupsDirectory.appendingPathComponent("HealyHealth_PreImport_2026-08-04_110000_000.json")
+        let unrelated = backupsDirectory.appendingPathComponent("notes.json")
+        try Data("{}".utf8).write(to: older)
+        try Data("{}".utf8).write(to: newer)
+        try Data("{}".utf8).write(to: unrelated)
+
+        let backups = ExportManager.shared.importBackups(in: storageDirectory)
+
+        XCTAssertEqual(backups.map(\.url), [newer, older])
+    }
+
     func testFinishWorkoutResolvesTheCurrentStoredWorkoutByID() {
         let routine = makeRoutine(name: "Original routine")
         let workoutID = routine.workouts[0].id
@@ -1373,6 +1520,28 @@ final class RoutineStoreTests: XCTestCase {
     ) {
         guard case .failure(let error) = result else {
             return XCTFail("Expected logged-set mutation to fail with \(expectedError)", file: file, line: line)
+        }
+        XCTAssertEqual(error, expectedError, file: file, line: line)
+    }
+
+    private func XCTAssertHistoryMutationSucceeds(
+        _ result: Result<Void, CompletedWorkoutMutationError>,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        if case .failure(let error) = result {
+            XCTFail("Expected history mutation to succeed, got: \(error.localizedDescription)", file: file, line: line)
+        }
+    }
+
+    private func XCTAssertHistoryMutationFails(
+        _ result: Result<Void, CompletedWorkoutMutationError>,
+        with expectedError: CompletedWorkoutMutationError,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        guard case .failure(let error) = result else {
+            return XCTFail("Expected history mutation to fail with \(expectedError.localizedDescription)", file: file, line: line)
         }
         XCTAssertEqual(error, expectedError, file: file, line: line)
     }

@@ -96,6 +96,29 @@ enum SetLogMutationError: LocalizedError, Equatable {
     }
 }
 
+enum CompletedWorkoutMutationError: LocalizedError, Equatable {
+    case workoutNotFound
+    case emptyName
+    case emptyFocus
+    case invalidDate
+    case persistenceFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .workoutNotFound:
+            return "This completed workout is no longer available."
+        case .emptyName:
+            return "Enter a workout name."
+        case .emptyFocus:
+            return "Enter a workout focus."
+        case .invalidDate:
+            return "Enter a valid completion date."
+        case .persistenceFailed:
+            return "Couldn’t save this history change. Please try again."
+        }
+    }
+}
+
 /// The rest countdown belongs to the active workout, rather than an individual exercise screen.
 /// Keeping its absolute deadline lets the UI accurately resume after navigation, backgrounding,
 /// or a new app process.
@@ -589,6 +612,53 @@ class RoutineStore: ObservableObject {
         activeWorkoutStartedAt = nil
         activeWorkoutId = nil
         if startNew { activeRoutineId = nil }
+    }
+
+    /// Updates only history metadata. Completed exercises and set logs remain an immutable
+    /// record, while the common date/name/focus mistakes can be corrected safely.
+    @discardableResult
+    func updateCompletedWorkout(
+        id: UUID,
+        date: Date,
+        dayName: String,
+        focus: String
+    ) -> Result<Void, CompletedWorkoutMutationError> {
+        guard let index = completedWorkouts.firstIndex(where: { $0.id == id }) else {
+            return .failure(.workoutNotFound)
+        }
+        guard date.timeIntervalSinceReferenceDate.isFinite else { return .failure(.invalidDate) }
+        let normalizedName = ExerciseDomainValidation.trimmedText(dayName)
+        guard !normalizedName.isEmpty else { return .failure(.emptyName) }
+        let normalizedFocus = ExerciseDomainValidation.trimmedText(focus)
+        guard !normalizedFocus.isEmpty else { return .failure(.emptyFocus) }
+
+        let previous = completedWorkouts
+        completedWorkouts[index].date = date
+        completedWorkouts[index].dayName = normalizedName
+        completedWorkouts[index].focus = normalizedFocus
+        completedWorkouts.sort(by: CompletedWorkout.newestFirst)
+        guard performSaveHistory() else {
+            completedWorkouts = previous
+            return .failure(.persistenceFailed)
+        }
+        return .success(())
+    }
+
+    /// Deletion is intentionally scoped to a completed-history record. It cannot alter the
+    /// original routine, planned exercise, or any other workout snapshot.
+    @discardableResult
+    func deleteCompletedWorkout(id: UUID) -> Result<Void, CompletedWorkoutMutationError> {
+        guard completedWorkouts.contains(where: { $0.id == id }) else {
+            return .failure(.workoutNotFound)
+        }
+
+        let previous = completedWorkouts
+        completedWorkouts.removeAll { $0.id == id }
+        guard performSaveHistory() else {
+            completedWorkouts = previous
+            return .failure(.persistenceFailed)
+        }
+        return .success(())
     }
     
     func addRoutine(_ routine: Routine) {

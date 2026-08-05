@@ -125,17 +125,19 @@ Completed in this phase:
 - Defined a trained session as one exercise occurrence with at least one logged set in a completed workout. The summary list, top chart, and progress detail now share one aggregation, excluding unlogged planned exercises consistently.
 - Added a durable exercise tracking identity. New planned exercises use their library template UUID, immutable history snapshots retain it, and schemas 0 and 1 migrate legacy exercises by normalized name (preferring a matching library template). This preserves progress through renames and keeps separately identified same-name movements apart.
 - Centralized completed-workout newest-first ordering with UUID tie-breaks across import, local load, workout completion, history presentation, progress points, and summary ties.
+- Added safe completed-history maintenance. Users can correct a completed workout’s date/name/focus or, after confirmation, delete the whole record; mutations persist immediately and roll back in memory if writing fails. Exercise and logged-set snapshots deliberately remain immutable.
+- Made retained pre-import backups discoverable and restorable from Settings. Restore requests use the normal validated, transactional import path and first save the current data as another dated snapshot. Added current-schema round-trip/validation, legacy-schema decode, and backup-discovery coverage.
 
 Sequencing decisions:
 
-- HH-304 history correction/deletion remains the next P1 behavior gap; HH-305 then makes pre-import recovery discoverable and expands export compatibility coverage.
+- HH-306 is next: separate routine/workout history metadata and source the displayed app version from the bundle.
 - Schema 2 introduces durable exercise tracking IDs. Schemas 0, 1, and 2 remain import-compatible.
 
 Exit criteria:
 
 - [x] Summary counts, charts, and history agree for the same dataset.
-- [ ] Export/import round-trip tests pass for current and supported legacy schemas.
-- [ ] Users can correct erroneous history safely.
+- [x] Export/import round-trip tests pass for current and supported legacy schemas.
+- [x] Users can correct erroneous history safely.
 - [x] Analytics remain stable when an exercise is renamed.
 
 ## Phase 4 — Accessibility and product polish

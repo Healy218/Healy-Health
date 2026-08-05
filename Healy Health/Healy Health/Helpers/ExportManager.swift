@@ -13,6 +13,14 @@ struct AppExportData: Codable {
     let activeWorkoutId: UUID?
 }
 
+struct ImportBackup: Identifiable, Equatable {
+    let url: URL
+    let createdAt: Date
+
+    var id: URL { url }
+    var filename: String { url.deletingPathExtension().lastPathComponent }
+}
+
 enum ImportError: LocalizedError, Equatable {
     case unreadableFile
     case unsupportedSchema(Int)
@@ -261,8 +269,44 @@ final class ExportManager {
         return importJSONData(from: data)
     }
 
+    /// Restores a retained pre-import backup through the same validation and transactional write
+    /// path as a user-selected export. The current app state is backed up first, so a restore can
+    /// itself be recovered if the wrong snapshot is chosen.
+    func restoreImportBackup(_ backup: ImportBackup) -> Result<Void, ImportError> {
+        importJSONData(from: backup.url)
+    }
+
+    /// Returns only app-created pre-import snapshots, newest first. Discovery is deliberately
+    /// read-only; no backup is deleted or changed merely by opening the recovery screen.
+    func importBackups(in directory: URL) -> [ImportBackup] {
+        let backupsDirectory = directory.appendingPathComponent("Import Backups", isDirectory: true)
+        guard let urls = try? FileManager.default.contentsOfDirectory(
+            at: backupsDirectory,
+            includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+
+        return urls.compactMap { url in
+            guard url.pathExtension.lowercased() == "json",
+                  url.lastPathComponent.hasPrefix("HealyHealth_PreImport_") else {
+                return nil
+            }
+            let values = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
+            return ImportBackup(
+                url: url,
+                createdAt: values?.creationDate ?? values?.contentModificationDate ?? .distantPast
+            )
+        }
+        .sorted { lhs, rhs in
+            if lhs.createdAt != rhs.createdAt { return lhs.createdAt > rhs.createdAt }
+            return lhs.filename > rhs.filename
+        }
+    }
+
     func importJSONData(from data: Data) -> Result<Void, ImportError> {
-        guard let decoded = decodeExportData(from: data) else { return .failure(.unreadableFile) }
+        guard let decoded = decodedExportData(from: data) else { return .failure(.unreadableFile) }
 
         let candidate: AppExportData
         do {
@@ -338,7 +382,7 @@ final class ExportManager {
         }
     }
 
-    private func decodeExportData(from data: Data) -> AppExportData? {
+    func decodedExportData(from data: Data) -> AppExportData? {
         let iso8601Decoder = JSONDecoder()
         iso8601Decoder.dateDecodingStrategy = .iso8601
         if let decoded = try? iso8601Decoder.decode(AppExportData.self, from: data) {

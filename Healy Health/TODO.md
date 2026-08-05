@@ -60,9 +60,9 @@ Priority legend:
 
 - [x] **HH-303 (P1) Make history ordering deterministic.** Completed workout history now uses one newest-first comparator with UUID tie-breaks when importing, loading, completing, and presenting history. Exercise progress session ordering and summary ties are also stable.
 
-- [ ] **HH-304 (P1) Add safe history correction/deletion.** Include confirmations, immediate persistence, and analytics refresh.
+- [x] **HH-304 (P1) Add safe history correction/deletion.** Completed-workout date, name, and focus can be corrected through store-owned validation and immediate persistence; whole records can be deleted only after confirmation. Failed writes restore the prior in-memory history, and every analytics view refreshes from the shared history collection. Exercise/log snapshots remain immutable.
 
-- [ ] **HH-305 (P1) Strengthen export compatibility.** Future schemas are rejected by HH-104, but supported-version/recovery documentation, round-trip and legacy fixture tests, and any newly persisted session/preferences data remain. Make retained pre-import backups discoverable/restorable in the UI or document a supported recovery path.
+- [x] **HH-305 (P1) Strengthen export compatibility.** Settings now documents and lists dated pre-import snapshots, with confirmed restore through the same validated transactional import path; restoring first retains the current state as another backup. Current-schema round-trip/validation, legacy-schema decoding, and backup discovery ordering/filtering are covered by tests.
 
 - [ ] **HH-306 (P2) Correct history metadata and version display.** Store/show routine name separately from workout name, and read marketing/build versions from `Bundle` instead of hard-coding `1.0 (Beta)`.
 
@@ -97,7 +97,7 @@ Priority legend:
 ## Current baseline notes
 
 - The project contains the `Healy Health` application target and the `Healy HealthTests` XCTest target.
-- `xcodebuild test` passed all 47 `Healy HealthTests` on 2026-08-04 using iPhone 17 Pro Max, iOS 26.5. The iOS 26.2 simulator runtime crashes the XCTest test host while deallocating `RoutineStore`; do not use it for tests.
+- `xcodebuild test` passed all 52 `Healy HealthTests` on 2026-08-04 using iPhone 17 Pro Max, iOS 26.5. The iOS 26.2 simulator runtime crashes the XCTest test host while deallocating `RoutineStore`; do not use it for tests.
 - Active-session reload now restores all persisted fields as a unit before saving normalized state, preventing `activeWorkoutId`, start time, and timer state from being erased during load.
 - The git root is the parent `Fitness App` directory; this app lives in its `Healy Health` subdirectory.
 - Pre-existing tracked machine files were already dirty during the audit and were not modified by the audit.

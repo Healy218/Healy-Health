@@ -18,64 +18,10 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            // MARK: Appearance
-            Section(header: Text("Appearance").foregroundColor(theme.onPrimaryText)) {
-                NavigationLink(destination: ThemePickerView()) {
-                    HStack {
-                        Text("Theme").foregroundColor(theme.rowText)
-                        Spacer()
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(theme.primaryColor)
-                                .frame(width: 16, height: 16)
-                                .overlay(Circle().stroke(Color.gray.opacity(0.3), lineWidth: 1))
-                            Text(theme.displayName)
-                                .foregroundColor(theme.secondaryRowText)
-                        }
-                    }
-                }
-                .listRowBackground(theme.rowBackground)
-            }
-
-            // MARK: Stats
-            Section(header: Text("Your Stats").foregroundColor(theme.onPrimaryText)) {
-                HStack {
-                    Text("Total Workouts Completed").foregroundColor(theme.rowText)
-                    Spacer()
-                    Text("\(totalWorkoutsCompleted)").foregroundColor(theme.secondaryRowText)
-                }
-                .listRowBackground(theme.rowBackground)
-            }
-
-            // MARK: Data Management
-            Section(header: Text("Data Management").foregroundColor(theme.onPrimaryText)) {
-                Button(action: {
-                    exportDocument = ExportManager.shared.makeExportDocument()
-                    if exportDocument != nil {
-                        isExporting = true
-                    } else {
-                        showExportErrorAlert = true
-                    }
-                }) {
-                    Label("Export Data", systemImage: "square.and.arrow.up").foregroundColor(theme.accentColor)
-                }
-                .listRowBackground(theme.rowBackground)
-
-                Button(action: { isImporting = true }) {
-                    Label("Import Data", systemImage: "square.and.arrow.down").foregroundColor(theme.accentColor)
-                }
-                .listRowBackground(theme.rowBackground)
-            }
-
-            // MARK: About
-            Section(header: Text("About").foregroundColor(theme.onPrimaryText)) {
-                HStack {
-                    Text("Version").foregroundColor(theme.rowText)
-                    Spacer()
-                    Text("1.0 (Beta)").foregroundColor(theme.secondaryRowText)
-                }
-                .listRowBackground(theme.rowBackground)
-            }
+            appearanceSection
+            statsSection
+            dataManagementSection
+            aboutSection
         }
         .scrollContentBackground(.hidden)
         .background(theme.primaryColor.ignoresSafeArea())
@@ -123,6 +69,176 @@ struct SettingsView: View {
             message: { Text("Your app data has been fully restored.") }
         .alert("Import Failed", isPresented: $showImportErrorAlert) { Button("OK", role: .cancel) { } }
             message: { Text(importErrorMessage) }
+    }
+
+    private var appearanceSection: some View {
+        Section(header: Text("Appearance").foregroundColor(theme.onPrimaryText)) {
+            NavigationLink(destination: ThemePickerView()) {
+                HStack {
+                    Text("Theme").foregroundColor(theme.rowText)
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(theme.primaryColor)
+                            .frame(width: 16, height: 16)
+                            .overlay(Circle().stroke(Color.gray.opacity(0.3), lineWidth: 1))
+                        Text(theme.displayName)
+                            .foregroundColor(theme.secondaryRowText)
+                    }
+                }
+            }
+            .listRowBackground(theme.rowBackground)
+        }
+    }
+
+    private var statsSection: some View {
+        Section(header: Text("Your Stats").foregroundColor(theme.onPrimaryText)) {
+            HStack {
+                Text("Total Workouts Completed").foregroundColor(theme.rowText)
+                Spacer()
+                Text("\(totalWorkoutsCompleted)").foregroundColor(theme.secondaryRowText)
+            }
+            .listRowBackground(theme.rowBackground)
+        }
+    }
+
+    private var dataManagementSection: some View {
+        Section {
+            Button(action: exportData) {
+                Label("Export Data", systemImage: "square.and.arrow.up").foregroundColor(theme.accentColor)
+            }
+            .listRowBackground(theme.rowBackground)
+
+            Button(action: { isImporting = true }) {
+                Label("Import Data", systemImage: "square.and.arrow.down").foregroundColor(theme.accentColor)
+            }
+            .listRowBackground(theme.rowBackground)
+
+            NavigationLink(destination: ImportBackupsView()) {
+                Label("Restore Pre-Import Backup", systemImage: "clock.arrow.circlepath")
+                    .foregroundColor(theme.accentColor)
+            }
+            .listRowBackground(theme.rowBackground)
+        } header: {
+            Text("Data Management").foregroundColor(theme.onPrimaryText)
+        } footer: {
+            Text("Before every import, Healy Health saves your current data as a dated pre-import backup. Restore one here if an import needs to be undone.")
+        }
+    }
+
+    private var aboutSection: some View {
+        Section(header: Text("About").foregroundColor(theme.onPrimaryText)) {
+            HStack {
+                Text("Version").foregroundColor(theme.rowText)
+                Spacer()
+                Text("1.0 (Beta)").foregroundColor(theme.secondaryRowText)
+            }
+            .listRowBackground(theme.rowBackground)
+        }
+    }
+
+    private func exportData() {
+        exportDocument = ExportManager.shared.makeExportDocument()
+        if exportDocument != nil {
+            isExporting = true
+        } else {
+            showExportErrorAlert = true
+        }
+    }
+}
+
+struct ImportBackupsView: View {
+    @EnvironmentObject var store: RoutineStore
+    @EnvironmentObject var themeManager: ThemeManager
+    @State private var backups: [ImportBackup] = []
+    @State private var selectedBackup: ImportBackup?
+    @State private var restoreErrorMessage: String?
+    @State private var showRestoreSuccess = false
+
+    private var theme: AppTheme { themeManager.current }
+
+    var body: some View {
+        ZStack {
+            theme.primaryColor.ignoresSafeArea()
+            List {
+                Section {
+                    if backups.isEmpty {
+                        Text("No pre-import backups are available yet.")
+                            .foregroundColor(theme.secondaryRowText)
+                            .listRowBackground(theme.rowBackground)
+                    } else {
+                        ForEach(backups) { backup in
+                            Button {
+                                selectedBackup = backup
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(backup.createdAt.formatted(date: .abbreviated, time: .shortened))
+                                            .foregroundColor(theme.rowText)
+                                        Text(backup.filename)
+                                            .font(.caption)
+                                            .foregroundColor(theme.secondaryRowText)
+                                    }
+                                    Spacer()
+                                    Text("Restore")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundColor(theme.accentColor)
+                                }
+                            }
+                            .listRowBackground(theme.rowBackground)
+                        }
+                    }
+                } footer: {
+                    Text("Restoring uses the same validation as Import Data and saves your current app state as a new backup first.")
+                }
+            }
+            .scrollContentBackground(.hidden)
+        }
+        .navigationTitle("Pre-Import Backups")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear(perform: reloadBackups)
+        .confirmationDialog(
+            "Restore This Backup?",
+            isPresented: Binding(
+                get: { selectedBackup != nil },
+                set: { if !$0 { selectedBackup = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Restore Backup", role: .destructive, action: restoreSelectedBackup)
+            Button("Cancel", role: .cancel) { selectedBackup = nil }
+        } message: {
+            Text("Your current data will first be saved as a new pre-import backup. The selected backup will then replace the active app data.")
+        }
+        .alert("Backup Restored", isPresented: $showRestoreSuccess) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("The selected backup is now active. Your previous app data was saved as a new pre-import backup.")
+        }
+        .alert("Couldn’t Restore Backup", isPresented: Binding(
+            get: { restoreErrorMessage != nil },
+            set: { if !$0 { restoreErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { restoreErrorMessage = nil }
+        } message: {
+            Text(restoreErrorMessage ?? "")
+        }
+    }
+
+    private func reloadBackups() {
+        backups = ExportManager.shared.importBackups(in: store.persistenceDirectory)
+    }
+
+    private func restoreSelectedBackup() {
+        guard let backup = selectedBackup else { return }
+        selectedBackup = nil
+        switch ExportManager.shared.restoreImportBackup(backup) {
+        case .success:
+            reloadBackups()
+            showRestoreSuccess = true
+        case .failure(let error):
+            restoreErrorMessage = error.localizedDescription
+        }
     }
 }
 

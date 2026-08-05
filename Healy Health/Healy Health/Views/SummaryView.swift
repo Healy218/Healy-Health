@@ -463,6 +463,8 @@ struct WorkoutHistoryView: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
     private var theme: AppTheme { themeManager.current }
+    @State private var pendingDeletion: CompletedWorkout?
+    @State private var mutationErrorMessage: String?
 
     var body: some View {
         ZStack {
@@ -478,11 +480,47 @@ struct WorkoutHistoryView: View {
                     .padding(.vertical, 4)
                 }
                 .listRowBackground(theme.rowBackground)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        pendingDeletion = workout
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
             }
             .scrollContentBackground(.hidden)
         }
+        .confirmationDialog(
+            "Delete Completed Workout?",
+            isPresented: Binding(
+                get: { pendingDeletion != nil },
+                set: { if !$0 { pendingDeletion = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete Workout", role: .destructive, action: deletePendingWorkout)
+            Button("Cancel", role: .cancel) { pendingDeletion = nil }
+        } message: {
+            Text("This permanently removes this workout and its analytics contribution. It can’t be undone.")
+        }
+        .alert("Couldn’t Delete Workout", isPresented: Binding(
+            get: { mutationErrorMessage != nil },
+            set: { if !$0 { mutationErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { mutationErrorMessage = nil }
+        } message: {
+            Text(mutationErrorMessage ?? "")
+        }
         .navigationTitle("Workout History")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func deletePendingWorkout() {
+        guard let workout = pendingDeletion else { return }
+        pendingDeletion = nil
+        if case .failure(let error) = store.deleteCompletedWorkout(id: workout.id) {
+            mutationErrorMessage = error.localizedDescription
+        }
     }
 }
 
@@ -490,22 +528,31 @@ struct WorkoutHistoryView: View {
 
 struct SummaryDetailView: View {
     let workout: CompletedWorkout
+    @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
+    @Environment(\.dismiss) private var dismiss
     private var theme: AppTheme { themeManager.current }
+    @State private var isEditing = false
+    @State private var showDeleteConfirmation = false
+    @State private var mutationErrorMessage: String?
+
+    private var currentWorkout: CompletedWorkout {
+        store.completedWorkouts.first(where: { $0.id == workout.id }) ?? workout
+    }
 
     var body: some View {
         ZStack {
             theme.primaryColor.ignoresSafeArea()
             List {
                 Section(header: Text("Workout Info").foregroundColor(theme.onPrimaryText)) {
-                    HStack { Text("Routine / Workout").foregroundColor(theme.rowText); Spacer(); Text(workout.dayName).foregroundColor(theme.secondaryRowText) }.listRowBackground(theme.rowBackground)
-                    HStack { Text("Date").foregroundColor(theme.rowText); Spacer(); Text(workout.date.formatted(date: .long, time: .shortened)).foregroundColor(theme.secondaryRowText) }.listRowBackground(theme.rowBackground)
+                    HStack { Text("Routine / Workout").foregroundColor(theme.rowText); Spacer(); Text(currentWorkout.dayName).foregroundColor(theme.secondaryRowText) }.listRowBackground(theme.rowBackground)
+                    HStack { Text("Date").foregroundColor(theme.rowText); Spacer(); Text(currentWorkout.date.formatted(date: .long, time: .shortened)).foregroundColor(theme.secondaryRowText) }.listRowBackground(theme.rowBackground)
                 }
                 Section(header: Text("Exercises").foregroundColor(theme.onPrimaryText)) {
-                    if workout.exercises.isEmpty {
+                    if currentWorkout.exercises.isEmpty {
                         Text("No exercises recorded.").listRowBackground(theme.rowBackground).foregroundColor(theme.secondaryRowText)
                     } else {
-                        ForEach(workout.exercises) { exercise in
+                        ForEach(currentWorkout.exercises) { exercise in
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(exercise.name).font(.headline).foregroundColor(theme.rowText)
                                 if exercise.logs.isEmpty {
@@ -529,5 +576,106 @@ struct SummaryDetailView: View {
         }
         .navigationTitle("Details")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Button("Edit") { isEditing = true }
+                Button(role: .destructive) { showDeleteConfirmation = true } label: {
+                    Image(systemName: "trash")
+                }
+            }
+        }
+        .sheet(isPresented: $isEditing) {
+            EditCompletedWorkoutView(workout: currentWorkout)
+                .environmentObject(store)
+                .environmentObject(themeManager)
+        }
+        .confirmationDialog(
+            "Delete Completed Workout?",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Workout", role: .destructive, action: deleteWorkout)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently removes this workout and its analytics contribution. It can’t be undone.")
+        }
+        .alert("Couldn’t Delete Workout", isPresented: Binding(
+            get: { mutationErrorMessage != nil },
+            set: { if !$0 { mutationErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { mutationErrorMessage = nil }
+        } message: {
+            Text(mutationErrorMessage ?? "")
+        }
+    }
+
+    private func deleteWorkout() {
+        switch store.deleteCompletedWorkout(id: currentWorkout.id) {
+        case .success:
+            dismiss()
+        case .failure(let error):
+            mutationErrorMessage = error.localizedDescription
+        }
+    }
+}
+
+struct EditCompletedWorkoutView: View {
+    let workout: CompletedWorkout
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var store: RoutineStore
+    @EnvironmentObject var themeManager: ThemeManager
+    @State private var date: Date
+    @State private var dayName: String
+    @State private var focus: String
+    @State private var mutationErrorMessage: String?
+
+    init(workout: CompletedWorkout) {
+        self.workout = workout
+        _date = State(initialValue: workout.date)
+        _dayName = State(initialValue: workout.dayName)
+        _focus = State(initialValue: workout.focus)
+    }
+
+    private var theme: AppTheme { themeManager.current }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Workout Details") {
+                    TextField("Workout name", text: $dayName)
+                    TextField("Focus", text: $focus)
+                    DatePicker("Completed", selection: $date)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(theme.primaryColor.ignoresSafeArea())
+            .navigationTitle("Edit History")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save", action: save)
+                }
+            }
+            .alert("Couldn’t Save History", isPresented: Binding(
+                get: { mutationErrorMessage != nil },
+                set: { if !$0 { mutationErrorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { mutationErrorMessage = nil }
+            } message: {
+                Text(mutationErrorMessage ?? "")
+            }
+        }
+    }
+
+    private func save() {
+        switch store.updateCompletedWorkout(id: workout.id, date: date, dayName: dayName, focus: focus) {
+        case .success:
+            dismiss()
+        case .failure(let error):
+            mutationErrorMessage = error.localizedDescription
+        }
     }
 }
