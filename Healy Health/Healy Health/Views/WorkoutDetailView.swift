@@ -80,10 +80,10 @@ struct WorkoutDetailView: View {
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(category.displayName)
-                        .font(.custom("ChalkboardSE-Regular", size: 20))
+                        .font(AppTypography.chalkboard(20, relativeTo: .title3))
                         .foregroundColor(theme.onPrimaryText)
                     Text(count == 0 ? "Tap to add exercises" : "\(count) exercise\(count == 1 ? "" : "s")")
-                        .font(.custom("ChalkboardSE-Regular", size: 14))
+                        .font(AppTypography.chalkboard(14, relativeTo: .subheadline))
                         .foregroundColor(theme.onPrimaryText.opacity(0.7))
                 }
                 Spacer()

@@ -114,7 +114,7 @@ struct SummaryView: View {
                         // Last workout / history button
                         NavigationLink(destination: WorkoutHistoryView()) {
                             SummaryNavButton(
-                                label: lastWorkout.map { "Last: \($0.dayName)" } ?? "Workout History",
+                                label: lastWorkout.map { "Last: \($0.workoutName)" } ?? "Workout History",
                                 icon: "calendar",
                                 theme: theme
                             )
@@ -143,7 +143,7 @@ struct SummaryNavButton: View {
                 .font(.system(size: 18))
                 .frame(width: 28)
             Text(label)
-                .font(.custom("ChalkboardSE-Regular", size: 17))
+                .font(AppTypography.chalkboard(17, relativeTo: .body))
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption)
@@ -190,7 +190,7 @@ struct TopExerciseChartCard: View {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Most Trained: \(top.name)")
-                            .font(.custom("ChalkboardSE-Regular", size: 15))
+                            .font(AppTypography.chalkboard(15, relativeTo: .subheadline))
                             .foregroundColor(theme.onPrimaryText.opacity(0.75))
 
                         Text(selectedMetric.subtitle)
@@ -240,14 +240,14 @@ struct ExerciseLineChart: View {
                 x: .value("Session", point.session),
                 y: .value(metric.axisLabel, metric.value(for: point))
             )
-            .interpolationMethod(.catmullRom)
+            .interpolationMethod(.linear)
             .foregroundStyle(lineColor)
 
             AreaMark(
                 x: .value("Session", point.session),
                 y: .value(metric.axisLabel, metric.value(for: point))
             )
-            .interpolationMethod(.catmullRom)
+            .interpolationMethod(.linear)
             .foregroundStyle(fillColor)
 
             PointMark(
@@ -400,7 +400,7 @@ struct ExerciseProgressView: View {
                             HStack(alignment: .top) {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("\(selectedMetric.title) Over Time")
-                                        .font(.custom("ChalkboardSE-Regular", size: 14))
+                                        .font(AppTypography.chalkboard(14, relativeTo: .subheadline))
                                         .foregroundColor(theme.onPrimaryText.opacity(0.7))
                                     Text(selectedMetric.subtitle)
                                         .font(.caption)
@@ -474,7 +474,7 @@ struct WorkoutHistoryView: View {
                     VStack(alignment: .leading) {
                         Text(workout.date.formatted(date: .long, time: .shortened))
                             .font(.headline).foregroundColor(theme.rowText)
-                        Text(workout.dayName)
+                        Text(workout.workoutName)
                             .font(.subheadline).foregroundColor(theme.secondaryRowText)
                     }
                     .padding(.vertical, 4)
@@ -545,7 +545,8 @@ struct SummaryDetailView: View {
             theme.primaryColor.ignoresSafeArea()
             List {
                 Section(header: Text("Workout Info").foregroundColor(theme.onPrimaryText)) {
-                    HStack { Text("Routine / Workout").foregroundColor(theme.rowText); Spacer(); Text(currentWorkout.dayName).foregroundColor(theme.secondaryRowText) }.listRowBackground(theme.rowBackground)
+                    HStack { Text("Routine").foregroundColor(theme.rowText); Spacer(); Text(currentWorkout.routineName ?? "Not recorded").foregroundColor(theme.secondaryRowText) }.listRowBackground(theme.rowBackground)
+                    HStack { Text("Workout").foregroundColor(theme.rowText); Spacer(); Text(currentWorkout.workoutName).foregroundColor(theme.secondaryRowText) }.listRowBackground(theme.rowBackground)
                     HStack { Text("Date").foregroundColor(theme.rowText); Spacer(); Text(currentWorkout.date.formatted(date: .long, time: .shortened)).foregroundColor(theme.secondaryRowText) }.listRowBackground(theme.rowBackground)
                 }
                 Section(header: Text("Exercises").foregroundColor(theme.onPrimaryText)) {
@@ -625,14 +626,16 @@ struct EditCompletedWorkoutView: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
     @State private var date: Date
-    @State private var dayName: String
+    @State private var routineName: String
+    @State private var workoutName: String
     @State private var focus: String
     @State private var mutationErrorMessage: String?
 
     init(workout: CompletedWorkout) {
         self.workout = workout
         _date = State(initialValue: workout.date)
-        _dayName = State(initialValue: workout.dayName)
+        _routineName = State(initialValue: workout.routineName ?? "")
+        _workoutName = State(initialValue: workout.workoutName)
         _focus = State(initialValue: workout.focus)
     }
 
@@ -642,7 +645,8 @@ struct EditCompletedWorkoutView: View {
         NavigationStack {
             Form {
                 Section("Workout Details") {
-                    TextField("Workout name", text: $dayName)
+                    TextField("Routine name", text: $routineName)
+                    TextField("Workout name", text: $workoutName)
                     TextField("Focus", text: $focus)
                     DatePicker("Completed", selection: $date)
                 }
@@ -671,7 +675,13 @@ struct EditCompletedWorkoutView: View {
     }
 
     private func save() {
-        switch store.updateCompletedWorkout(id: workout.id, date: date, dayName: dayName, focus: focus) {
+        switch store.updateCompletedWorkout(
+            id: workout.id,
+            date: date,
+            routineName: routineName,
+            workoutName: workoutName,
+            focus: focus
+        ) {
         case .success:
             dismiss()
         case .failure(let error):

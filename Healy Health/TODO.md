@@ -1,6 +1,6 @@
 # Healy Health TODO
 
-Last updated: 2026-08-04
+Last updated: 2026-08-08
 
 This is the actionable backlog for `ROADMAP.md`. Work top-to-bottom within the active phase unless a user request changes the priority.
 
@@ -64,13 +64,13 @@ Priority legend:
 
 - [x] **HH-305 (P1) Strengthen export compatibility.** Settings now documents and lists dated pre-import snapshots, with confirmed restore through the same validated transactional import path; restoring first retains the current state as another backup. Current-schema round-trip/validation, legacy-schema decoding, and backup discovery ordering/filtering are covered by tests.
 
-- [ ] **HH-306 (P2) Correct history metadata and version display.** Store/show routine name separately from workout name, and read marketing/build versions from `Bundle` instead of hard-coding `1.0 (Beta)`.
+- [x] **HH-306 (P2) Correct history metadata and version display.** Completed snapshots now persist routine and workout names separately, while legacy `dayName` history remains readable. History details and corrections present each field independently, and Settings reads marketing/build versions from `Bundle`.
 
-- [ ] **HH-307 (P2) Make chart behavior honest.** “Most Trained” and history ordering now have stable tie-breaks. Consolidate duplicate exercise entries within one workout session, and consider linear interpolation to avoid Catmull-Rom visual overshoot.
+- [x] **HH-307 (P2) Make chart behavior honest.** Analytics now consolidate duplicate entries with the same tracking ID into one workout session, summing volume and retaining the best top set/estimated 1RM; same-name exercises with different IDs remain separate. Both charts use linear interpolation so values never visually overshoot recorded points.
 
 ## Phase 4 — Accessibility and polish
 
-- [ ] **HH-401 (P1) Audit Dynamic Type.** Replace fixed-size typography where it clips and test all core screens at accessibility sizes.
+- [ ] **HH-401 (P1) Audit Dynamic Type (in progress).** The app-wide Chalkboard font and every fixed-size custom text use semantic Dynamic Type scaling across core routine, workout, exercise, summary, settings, and planning views. Session actions now stack when horizontal space is insufficient, and the rest-timer readout scales with the preferred text size. Run the required accessibility-size device smoke test before marking complete.
 
 - [ ] **HH-402 (P1) Add VoiceOver semantics.** Label chart controls, workout state, icon-only status, timer controls, and grouped rows; verify logical focus order.
 
@@ -97,7 +97,7 @@ Priority legend:
 ## Current baseline notes
 
 - The project contains the `Healy Health` application target and the `Healy HealthTests` XCTest target.
-- `xcodebuild test` passed all 52 `Healy HealthTests` on 2026-08-04 using iPhone 17 Pro Max, iOS 26.5. The iOS 26.2 simulator runtime crashes the XCTest test host while deallocating `RoutineStore`; do not use it for tests.
+- `xcodebuild test` passed all 54 `Healy HealthTests` on 2026-08-06 using iPhone 17 Pro Max, iOS 26.5. CoreSimulatorService is currently unavailable in this environment, so tests cannot run again until that runtime service is restored.
 - Active-session reload now restores all persisted fields as a unit before saving normalized state, preventing `activeWorkoutId`, start time, and timer state from being erased during load.
 - The git root is the parent `Fitness App` directory; this app lives in its `Healy Health` subdirectory.
 - Pre-existing tracked machine files were already dirty during the audit and were not modified by the audit.

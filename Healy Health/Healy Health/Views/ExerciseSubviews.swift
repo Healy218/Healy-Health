@@ -112,7 +112,7 @@ struct RestTimerDisplayView: View {
         VStack(spacing: 20) {
             Text("Rest Timer").font(.headline).foregroundColor(theme.onPrimaryText)
             Text(timeString(time: timeRemaining))
-                .font(.system(size: 60, weight: .bold, design: .monospaced)).foregroundColor(theme.onPrimaryText)
+                .font(.system(.largeTitle, design: .monospaced).weight(.bold)).foregroundColor(theme.onPrimaryText)
             Button(action: onSkip) {
                 Text("Skip Rest & Start Set \(nextSetNumber)")
                     .foregroundColor(theme.accentColor).padding()

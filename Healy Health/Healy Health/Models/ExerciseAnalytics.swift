@@ -32,19 +32,42 @@ struct ExerciseTrainingSummary: Identifiable, Equatable {
 enum ExerciseAnalytics {
     static func trainedSessions(from completedWorkouts: [CompletedWorkout]) -> [ExerciseTrainingSession] {
         completedWorkouts.flatMap { workout in
-            workout.exercises.compactMap { exercise in
-                guard !exercise.logs.isEmpty else { return nil }
+            // Historical workouts can contain duplicate entries for one tracked exercise. They
+            // still represent one training session, so combine their logged sets before counts
+            // and progress points are derived. Different tracking IDs remain separate, even if
+            // their display names happen to match.
+            var orderedTrackingIDs: [UUID] = []
+            var sessionsByTrackingID: [UUID: ExerciseTrainingSession] = [:]
 
-                return ExerciseTrainingSession(
-                    id: workout.id,
-                    trackingId: exercise.trackingId ?? exercise.id,
-                    exerciseName: exercise.name,
-                    date: workout.date,
-                    totalVolume: exercise.totalVolume,
-                    maxWeight: exercise.maxLoggedWeight,
-                    estimatedOneRepMax: exercise.estimatedOneRepMax
-                )
+            for exercise in workout.exercises {
+                guard !exercise.logs.isEmpty else { continue }
+
+                let trackingID = exercise.trackingId ?? exercise.id
+                if let existing = sessionsByTrackingID[trackingID] {
+                    sessionsByTrackingID[trackingID] = ExerciseTrainingSession(
+                        id: existing.id,
+                        trackingId: trackingID,
+                        exerciseName: existing.exerciseName,
+                        date: workout.date,
+                        totalVolume: existing.totalVolume + exercise.totalVolume,
+                        maxWeight: max(existing.maxWeight, exercise.maxLoggedWeight),
+                        estimatedOneRepMax: max(existing.estimatedOneRepMax, exercise.estimatedOneRepMax)
+                    )
+                } else {
+                    orderedTrackingIDs.append(trackingID)
+                    sessionsByTrackingID[trackingID] = ExerciseTrainingSession(
+                        id: workout.id,
+                        trackingId: trackingID,
+                        exerciseName: exercise.name,
+                        date: workout.date,
+                        totalVolume: exercise.totalVolume,
+                        maxWeight: exercise.maxLoggedWeight,
+                        estimatedOneRepMax: exercise.estimatedOneRepMax
+                    )
+                }
             }
+
+            return orderedTrackingIDs.compactMap { sessionsByTrackingID[$0] }
         }
     }
 

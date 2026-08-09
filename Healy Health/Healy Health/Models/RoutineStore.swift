@@ -578,7 +578,8 @@ class RoutineStore: ObservableObject {
         let workout = routines[routineIndex].workouts[workoutIndex]
         let finishedWorkout = CompletedWorkout(
             date: Date(),
-            dayName: workout.name,
+            routineName: routine.name,
+            workoutName: workout.name,
             focus: workout.focus,
             exercises: completedExerciseSnapshots(from: workout.exercises),
             routineId: routine.id,
@@ -620,21 +621,25 @@ class RoutineStore: ObservableObject {
     func updateCompletedWorkout(
         id: UUID,
         date: Date,
-        dayName: String,
+        routineName: String,
+        workoutName: String,
         focus: String
     ) -> Result<Void, CompletedWorkoutMutationError> {
         guard let index = completedWorkouts.firstIndex(where: { $0.id == id }) else {
             return .failure(.workoutNotFound)
         }
         guard date.timeIntervalSinceReferenceDate.isFinite else { return .failure(.invalidDate) }
-        let normalizedName = ExerciseDomainValidation.trimmedText(dayName)
-        guard !normalizedName.isEmpty else { return .failure(.emptyName) }
+        let normalizedRoutineName = ExerciseDomainValidation.trimmedText(routineName)
+        guard !normalizedRoutineName.isEmpty else { return .failure(.emptyName) }
+        let normalizedWorkoutName = ExerciseDomainValidation.trimmedText(workoutName)
+        guard !normalizedWorkoutName.isEmpty else { return .failure(.emptyName) }
         let normalizedFocus = ExerciseDomainValidation.trimmedText(focus)
         guard !normalizedFocus.isEmpty else { return .failure(.emptyFocus) }
 
         let previous = completedWorkouts
         completedWorkouts[index].date = date
-        completedWorkouts[index].dayName = normalizedName
+        completedWorkouts[index].routineName = normalizedRoutineName
+        completedWorkouts[index].workoutName = normalizedWorkoutName
         completedWorkouts[index].focus = normalizedFocus
         completedWorkouts.sort(by: CompletedWorkout.newestFirst)
         guard performSaveHistory() else {
@@ -642,6 +647,23 @@ class RoutineStore: ObservableObject {
             return .failure(.persistenceFailed)
         }
         return .success(())
+    }
+
+    /// Compatibility overload for callers that only have the old combined workout-name field.
+    @discardableResult
+    func updateCompletedWorkout(
+        id: UUID,
+        date: Date,
+        dayName: String,
+        focus: String
+    ) -> Result<Void, CompletedWorkoutMutationError> {
+        updateCompletedWorkout(
+            id: id,
+            date: date,
+            routineName: completedWorkouts.first(where: { $0.id == id })?.routineName ?? "Legacy Routine",
+            workoutName: dayName,
+            focus: focus
+        )
     }
 
     /// Deletion is intentionally scoped to a completed-history record. It cannot alter the

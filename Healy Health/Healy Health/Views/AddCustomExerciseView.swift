@@ -75,7 +75,7 @@ struct AddCustomExerciseView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundColor(theme.onPrimaryText)
-                        .font(.custom("ChalkboardSE-Regular", size: 16))
+                        .font(AppTypography.chalkboard(16, relativeTo: .body))
                 }
             }
             .onAppear { selectedCategory = presetCategory }
@@ -88,7 +88,7 @@ struct AddCustomExerciseView: View {
                 Button(action: { selectedCategory = cat }) {
                     VStack(spacing: 4) {
                         Image(systemName: cat.icon).font(.system(size: 18))
-                        Text(cat.displayName).font(.custom("ChalkboardSE-Regular", size: 13))
+                        Text(cat.displayName).font(AppTypography.chalkboard(13, relativeTo: .footnote))
                     }
                     .foregroundColor(selectedCategory == cat ? theme.accentColor : theme.secondaryRowText)
                     .frame(maxWidth: .infinity)
@@ -107,7 +107,7 @@ struct AddCustomExerciseView: View {
             fieldRow(label: "Exercise Name", placeholder: "e.g. Hamstring Stretch", text: $exerciseName, keyboard: .default)
             if isDuplicate {
                 Text("An exercise with this name already exists in this workout or the library.")
-                    .font(.custom("ChalkboardSE-Regular", size: 13))
+                    .font(AppTypography.chalkboard(13, relativeTo: .footnote))
                     .foregroundColor(.red)
                     .padding(.horizontal)
                     .padding(.bottom, 6)
@@ -118,7 +118,7 @@ struct AddCustomExerciseView: View {
             fieldRow(label: "Rep Range", placeholder: "e.g. 8-12", text: $targetReps, keyboard: .default)
             if let validationMessage {
                 Text(validationMessage)
-                    .font(.custom("ChalkboardSE-Regular", size: 13))
+                    .font(AppTypography.chalkboard(13, relativeTo: .footnote))
                     .foregroundColor(.red)
                     .padding(.horizontal)
                     .padding(.bottom, 10)
@@ -132,7 +132,7 @@ struct AddCustomExerciseView: View {
     private var addButton: some View {
         Button(action: addExercise) {
             Text("Add Exercise")
-                .font(.custom("ChalkboardSE-Regular", size: 18))
+                .font(AppTypography.chalkboard(18, relativeTo: .headline))
                 .foregroundColor(isFormValid ? theme.accentColor : theme.secondaryRowText)
                 .frame(maxWidth: .infinity)
                 .padding()
@@ -146,12 +146,12 @@ struct AddCustomExerciseView: View {
     @ViewBuilder
     private func fieldRow(label: String, placeholder: String, text: Binding<String>, keyboard: UIKeyboardType) -> some View {
         HStack {
-            Text(label).font(.custom("ChalkboardSE-Regular", size: 16)).foregroundColor(theme.rowText)
+            Text(label).font(AppTypography.chalkboard(16, relativeTo: .body)).foregroundColor(theme.rowText)
             Spacer()
             TextField(placeholder, text: text)
                 .keyboardType(keyboard)
                 .multilineTextAlignment(.trailing)
-                .font(.custom("ChalkboardSE-Regular", size: 16))
+                .font(AppTypography.chalkboard(16, relativeTo: .body))
                 .foregroundColor(theme.rowText)
                 .frame(maxWidth: 160)
         }

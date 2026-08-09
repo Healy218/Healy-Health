@@ -15,6 +15,14 @@ struct SettingsView: View {
 
     private var theme: AppTheme { themeManager.current }
     private var totalWorkoutsCompleted: Int { store.completedWorkouts.count }
+    private var appVersion: String {
+        let bundle = Bundle.main
+        guard let marketingVersion = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
+              let buildVersion = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String else {
+            return "Unavailable"
+        }
+        return "\(marketingVersion) (\(buildVersion))"
+    }
 
     var body: some View {
         Form {
@@ -131,7 +139,7 @@ struct SettingsView: View {
             HStack {
                 Text("Version").foregroundColor(theme.rowText)
                 Spacer()
-                Text("1.0 (Beta)").foregroundColor(theme.secondaryRowText)
+                Text(appVersion).foregroundColor(theme.secondaryRowText)
             }
             .listRowBackground(theme.rowBackground)
         }
@@ -274,7 +282,7 @@ struct ThemePickerView: View {
     private func themeGroup(title: String, themes: [AppTheme], columns: Int) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
-                .font(.custom("ChalkboardSE-Regular", size: 16))
+                .font(AppTypography.chalkboard(16, relativeTo: .body))
                 .foregroundColor(theme.onPrimaryText.opacity(0.75))
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: columns), spacing: 16) {
@@ -311,7 +319,7 @@ struct ThemePickerView: View {
                     }
                 }
                 Text(t.displayName)
-                    .font(.custom("ChalkboardSE-Regular", size: 13))
+                    .font(AppTypography.chalkboard(13, relativeTo: .footnote))
                     .foregroundColor(isSelected ? theme.onPrimaryText : theme.onPrimaryText.opacity(0.65))
             }
         }

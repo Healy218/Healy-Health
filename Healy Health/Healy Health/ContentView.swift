@@ -38,7 +38,7 @@ struct ContentView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }
                 .tag(3)
         }
-        .environment(\.font, Font.custom("ChalkboardSE-Regular", size: 17))
+        .environment(\.font, AppTypography.chalkboard(17, relativeTo: .body))
         .modifier(ThemedTabChrome(theme: themeManager.current))
         .tint(themeManager.current.onPrimaryText)
         .onAppear { AppChrome.applyGlobalAppearance(for: themeManager.current) }

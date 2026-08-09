@@ -31,10 +31,10 @@ struct ActiveWorkoutView: View {
                         .foregroundColor(theme.onPrimaryText.opacity(0.5))
                         .padding()
                     Text("No Active Routine")
-                        .font(.custom("ChalkboardSE-Regular", size: 24)).bold()
+                        .font(AppTypography.chalkboard(24, relativeTo: .title2)).bold()
                         .foregroundColor(theme.onPrimaryText)
                     Text("Swipe right on a routine in the Routines tab to start it here.")
-                        .font(.custom("ChalkboardSE-Regular", size: 16))
+                        .font(AppTypography.chalkboard(16, relativeTo: .body))
                         .foregroundColor(theme.onPrimaryText.opacity(0.8))
                         .multilineTextAlignment(.center).padding()
                 }
@@ -69,10 +69,10 @@ struct RoutineWorkoutListView: View {
             // Header
             VStack(spacing: 4) {
                 Text(routine.name)
-                    .font(.custom("ChalkboardSE-Regular", size: 24)).bold()
+                    .font(AppTypography.chalkboard(24, relativeTo: .title2)).bold()
                     .foregroundColor(theme.onPrimaryText)
                 Text(allDone ? "All workouts complete!" : "Select a workout to begin")
-                    .font(.custom("ChalkboardSE-Regular", size: 14))
+                    .font(AppTypography.chalkboard(14, relativeTo: .subheadline))
                     .foregroundColor(theme.onPrimaryText.opacity(0.8))
             }
             .padding().frame(maxWidth: .infinity).background(Color.black.opacity(0.2))
@@ -80,7 +80,7 @@ struct RoutineWorkoutListView: View {
             if routine.workouts.isEmpty {
                 Spacer()
                 Text("This routine has no workouts yet.\nAdd some in the Routines tab.")
-                    .font(.custom("ChalkboardSE-Regular", size: 16))
+                    .font(AppTypography.chalkboard(16, relativeTo: .body))
                     .foregroundColor(theme.onPrimaryText.opacity(0.8))
                     .multilineTextAlignment(.center).padding()
                 Spacer()
@@ -93,14 +93,14 @@ struct RoutineWorkoutListView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(workout.name)
-                                        .font(.custom("ChalkboardSE-Regular", size: 20))
+                                        .font(AppTypography.chalkboard(20, relativeTo: .title3))
                                         .foregroundColor(workout.isCompleted ? theme.secondaryRowText : theme.rowText)
                                         .strikethrough(workout.isCompleted, color: theme.secondaryRowText)
                                     Text(workout.focus)
-                                        .font(.custom("ChalkboardSE-Regular", size: 14))
+                                        .font(AppTypography.chalkboard(14, relativeTo: .subheadline))
                                         .foregroundColor(theme.secondaryRowText)
                                     Text("\(workout.exercises.count) exercises")
-                                        .font(.custom("ChalkboardSE-Regular", size: 12))
+                                        .font(AppTypography.chalkboard(12, relativeTo: .caption))
                                         .foregroundColor(theme.secondaryRowText)
                                 }
                                 Spacer()
@@ -122,7 +122,7 @@ struct RoutineWorkoutListView: View {
             if allDone {
                 Button(action: { showFinishDialog = true }) {
                     Text("Complete Routine")
-                        .font(.custom("ChalkboardSE-Regular", size: 18)).bold()
+                        .font(AppTypography.chalkboard(18, relativeTo: .headline)).bold()
                         .foregroundColor(theme.accentColor)
                         .padding().frame(maxWidth: .infinity)
                         .background(theme.rowBackground).cornerRadius(14)
@@ -131,7 +131,7 @@ struct RoutineWorkoutListView: View {
             } else {
                 Button(action: { showAbandonDialog = true }) {
                     Text("Abandon Routine")
-                        .font(.custom("ChalkboardSE-Regular", size: 16))
+                        .font(AppTypography.chalkboard(16, relativeTo: .body))
                         .foregroundColor(.red)
                         .padding().frame(maxWidth: .infinity)
                         .background(theme.rowBackground).cornerRadius(14)
@@ -228,10 +228,10 @@ struct WorkoutSessionView: View {
         VStack(spacing: 0) {
             VStack(spacing: 4) {
                 Text(routine.name)
-                    .font(.custom("ChalkboardSE-Regular", size: 16))
+                    .font(AppTypography.chalkboard(16, relativeTo: .body))
                     .foregroundColor(theme.onPrimaryText.opacity(0.8))
                 Text(currentWorkout?.name ?? workout.name)
-                    .font(.custom("ChalkboardSE-Regular", size: 24)).bold()
+                    .font(AppTypography.chalkboard(24, relativeTo: .title2)).bold()
                     .foregroundColor(theme.onPrimaryText)
             }
             .padding().frame(maxWidth: .infinity).background(Color.black.opacity(0.2))
@@ -240,7 +240,7 @@ struct WorkoutSessionView: View {
                 if cw.exercises.isEmpty {
                     Spacer()
                     Text("No exercises added yet.")
-                        .font(.custom("ChalkboardSE-Regular", size: 18))
+                        .font(AppTypography.chalkboard(18, relativeTo: .headline))
                         .foregroundColor(theme.onPrimaryText)
                     Spacer()
                 } else {
@@ -256,28 +256,15 @@ struct WorkoutSessionView: View {
                 }
             }
 
-            HStack(spacing: 12) {
-                Button(action: { showingRoutineOverview = true }) {
-                    Text("Back to Routine")
-                        .font(.custom("ChalkboardSE-Regular", size: 16))
-                        .foregroundColor(theme.onPrimaryText)
-                        .padding().frame(maxWidth: .infinity)
-                        .background(Color.white.opacity(0.2)).cornerRadius(12)
-                }
-                Button(action: requestWorkoutCompletion) {
-                    Text("Finish Workout")
-                        .font(.custom("ChalkboardSE-Regular", size: 16)).bold()
-                        .foregroundColor(theme.accentColor)
-                        .padding().frame(maxWidth: .infinity)
-                        .background(theme.rowBackground).cornerRadius(12)
-                }
-                .disabled(currentWorkout?.isCompleted != false)
+            ViewThatFits(in: .horizontal) {
+                workoutActions(axis: .horizontal)
+                workoutActions(axis: .vertical)
             }
             .padding()
 
             Button(action: { showAbandonWorkoutConfirmation = true }) {
                 Text("Abandon Workout")
-                    .font(.custom("ChalkboardSE-Regular", size: 16))
+                    .font(AppTypography.chalkboard(16, relativeTo: .body))
                     .foregroundColor(.red)
                     .padding(.horizontal)
                     .padding(.bottom, 12)
@@ -341,6 +328,38 @@ struct WorkoutSessionView: View {
             completionErrorMessage = error.localizedDescription
         }
     }
+
+    @ViewBuilder
+    private func workoutActions(axis: Axis) -> some View {
+        if axis == .horizontal {
+            HStack(spacing: 12) {
+                workoutActionButtons
+            }
+        } else {
+            VStack(spacing: 12) {
+                workoutActionButtons
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var workoutActionButtons: some View {
+        Button(action: { showingRoutineOverview = true }) {
+            Text("Back to Routine")
+                .font(AppTypography.chalkboard(16, relativeTo: .body))
+                .foregroundColor(theme.onPrimaryText)
+                .padding().frame(maxWidth: .infinity)
+                .background(Color.white.opacity(0.2)).cornerRadius(12)
+        }
+        Button(action: requestWorkoutCompletion) {
+            Text("Finish Workout")
+                .font(AppTypography.chalkboard(16, relativeTo: .body)).bold()
+                .foregroundColor(theme.accentColor)
+                .padding().frame(maxWidth: .infinity)
+                .background(theme.rowBackground).cornerRadius(12)
+        }
+        .disabled(currentWorkout?.isCompleted != false)
+    }
 }
 
 // MARK: - Exercise row in active workout
@@ -357,13 +376,13 @@ struct ActiveExerciseRowView: View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
                 Text(exercise.name)
-                    .font(.custom("ChalkboardSE-Regular", size: 18))
+                    .font(AppTypography.chalkboard(18, relativeTo: .headline))
                     .foregroundColor(theme.rowText)
                 Text("\(exercise.targetReps) reps")
-                    .font(.custom("ChalkboardSE-Regular", size: 13))
+                    .font(AppTypography.chalkboard(13, relativeTo: .footnote))
                     .foregroundColor(theme.secondaryRowText)
                 Text("\(setsCompleted)/\(exercise.targetSets) sets completed")
-                    .font(.custom("ChalkboardSE-Regular", size: 13))
+                    .font(AppTypography.chalkboard(13, relativeTo: .footnote))
                     .foregroundColor(theme.secondaryRowText)
             }
             Spacer()

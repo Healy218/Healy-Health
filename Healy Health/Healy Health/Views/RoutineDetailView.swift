@@ -42,11 +42,11 @@ struct RoutineDetailView: View {
                                 NavigationLink(destination: WorkoutDetailView(routineId: cr.id, workout: workout)) {
                                     VStack(alignment: .leading) {
                                         Text(workout.name)
-                                            .font(.custom("ChalkboardSE-Regular", size: 20))
+                                            .font(AppTypography.chalkboard(20, relativeTo: .title3))
                                             .foregroundColor(theme.rowText)
                                         if !workout.focus.isEmpty {
                                             Text(workout.focus)
-                                                .font(.custom("ChalkboardSE-Regular", size: 14))
+                                                .font(AppTypography.chalkboard(14, relativeTo: .subheadline))
                                                 .foregroundColor(theme.secondaryRowText)
                                         }
                                         if store.activeRoutineId == cr.id && store.activeWorkoutId == workout.id {

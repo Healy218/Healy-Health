@@ -1,6 +1,17 @@
 import SwiftUI
 import Combine
 
+// MARK: - Typography
+
+/// Keeps the app's display typeface while letting text respond to the user's
+/// preferred Dynamic Type size. Always choose the closest semantic text style
+/// for the content instead of using an unscaled fixed-size custom font.
+enum AppTypography {
+    static func chalkboard(_ size: CGFloat, relativeTo style: Font.TextStyle) -> Font {
+        .custom("ChalkboardSE-Regular", size: size, relativeTo: style)
+    }
+}
+
 // MARK: - App Theme
 
 enum AppTheme: String, CaseIterable, Codable {

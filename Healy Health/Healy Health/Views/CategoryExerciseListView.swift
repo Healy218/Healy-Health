@@ -32,7 +32,7 @@ struct CategoryExerciseListView: View {
                             .font(.system(size: 40))
                             .foregroundColor(theme.onPrimaryText.opacity(0.5))
                         Text("No \(category.displayName) exercises yet.")
-                            .font(.custom("ChalkboardSE-Regular", size: 18))
+                            .font(AppTypography.chalkboard(18, relativeTo: .headline))
                             .foregroundColor(theme.onPrimaryText.opacity(0.8))
                     }
                     Spacer()
@@ -44,10 +44,10 @@ struct CategoryExerciseListView: View {
                             )) {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(exercise.name)
-                                        .font(.custom("ChalkboardSE-Regular", size: 18))
+                                        .font(AppTypography.chalkboard(18, relativeTo: .headline))
                                         .foregroundColor(theme.rowText)
                                     Text("\(exercise.targetSets) sets • \(exercise.targetReps) reps")
-                                        .font(.custom("ChalkboardSE-Regular", size: 14))
+                                        .font(AppTypography.chalkboard(14, relativeTo: .subheadline))
                                         .foregroundColor(theme.secondaryRowText)
                                 }
                                 .padding(.vertical, 4)
@@ -72,7 +72,7 @@ struct CategoryExerciseListView: View {
             HStack(spacing: 12) {
                 Button(action: { showingAddCustom = true }) {
                     Text("+ Custom")
-                        .font(.custom("ChalkboardSE-Regular", size: 16))
+                        .font(AppTypography.chalkboard(16, relativeTo: .body))
                         .foregroundColor(theme.accentColor)
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -82,7 +82,7 @@ struct CategoryExerciseListView: View {
                 }
                 Button(action: { showingLibrary = true }) {
                     Text("Browse Library")
-                        .font(.custom("ChalkboardSE-Regular", size: 16))
+                        .font(AppTypography.chalkboard(16, relativeTo: .body))
                         .foregroundColor(theme.accentColor)
                         .frame(maxWidth: .infinity)
                         .padding()

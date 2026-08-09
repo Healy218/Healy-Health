@@ -109,7 +109,10 @@ enum AppImportValidator {
             guard workout.date.timeIntervalSinceReferenceDate.isFinite else {
                 throw ImportError.invalidData("a completed workout has an invalid date")
             }
-            try requireText(workout.dayName, named: "completed workout name")
+            if let routineName = workout.routineName {
+                try requireText(routineName, named: "completed routine name")
+            }
+            try requireText(workout.workoutName, named: "completed workout name")
             try requireText(workout.focus, named: "completed workout focus")
             // Completed workouts are immutable snapshots. A planned exercise can legitimately
             // appear in multiple completed sessions with the same original ID, so uniqueness is

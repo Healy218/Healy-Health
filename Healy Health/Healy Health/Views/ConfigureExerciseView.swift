@@ -54,7 +54,7 @@ struct ConfigureExerciseView: View {
                         Button(action: { selectedCategory = cat }) {
                             VStack(spacing: 4) {
                                 Image(systemName: cat.icon).font(.system(size: 18))
-                                Text(cat.displayName).font(.custom("ChalkboardSE-Regular", size: 12))
+                                Text(cat.displayName).font(AppTypography.chalkboard(12, relativeTo: .caption))
                             }
                             .foregroundColor(selectedCategory == cat ? theme.accentColor : theme.secondaryRowText)
                             .frame(maxWidth: .infinity)

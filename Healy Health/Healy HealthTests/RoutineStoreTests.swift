@@ -125,6 +125,42 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertEqual(savedHistory[0].exercises[0].trackingId, template.id)
     }
 
+    func testCompletedWorkoutDecodesLegacyDayNameAndEncodesSeparateMetadata() throws {
+        struct LegacyCompletedWorkout: Codable {
+            let id: UUID
+            let date: Date
+            let dayName: String
+            let focus: String
+            let exercises: [Exercise]
+            let routineId: UUID?
+            let workoutId: UUID?
+        }
+
+        let legacy = LegacyCompletedWorkout(
+            id: UUID(),
+            date: Date(timeIntervalSinceReferenceDate: 1_000),
+            dayName: "Upper",
+            focus: "Chest",
+            exercises: [],
+            routineId: UUID(),
+            workoutId: UUID()
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let decoded = try decoder.decode(CompletedWorkout.self, from: encoder.encode(legacy))
+
+        XCTAssertNil(decoded.routineName)
+        XCTAssertEqual(decoded.workoutName, "Upper")
+
+        let encoded = try XCTUnwrap(try JSONSerialization.jsonObject(with: encoder.encode(decoded)) as? [String: Any])
+        XCTAssertNil(encoded["dayName"])
+        XCTAssertNil(encoded["routineName"])
+        XCTAssertEqual(encoded["workoutName"] as? String, "Upper")
+    }
+
     func testLoadSortsHistoryNewestFirstWithUUIDTieBreak() throws {
         let date = Date(timeIntervalSinceReferenceDate: 1_000)
         let oldest = CompletedWorkout(
@@ -198,11 +234,14 @@ final class RoutineStoreTests: XCTestCase {
             store.updateCompletedWorkout(
                 id: editable.id,
                 date: Date(timeIntervalSinceReferenceDate: 300),
-                dayName: "  Corrected Upper  ",
+                routineName: "  Corrected Strength  ",
+                workoutName: "  Corrected Upper  ",
                 focus: "  Chest and Triceps  "
             )
         )
         XCTAssertEqual(store.completedWorkouts.map(\.id), [editable.id, newer.id])
+        XCTAssertEqual(store.completedWorkouts[0].routineName, "Corrected Strength")
+        XCTAssertEqual(store.completedWorkouts[0].workoutName, "Corrected Upper")
         XCTAssertEqual(store.completedWorkouts[0].dayName, "Corrected Upper")
         XCTAssertEqual(store.completedWorkouts[0].focus, "Chest and Triceps")
 
@@ -213,6 +252,8 @@ final class RoutineStoreTests: XCTestCase {
             from: Data(contentsOf: storageDirectory.appendingPathComponent("workout_history.json"))
         )
         XCTAssertEqual(savedHistory.map(\.id), [editable.id, newer.id])
+        XCTAssertEqual(savedHistory[0].routineName, "Corrected Strength")
+        XCTAssertEqual(savedHistory[0].workoutName, "Corrected Upper")
         XCTAssertEqual(savedHistory[0].dayName, "Corrected Upper")
     }
 
@@ -311,6 +352,59 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertEqual(history.map(\.session), [1, 2])
         XCTAssertEqual(history.map(\.date), [firstDate, secondDate])
         XCTAssertEqual(history.map(\.totalVolume), [1080, 775])
+    }
+
+    func testExerciseAnalyticsConsolidatesDuplicateEntriesWithinOneWorkout() throws {
+        let date = Date(timeIntervalSinceReferenceDate: 100)
+        let benchTrackingID = UUID()
+        let separateTrackingID = UUID()
+        let firstBenchEntry = Exercise(
+            trackingId: benchTrackingID,
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 100,
+            logs: [SetLog(weight: 100, reps: 10, completedDate: date)]
+        )
+        let duplicateBenchEntry = Exercise(
+            trackingId: benchTrackingID,
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 120,
+            logs: [SetLog(weight: 120, reps: 5, completedDate: date)]
+        )
+        let distinctExerciseWithSameName = Exercise(
+            trackingId: separateTrackingID,
+            name: "Bench Press",
+            targetSets: 3,
+            targetReps: "8",
+            currentWeight: 95,
+            logs: [SetLog(weight: 95, reps: 8, completedDate: date)]
+        )
+        let workout = CompletedWorkout(
+            date: date,
+            dayName: "Upper",
+            focus: "Chest",
+            exercises: [firstBenchEntry, duplicateBenchEntry, distinctExerciseWithSameName],
+            routineId: nil,
+            workoutId: nil
+        )
+
+        let sessions = ExerciseAnalytics.trainedSessions(from: [workout])
+        let benchSession = try XCTUnwrap(sessions.first { $0.trackingId == benchTrackingID })
+        let summaries = ExerciseAnalytics.summaries(from: sessions)
+        let history = ExerciseAnalytics.history(for: benchTrackingID, from: sessions)
+
+        XCTAssertEqual(sessions.count, 2)
+        XCTAssertEqual(benchSession.totalVolume, 1_600)
+        XCTAssertEqual(benchSession.maxWeight, 120)
+        XCTAssertEqual(benchSession.estimatedOneRepMax, 140)
+        XCTAssertEqual(summaries.first { $0.id == benchTrackingID }?.count, 1)
+        XCTAssertEqual(summaries.first { $0.id == separateTrackingID }?.count, 1)
+        XCTAssertEqual(history.count, 1)
+        XCTAssertEqual(history[0].totalVolume, 1_600)
+        XCTAssertEqual(history[0].session, 1)
     }
 
     func testExerciseAnalyticsUsesIdentityForRenamesAndSameNameExercises() {
@@ -1212,6 +1306,8 @@ final class RoutineStoreTests: XCTestCase {
 
         XCTAssertCompletionSucceeds(store.finishWorkout(routineId: routine.id, workoutId: workoutID))
         XCTAssertEqual(store.completedWorkouts.count, 1)
+        XCTAssertEqual(store.completedWorkouts[0].routineName, "Updated routine")
+        XCTAssertEqual(store.completedWorkouts[0].workoutName, "Updated workout")
         XCTAssertEqual(store.completedWorkouts[0].dayName, "Updated workout")
         XCTAssertEqual(store.completedWorkouts[0].focus, "Updated focus")
         XCTAssertNotEqual(store.completedWorkouts[0].exercises.map(\.id), [exercise.id])

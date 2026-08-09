@@ -1,6 +1,6 @@
 # Healy Health Roadmap
 
-Last updated: 2026-08-04
+Last updated: 2026-08-08
 
 ## Product goal
 
@@ -106,7 +106,7 @@ Exit criteria:
 
 ## Phase 3 — Accurate history, analytics, and data management
 
-Status: In progress
+Status: Complete
 
 Outcome: History and charts consistently reflect completed work and remain compatible as the data model evolves.
 
@@ -127,10 +127,11 @@ Completed in this phase:
 - Centralized completed-workout newest-first ordering with UUID tie-breaks across import, local load, workout completion, history presentation, progress points, and summary ties.
 - Added safe completed-history maintenance. Users can correct a completed workout’s date/name/focus or, after confirmation, delete the whole record; mutations persist immediately and roll back in memory if writing fails. Exercise and logged-set snapshots deliberately remain immutable.
 - Made retained pre-import backups discoverable and restorable from Settings. Restore requests use the normal validated, transactional import path and first save the current data as another dated snapshot. Added current-schema round-trip/validation, legacy-schema decode, and backup-discovery coverage.
+- Consolidated duplicate entries for one exercise tracking ID inside each completed workout before deriving session counts or progress points. Aggregated volume sums all logged sets, while top set and estimated 1RM retain the best logged value; different tracking IDs remain independent. Replaced Catmull–Rom chart curves with linear interpolation to prevent visual overshoot.
 
 Sequencing decisions:
 
-- HH-306 is next: separate routine/workout history metadata and source the displayed app version from the bundle.
+- Completed history now snapshots routine and workout names independently, with backward-compatible decoding for legacy `dayName` history. Details and corrections display the two fields separately, and Settings derives its marketing/build version from the app bundle.
 - Schema 2 introduces durable exercise tracking IDs. Schemas 0, 1, and 2 remain import-compatible.
 
 Exit criteria:
@@ -139,10 +140,11 @@ Exit criteria:
 - [x] Export/import round-trip tests pass for current and supported legacy schemas.
 - [x] Users can correct erroneous history safely.
 - [x] Analytics remain stable when an exercise is renamed.
+- [x] One completed workout contributes at most one session per tracked exercise, and chart lines do not imply values beyond recorded data.
 
 ## Phase 4 — Accessibility and product polish
 
-Status: Planned
+Status: In progress
 
 Outcome: The app is readable, navigable, and visually consistent across supported devices, themes, and accessibility settings.
 
@@ -154,6 +156,10 @@ Scope:
 - Test compact iPhone, large iPhone, iPad, portrait, landscape, and large accessibility text.
 - Improve empty states, validation messages, keyboard behavior, and destructive-action affordances.
 - Prepare strings for localization and make units/preferences extensible.
+
+In progress:
+
+- HH-401 established a Dynamic Type baseline: the app-wide custom font and all fixed-size custom text in core routine, workout, exercise, summary, settings, and planning screens now scale relative to semantic text styles. The paired workout-session actions fall back to a vertical layout when needed, and the rest-timer readout now scales with Dynamic Type. Visual accessibility-size smoke testing remains before this item can close.
 
 Exit criteria:
 
