@@ -57,6 +57,10 @@ struct RoutineDetailView: View {
                                         }
                                     }
                                     .padding(.vertical, 4)
+                                    .accessibilityElement(children: .ignore)
+                                    .accessibilityLabel(workout.name)
+                                    .accessibilityValue(workoutAccessibilityValue(for: workout, routineID: cr.id))
+                                    .accessibilityHint("Opens the workout. Swipe up or down for actions.")
                                 }
                                 .listRowBackground(theme.rowBackground)
                                 .swipeActions(edge: .leading) {
@@ -149,6 +153,14 @@ struct RoutineDetailView: View {
             })
             store.deleteWorkouts(routineId: currentRoutine.id, ids: workoutIDs)
         }
+    }
+
+    private func workoutAccessibilityValue(for workout: Workout, routineID: UUID) -> String {
+        let focus = workout.focus.isEmpty ? "No focus specified" : workout.focus
+        let state = store.activeRoutineId == routineID && store.activeWorkoutId == workout.id
+            ? "Active workout"
+            : "Not active"
+        return "\(focus). \(state)."
     }
 
     private func moveWorkouts(fromOffsets: IndexSet, toOffset: Int) {

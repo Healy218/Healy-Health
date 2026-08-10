@@ -21,6 +21,16 @@ struct TimerPresetButton: View {
                 .cornerRadius(8)
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.onPrimaryText, lineWidth: 1))
         }
+        .accessibilityLabel("Rest timer duration \(spokenDuration)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityHint("Sets the automatic rest timer after logging a set.")
+    }
+
+    private var spokenDuration: String {
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
+        if seconds == 0 { return "\(minutes) minute\(minutes == 1 ? "" : "s")" }
+        return "\(minutes) minutes \(seconds) seconds"
     }
 }
 
@@ -49,12 +59,14 @@ struct SetInputView: View {
                     TextField("0", text: $weightInput)
                         .keyboardType(.decimalPad).padding()
                         .background(theme.onPrimaryText).foregroundColor(theme.accentColor).cornerRadius(10)
+                        .accessibilityLabel("Weight for set \(setNumber), pounds")
                 }
                 VStack {
                     Text("Reps").foregroundColor(theme.onPrimaryText)
                     TextField("0", text: $repsInput)
                         .keyboardType(.numberPad).padding()
                         .background(theme.onPrimaryText).foregroundColor(theme.accentColor).cornerRadius(10)
+                        .accessibilityLabel("Repetitions for set \(setNumber)")
                 }
             }
             .padding(.horizontal)
@@ -74,6 +86,9 @@ struct SetInputView: View {
                             .cornerRadius(8)
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.onPrimaryText, lineWidth: 1))
                     }
+                    .accessibilityLabel("Custom rest timer duration")
+                    .accessibilityValue(isCustomDuration ? "Selected" : "Not selected")
+                    .accessibilityHint("Enter a duration in seconds.")
                 }
             }
             .padding(.horizontal)
@@ -83,6 +98,7 @@ struct SetInputView: View {
                     .foregroundColor(theme.accentColor).padding().frame(maxWidth: .infinity)
                     .background(theme.onPrimaryText).cornerRadius(10)
             }
+            .accessibilityHint("Logs set \(setNumber) and starts the selected rest timer.")
             .padding(.horizontal)
 
             if let validationMessage {
@@ -113,15 +129,21 @@ struct RestTimerDisplayView: View {
             Text("Rest Timer").font(.headline).foregroundColor(theme.onPrimaryText)
             Text(timeString(time: timeRemaining))
                 .font(.system(.largeTitle, design: .monospaced).weight(.bold)).foregroundColor(theme.onPrimaryText)
+                .accessibilityLabel("Rest time remaining")
+                .accessibilityValue(spokenTimeRemaining)
             Button(action: onSkip) {
                 Text("Skip Rest & Start Set \(nextSetNumber)")
                     .foregroundColor(theme.accentColor).padding()
                     .background(theme.onPrimaryText).cornerRadius(10)
             }
+            .accessibilityLabel("Skip rest and start set \(nextSetNumber)")
+            .accessibilityHint("Stops the rest timer.")
             Button(action: onAddTime) {
                 Text("+30s").foregroundColor(theme.onPrimaryText).padding(8)
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.onPrimaryText, lineWidth: 1))
             }
+            .accessibilityLabel("Add 30 seconds to rest timer")
+            .accessibilityHint("Extends the active rest timer.")
         }
         .padding().background(Color.white.opacity(0.1)).cornerRadius(20).padding()
     }
@@ -129,5 +151,14 @@ struct RestTimerDisplayView: View {
     private func timeString(time: TimeInterval) -> String {
         let t = Int(ceil(time))
         return String(format: "%02d:%02d", t / 60, t % 60)
+    }
+
+    private var spokenTimeRemaining: String {
+        let seconds = max(0, Int(ceil(timeRemaining)))
+        let minutes = seconds / 60
+        let remainder = seconds % 60
+        if minutes == 0 { return "\(remainder) seconds" }
+        if remainder == 0 { return "\(minutes) minute\(minutes == 1 ? "" : "s")" }
+        return "\(minutes) minute\(minutes == 1 ? "" : "s") \(remainder) seconds"
     }
 }

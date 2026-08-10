@@ -41,6 +41,10 @@ struct RoutinesView: View {
                                     }
                                 }
                                 .padding(.vertical, 4)
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel(routine.name)
+                                .accessibilityValue("\(routine.workouts.count) workout\(routine.workouts.count == 1 ? "" : "s"). \(store.activeRoutineId == routine.id ? "Active routine." : "Not active.")")
+                                .accessibilityHint("Opens the routine. Swipe up or down for actions.")
 
                             }
                                 .listRowBackground(theme.rowBackground)

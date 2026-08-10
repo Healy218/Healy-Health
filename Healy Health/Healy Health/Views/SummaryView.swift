@@ -142,17 +142,22 @@ struct SummaryNavButton: View {
             Image(systemName: icon)
                 .font(.system(size: 18))
                 .frame(width: 28)
+                .accessibilityHidden(true)
             Text(label)
                 .font(AppTypography.chalkboard(17, relativeTo: .body))
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .opacity(0.5)
+                .accessibilityHidden(true)
         }
         .foregroundColor(theme.rowText)
         .padding()
         .background(theme.rowBackground)
         .cornerRadius(14)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityHint("Opens \(label).")
     }
 }
 
@@ -276,6 +281,10 @@ struct ExerciseLineChart: View {
                 .foregroundStyle(axisColor)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(metric.title) progress chart")
+        .accessibilityValue(chartAccessibilityValue)
+        .accessibilityHint("The individual session results are listed below the chart.")
     }
 
     private func formattedAxisValue(_ value: Double) -> String {
@@ -285,6 +294,11 @@ struct ExerciseLineChart: View {
         case .topSet, .estimatedOneRepMax:
             return String(format: "%.0f", value)
         }
+    }
+
+    private var chartAccessibilityValue: String {
+        guard let latest = history.last else { return "No sessions recorded." }
+        return "\(history.count) sessions. Latest session: \(metric.formattedValue(for: latest)) on \(latest.date.formatted(date: .abbreviated, time: .omitted))."
     }
 }
 
@@ -312,6 +326,9 @@ struct ExerciseChartMetricMenu: View {
             .background(theme.rowBackground)
             .cornerRadius(10)
         }
+        .accessibilityLabel("Chart metric")
+        .accessibilityValue(selection.title)
+        .accessibilityHint("Choose the metric shown in the progress chart.")
     }
 }
 
@@ -346,6 +363,10 @@ struct ExercisesListView: View {
                             .foregroundColor(theme.secondaryRowText)
                     }
                     .padding(.vertical, 4)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(item.name)
+                    .accessibilityValue("\(item.count) session\(item.count == 1 ? "" : "s")")
+                    .accessibilityHint("Opens progress for \(item.name).")
                 }
                 .listRowBackground(theme.rowBackground)
             }
@@ -439,6 +460,9 @@ struct ExerciseProgressView: View {
                             .padding(.horizontal)
                             .padding(.vertical, 10)
                             .background(theme.rowBackground)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("Session \(point.session), \(point.date.formatted(date: .abbreviated, time: .omitted))")
+                            .accessibilityValue("\(selectedMetric.formattedValue(for: point)). Top set \(String(format: "%.0f", point.maxWeight)) pounds.")
 
                             if point.id != history.reversed().last?.id {
                                 Divider()
@@ -478,6 +502,10 @@ struct WorkoutHistoryView: View {
                             .font(.subheadline).foregroundColor(theme.secondaryRowText)
                     }
                     .padding(.vertical, 4)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(workout.workoutName)
+                    .accessibilityValue("Completed \(workout.date.formatted(date: .long, time: .shortened)).")
+                    .accessibilityHint("Opens completed workout details. Swipe up or down to delete.")
                 }
                 .listRowBackground(theme.rowBackground)
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -583,6 +611,8 @@ struct SummaryDetailView: View {
                 Button(role: .destructive) { showDeleteConfirmation = true } label: {
                     Image(systemName: "trash")
                 }
+                .accessibilityLabel("Delete completed workout")
+                .accessibilityHint("Permanently deletes this workout and its analytics contribution.")
             }
         }
         .sheet(isPresented: $isEditing) {

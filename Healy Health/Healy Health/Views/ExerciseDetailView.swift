@@ -69,6 +69,10 @@ struct ExerciseDetailView: View {
                                         Text("\(log.reps) reps @ \(String(format: "%.1f", log.weight)) lbs")
                                     }
                                     .foregroundColor(theme.rowText)
+                                    .accessibilityElement(children: .combine)
+                                    .accessibilityLabel("Set \(index + 1)")
+                                    .accessibilityValue("\(log.reps) reps at \(String(format: "%.1f", log.weight)) pounds")
+                                    .accessibilityHint("Swipe up or down to edit or delete this set.")
                                     .listRowBackground(theme.rowBackground)
                                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                         Button(role: .destructive) {

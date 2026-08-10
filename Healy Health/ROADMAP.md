@@ -1,6 +1,6 @@
 # Healy Health Roadmap
 
-Last updated: 2026-08-08
+Last updated: 2026-08-10
 
 ## Product goal
 
@@ -160,6 +160,7 @@ Scope:
 In progress:
 
 - HH-401 established a Dynamic Type baseline: the app-wide custom font and all fixed-size custom text in core routine, workout, exercise, summary, settings, and planning screens now scale relative to semantic text styles. The paired workout-session actions fall back to a vertical layout when needed, and the rest-timer readout now scales with Dynamic Type. Visual accessibility-size smoke testing remains before this item can close.
+- HH-402 established a VoiceOver semantics baseline: core routine, workout, exercise, history, and summary rows are grouped into concise labels and values; workout state is no longer conveyed only by icons; rest-timer controls describe their state and effect; charts announce their metric and latest result; and icon-only deletion/theme controls have explicit names. Device VoiceOver verification remains before this item can close.
 
 Exit criteria:
 

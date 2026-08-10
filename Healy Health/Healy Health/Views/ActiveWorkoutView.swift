@@ -29,6 +29,7 @@ struct ActiveWorkoutView: View {
                     Image(systemName: "dumbbell.fill")
                         .font(.system(size: 80))
                         .foregroundColor(theme.onPrimaryText.opacity(0.5))
+                        .accessibilityHidden(true)
                         .padding()
                     Text("No Active Routine")
                         .font(AppTypography.chalkboard(24, relativeTo: .title2)).bold()
@@ -111,6 +112,9 @@ struct RoutineWorkoutListView: View {
                             .padding(.vertical, 8)
                             .opacity(workout.isCompleted ? 0.6 : 1.0)
                         }
+                        .accessibilityLabel(workout.name)
+                        .accessibilityValue(workoutAccessibilityValue(for: workout))
+                        .accessibilityHint(workout.isCompleted ? "Workout complete." : "Starts this workout.")
                         .disabled(workout.isCompleted)
                         .listRowBackground(theme.rowBackground)
                     }
@@ -186,6 +190,12 @@ struct RoutineWorkoutListView: View {
         }
     }
 
+    private func workoutAccessibilityValue(for workout: Workout) -> String {
+        let focus = workout.focus.isEmpty ? "No focus specified" : workout.focus
+        let completion = workout.isCompleted ? "Complete" : "Not started"
+        return "\(focus). \(workout.exercises.count) exercises. \(completion)."
+    }
+
     private func replaceActiveWorkout(discardProgress: Bool) {
         guard let targetWorkoutID = pendingWorkoutStartID,
               let activeWorkoutID = store.activeSessionWorkoutId else { return }
@@ -235,6 +245,9 @@ struct WorkoutSessionView: View {
                     .foregroundColor(theme.onPrimaryText)
             }
             .padding().frame(maxWidth: .infinity).background(Color.black.opacity(0.2))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Active workout")
+            .accessibilityValue("\(routine.name), \(currentWorkout?.name ?? workout.name)")
 
             if let cw = currentWorkout {
                 if cw.exercises.isEmpty {
@@ -351,6 +364,7 @@ struct WorkoutSessionView: View {
                 .padding().frame(maxWidth: .infinity)
                 .background(Color.white.opacity(0.2)).cornerRadius(12)
         }
+        .accessibilityHint("Returns to this routine’s workout list.")
         Button(action: requestWorkoutCompletion) {
             Text("Finish Workout")
                 .font(AppTypography.chalkboard(16, relativeTo: .body)).bold()
@@ -358,6 +372,7 @@ struct WorkoutSessionView: View {
                 .padding().frame(maxWidth: .infinity)
                 .background(theme.rowBackground).cornerRadius(12)
         }
+        .accessibilityHint("Completes this workout and adds it to your history.")
         .disabled(currentWorkout?.isCompleted != false)
     }
 }
@@ -391,5 +406,9 @@ struct ActiveExerciseRowView: View {
                 .font(.title2)
         }
         .padding(.vertical, 8)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(exercise.name)
+        .accessibilityValue("Target \(exercise.targetSets) sets of \(exercise.targetReps) reps. \(setsCompleted) of \(exercise.targetSets) sets completed. \(isFullyCompleted ? "Complete" : "In progress").")
+        .accessibilityHint("Opens set logging for \(exercise.name).")
     }
 }

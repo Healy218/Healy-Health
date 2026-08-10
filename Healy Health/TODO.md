@@ -1,6 +1,6 @@
 # Healy Health TODO
 
-Last updated: 2026-08-08
+Last updated: 2026-08-10
 
 This is the actionable backlog for `ROADMAP.md`. Work top-to-bottom within the active phase unless a user request changes the priority.
 
@@ -72,7 +72,7 @@ Priority legend:
 
 - [ ] **HH-401 (P1) Audit Dynamic Type (in progress).** The app-wide Chalkboard font and every fixed-size custom text use semantic Dynamic Type scaling across core routine, workout, exercise, summary, settings, and planning views. Session actions now stack when horizontal space is insufficient, and the rest-timer readout scales with the preferred text size. Run the required accessibility-size device smoke test before marking complete.
 
-- [ ] **HH-402 (P1) Add VoiceOver semantics.** Label chart controls, workout state, icon-only status, timer controls, and grouped rows; verify logical focus order.
+- [ ] **HH-402 (P1) Add VoiceOver semantics (in progress).** Core routine/workout rows now expose state as a single focused element; set rows, timer presets/countdown actions, chart controls/charts, theme selection, and the history delete icon have explicit labels, values, and hints. Verify VoiceOver focus order and spoken output on device before closing.
 
 - [ ] **HH-403 (P1) Audit theme contrast.** Measure primary, secondary, disabled, and chart colors across every theme rather than relying on visual inspection.
 

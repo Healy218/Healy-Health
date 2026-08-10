@@ -324,6 +324,10 @@ struct ThemePickerView: View {
             }
         }
         .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel("\(t.displayName) theme")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityHint("Applies this theme.")
         .scaleEffect(isSelected ? 1.08 : 1.0)
         .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isSelected)
     }
