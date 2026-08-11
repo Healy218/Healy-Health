@@ -12,6 +12,8 @@ struct ConfigureExerciseView: View {
     @State private var targetReps: String = "8-12"
     @State private var startingWeight: String = "0.0"
     @State private var selectedCategory: ExerciseCategory = .weightlifting
+    @State private var inputWeightUnit: WeightUnit = .pounds
+    @AppStorage(WeightUnit.storageKey) private var weightUnit: WeightUnit = .pounds
 
     private var theme: AppTheme { themeManager.current }
 
@@ -19,7 +21,7 @@ struct ConfigureExerciseView: View {
         guard let sets = Int(targetSets) else {
             return .failure(.invalidTargetSets)
         }
-        guard let weight = Double(startingWeight) else {
+        guard let weight = WeightFormatter.pounds(fromInput: startingWeight, unit: weightUnit) else {
             return .failure(.invalidWeight)
         }
         do {
@@ -85,7 +87,7 @@ struct ConfigureExerciseView: View {
                 .listRowBackground(theme.rowBackground)
 
                 HStack {
-                    Text("Starting Weight (lbs)").foregroundColor(theme.rowText)
+                    Text("Starting Weight (\(weightUnit.symbol))").foregroundColor(theme.rowText)
                     Spacer()
                     TextField("e.g. 135.0", text: $startingWeight)
                         .keyboardType(.decimalPad).multilineTextAlignment(.trailing).foregroundColor(theme.rowText)
@@ -95,7 +97,7 @@ struct ConfigureExerciseView: View {
                 if let validationMessage {
                     Text(validationMessage)
                         .font(.caption)
-                        .foregroundColor(.red)
+                        .foregroundColor(theme.destructiveColor)
                         .listRowBackground(theme.rowBackground)
                 }
             }
@@ -113,8 +115,8 @@ struct ConfigureExerciseView: View {
                 }
             }) {
                 Text("Add to Workout")
-                    .font(.headline).foregroundColor(.white).frame(maxWidth: .infinity).padding()
-                    .background(isFormValid ? theme.primaryColor : Color.gray).cornerRadius(10)
+                    .font(.headline).foregroundColor(theme.onPrimaryText).frame(maxWidth: .infinity).padding()
+                    .background(isFormValid ? theme.primaryColor : theme.disabledButtonColor).cornerRadius(10)
             }
             .disabled(!isFormValid)
             .padding(.vertical)
@@ -124,6 +126,16 @@ struct ConfigureExerciseView: View {
         .scrollContentBackground(.hidden)
         .background(theme.primaryColor.ignoresSafeArea())
         .navigationTitle("Configure Exercise")
+        .onAppear { inputWeightUnit = weightUnit }
+        .onChange(of: weightUnit) { newUnit in
+            reformatStartingWeight(for: newUnit)
+        }
         .onAppear { selectedCategory = presetCategory }
+    }
+
+    private func reformatStartingWeight(for newUnit: WeightUnit) {
+        defer { inputWeightUnit = newUnit }
+        guard let pounds = WeightFormatter.pounds(fromInput: startingWeight, unit: inputWeightUnit) else { return }
+        startingWeight = WeightFormatter.inputString(fromPounds: pounds, unit: newUnit)
     }
 }

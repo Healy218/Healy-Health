@@ -28,7 +28,7 @@ struct ActiveWorkoutView: View {
                 VStack {
                     Image(systemName: "dumbbell.fill")
                         .font(.system(size: 80))
-                        .foregroundColor(theme.onPrimaryText.opacity(0.5))
+                        .foregroundColor(theme.disabledOnPrimaryText)
                         .accessibilityHidden(true)
                         .padding()
                     Text("No Active Routine")
@@ -36,8 +36,18 @@ struct ActiveWorkoutView: View {
                         .foregroundColor(theme.onPrimaryText)
                     Text("Swipe right on a routine in the Routines tab to start it here.")
                         .font(AppTypography.chalkboard(16, relativeTo: .body))
-                        .foregroundColor(theme.onPrimaryText.opacity(0.8))
+                        .foregroundColor(theme.secondaryOnPrimaryText)
                         .multilineTextAlignment(.center).padding()
+                    Button("Browse Routines") {
+                        store.selectedTab = 0
+                    }
+                    .font(AppTypography.chalkboard(17, relativeTo: .body))
+                    .foregroundColor(theme.accentColor)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(theme.rowBackground)
+                    .cornerRadius(12)
+                    .accessibilityHint("Opens the Routines tab so you can start a routine.")
                 }
             }
         }
@@ -74,7 +84,7 @@ struct RoutineWorkoutListView: View {
                     .foregroundColor(theme.onPrimaryText)
                 Text(allDone ? "All workouts complete!" : "Select a workout to begin")
                     .font(AppTypography.chalkboard(14, relativeTo: .subheadline))
-                    .foregroundColor(theme.onPrimaryText.opacity(0.8))
+                    .foregroundColor(theme.secondaryOnPrimaryText)
             }
             .padding().frame(maxWidth: .infinity).background(Color.black.opacity(0.2))
 
@@ -82,7 +92,7 @@ struct RoutineWorkoutListView: View {
                 Spacer()
                 Text("This routine has no workouts yet.\nAdd some in the Routines tab.")
                     .font(AppTypography.chalkboard(16, relativeTo: .body))
-                    .foregroundColor(theme.onPrimaryText.opacity(0.8))
+                    .foregroundColor(theme.secondaryOnPrimaryText)
                     .multilineTextAlignment(.center).padding()
                 Spacer()
             } else {
@@ -107,10 +117,9 @@ struct RoutineWorkoutListView: View {
                                 Spacer()
                                 Image(systemName: workout.isCompleted ? "checkmark.circle.fill" : "play.circle.fill")
                                     .font(.title2)
-                                    .foregroundColor(workout.isCompleted ? .green : theme.accentColor)
+                                        .foregroundColor(workout.isCompleted ? theme.successOnRowColor : theme.accentColor)
                             }
                             .padding(.vertical, 8)
-                            .opacity(workout.isCompleted ? 0.6 : 1.0)
                         }
                         .accessibilityLabel(workout.name)
                         .accessibilityValue(workoutAccessibilityValue(for: workout))
@@ -136,7 +145,7 @@ struct RoutineWorkoutListView: View {
                 Button(action: { showAbandonDialog = true }) {
                     Text("Abandon Routine")
                         .font(AppTypography.chalkboard(16, relativeTo: .body))
-                        .foregroundColor(.red)
+                        .foregroundColor(theme.destructiveColor)
                         .padding().frame(maxWidth: .infinity)
                         .background(theme.rowBackground).cornerRadius(14)
                 }
@@ -239,7 +248,7 @@ struct WorkoutSessionView: View {
             VStack(spacing: 4) {
                 Text(routine.name)
                     .font(AppTypography.chalkboard(16, relativeTo: .body))
-                    .foregroundColor(theme.onPrimaryText.opacity(0.8))
+                    .foregroundColor(theme.secondaryOnPrimaryText)
                 Text(currentWorkout?.name ?? workout.name)
                     .font(AppTypography.chalkboard(24, relativeTo: .title2)).bold()
                     .foregroundColor(theme.onPrimaryText)
@@ -278,7 +287,7 @@ struct WorkoutSessionView: View {
             Button(action: { showAbandonWorkoutConfirmation = true }) {
                 Text("Abandon Workout")
                     .font(AppTypography.chalkboard(16, relativeTo: .body))
-                    .foregroundColor(.red)
+                    .foregroundColor(theme.destructiveColor)
                     .padding(.horizontal)
                     .padding(.bottom, 12)
             }

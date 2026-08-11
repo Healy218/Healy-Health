@@ -31,15 +31,15 @@ enum ImportError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .unreadableFile:
-            return "The selected file could not be read or is not a Healy Health export."
+            return String(localized: "The selected file could not be read or is not a Healy Health export.")
         case .unsupportedSchema(let version):
-            return "This export uses unsupported data version \(version)."
+            return String(format: String(localized: "This export uses unsupported data version %@."), String(version))
         case .invalidData(let reason):
-            return "This export contains invalid data: \(reason)"
+            return String(format: String(localized: "This export contains invalid data: %@"), reason)
         case .backupFailed:
-            return "Your current data could not be backed up, so nothing was imported."
+            return String(localized: "Your current data could not be backed up, so nothing was imported.")
         case .persistenceFailed:
-            return "The import could not be saved. Your previous data remains available in the pre-import backup."
+            return String(localized: "The import could not be saved. Your previous data remains available in the pre-import backup.")
         }
     }
 }

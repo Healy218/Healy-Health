@@ -1,6 +1,6 @@
 # Healy Health TODO
 
-Last updated: 2026-08-10
+Last updated: 2026-08-11
 
 This is the actionable backlog for `ROADMAP.md`. Work top-to-bottom within the active phase unless a user request changes the priority.
 
@@ -74,13 +74,13 @@ Priority legend:
 
 - [ ] **HH-402 (P1) Add VoiceOver semantics (in progress).** Core routine/workout rows now expose state as a single focused element; set rows, timer presets/countdown actions, chart controls/charts, theme selection, and the history delete icon have explicit labels, values, and hints. Verify VoiceOver focus order and spoken output on device before closing.
 
-- [ ] **HH-403 (P1) Audit theme contrast.** Measure primary, secondary, disabled, and chart colors across every theme rather than relying on visual inspection.
+- [x] **HH-403 (P1) Audit theme contrast.** Replaced ad hoc theme colors and opacity-based text with a testable sRGB palette. Every theme now meets WCAG AA 4.5:1 for primary/secondary text and chart labels, plus 3:1 for disabled controls, chart marks, and grids. The palette test covers row, status, and disabled-button states so future color changes cannot silently regress contrast.
 
 - [ ] **HH-404 (P2) Test adaptive layouts.** Check small iPhone, iPad, landscape, keyboard presentation, and the four-button timer preset row for clipping or crowded targets.
 
-- [ ] **HH-405 (P2) Improve states and copy.** Add useful actions to empty states, surface validation/save errors, and make destructive actions visually explicit.
+- [x] **HH-405 (P2) Improve states and copy.** Empty workout and summary states now direct people to their routines, existing validation/save failures surface specific messages, and routine/workout/exercise deletions require an explicit destructive confirmation that explains the removed data.
 
-- [ ] **HH-406 (P2) Prepare localization and unit preferences.** Move user-facing strings to a string catalog and plan lb/kg formatting without storing formatted strings.
+- [x] **HH-406 (P2) Prepare localization and unit preferences.** Added an English `Localizable.xcstrings` catalog generated from the SwiftUI surface and extended to validation/persistence copy. Users can choose pounds or kilograms; values remain canonically stored in pounds while form input, set logs, history, accessibility values, charts, and volume labels convert only for display.
 
 ## Phase 5 — Release readiness
 

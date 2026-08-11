@@ -11,6 +11,7 @@ struct RoutineDetailView: View {
     @State private var showingEditRoutine = false
     @State private var editRoutineName = ""
     @State private var pendingWorkoutStartID: UUID?
+    @State private var pendingWorkoutDeletionIDs: Set<UUID> = []
 
     private var theme: AppTheme { themeManager.current }
 
@@ -67,7 +68,7 @@ struct RoutineDetailView: View {
                                     Button {
                                         requestWorkoutStart(routineID: cr.id, workoutID: workout.id)
                                     } label: { Label("Set Active", systemImage: "star.fill") }
-                                    .tint(.green)
+                                    .tint(theme.successColor)
                                 }
                         }
                         .onDelete(perform: deleteWorkout)
@@ -143,16 +144,38 @@ struct RoutineDetailView: View {
             } message: {
                 Text(replacementMessage)
             }
+            .confirmationDialog(
+                pendingWorkoutDeletionIDs.count == 1 ? "Delete Workout?" : "Delete Workouts?",
+                isPresented: Binding(
+                    get: { !pendingWorkoutDeletionIDs.isEmpty },
+                    set: { if !$0 { pendingWorkoutDeletionIDs = [] } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button(
+                    pendingWorkoutDeletionIDs.count == 1 ? "Delete Workout" : "Delete Workouts",
+                    role: .destructive,
+                    action: deletePendingWorkouts
+                )
+                Button("Cancel", role: .cancel) { pendingWorkoutDeletionIDs = [] }
+            } message: {
+                Text("This permanently removes the selected workout and its planned exercises. It can’t be undone.")
+            }
         }
     }
 
     private func deleteWorkout(offsets: IndexSet) {
         if let currentRoutine {
-            let workoutIDs = Set(offsets.compactMap {
+            pendingWorkoutDeletionIDs = Set(offsets.compactMap {
                 currentRoutine.workouts.indices.contains($0) ? currentRoutine.workouts[$0].id : nil
             })
-            store.deleteWorkouts(routineId: currentRoutine.id, ids: workoutIDs)
         }
+    }
+
+    private func deletePendingWorkouts() {
+        defer { pendingWorkoutDeletionIDs = [] }
+        guard let currentRoutine else { return }
+        store.deleteWorkouts(routineId: currentRoutine.id, ids: pendingWorkoutDeletionIDs)
     }
 
     private func workoutAccessibilityValue(for workout: Workout, routineID: UUID) -> String {

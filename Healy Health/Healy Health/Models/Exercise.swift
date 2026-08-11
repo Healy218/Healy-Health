@@ -22,8 +22,8 @@ struct SetLog: Identifiable, Codable {
     var reps: Int
     var completedDate: Date
 
-    var weightDisplay: String {
-        return String(format: "%.1f lbs", weight)
+    func weightDisplay(in unit: WeightUnit) -> String {
+        WeightFormatter.string(fromPounds: weight, unit: unit)
     }
 }
 
@@ -40,8 +40,8 @@ struct Exercise: Identifiable, Codable {
     var isCompleted: Bool = false
     var logs: [SetLog] = []
 
-    var weightDisplay: String {
-        return String(format: "%.1f lbs", currentWeight)
+    func weightDisplay(in unit: WeightUnit) -> String {
+        WeightFormatter.string(fromPounds: currentWeight, unit: unit)
     }
 
     init(id: UUID = UUID(),

@@ -47,25 +47,26 @@ enum ExerciseChartMetric: String, CaseIterable, Identifiable {
         }
     }
 
-    func value(for point: ExerciseHistoryPoint) -> Double {
+    func value(for point: ExerciseHistoryPoint, unit: WeightUnit) -> Double {
         switch self {
         case .volume:
-            return point.totalVolume
+            return WeightFormatter.displayedValue(fromPounds: point.totalVolume, unit: unit)
         case .topSet:
-            return point.maxWeight
+            return WeightFormatter.displayedValue(fromPounds: point.maxWeight, unit: unit)
         case .estimatedOneRepMax:
-            return point.estimatedOneRepMax
+            return WeightFormatter.displayedValue(fromPounds: point.estimatedOneRepMax, unit: unit)
         }
     }
 
-    func formattedValue(for point: ExerciseHistoryPoint) -> String {
+    func formattedValue(for point: ExerciseHistoryPoint, unit: WeightUnit) -> String {
         switch self {
         case .volume:
-            return "\(point.totalVolume.abbreviatedVolume) lb-reps"
+            let displayedVolume = value(for: point, unit: unit)
+            return "\(WeightFormatter.numberString(displayedVolume, maximumFractionDigits: displayedVolume >= 1000 ? 0 : 1)) \(unit.volumeSymbol)"
         case .topSet:
-            return "\(String(format: "%.0f", point.maxWeight)) lbs"
+            return WeightFormatter.string(fromPounds: point.maxWeight, unit: unit, maximumFractionDigits: 0)
         case .estimatedOneRepMax:
-            return "\(String(format: "%.0f", point.estimatedOneRepMax)) lbs"
+            return WeightFormatter.string(fromPounds: point.estimatedOneRepMax, unit: unit, maximumFractionDigits: 0)
         }
     }
 }
@@ -95,9 +96,30 @@ struct SummaryView: View {
             theme.primaryColor.ignoresSafeArea()
 
             if store.completedWorkouts.isEmpty {
-                Text("No workouts completed yet.")
-                    .foregroundColor(theme.onPrimaryText)
-                    .padding()
+                VStack(spacing: 14) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.system(size: 48))
+                        .foregroundColor(theme.disabledOnPrimaryText)
+                        .accessibilityHidden(true)
+                    Text("No workouts completed yet.")
+                        .font(AppTypography.chalkboard(20, relativeTo: .title3))
+                        .foregroundColor(theme.onPrimaryText)
+                    Text("Complete a workout to see your history and progress here.")
+                        .font(AppTypography.chalkboard(16, relativeTo: .body))
+                        .foregroundColor(theme.secondaryOnPrimaryText)
+                        .multilineTextAlignment(.center)
+                    Button("Browse Routines") {
+                        store.selectedTab = 0
+                    }
+                    .font(AppTypography.chalkboard(17, relativeTo: .body))
+                    .foregroundColor(theme.accentColor)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(theme.rowBackground)
+                    .cornerRadius(12)
+                    .accessibilityHint("Opens the Routines tab so you can start a workout.")
+                }
+                .padding()
             } else {
                 ScrollView {
                     VStack(spacing: 16) {
@@ -167,6 +189,7 @@ struct TopExerciseChartCard: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
     @AppStorage("preferredExerciseChartMetric") private var selectedMetricRawValue = ExerciseChartMetric.volume.rawValue
+    @AppStorage(WeightUnit.storageKey) private var weightUnit: WeightUnit = .pounds
     private var theme: AppTheme { themeManager.current }
 
     private var topData: (name: String, history: [ExerciseHistoryPoint])? {
@@ -196,11 +219,11 @@ struct TopExerciseChartCard: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Most Trained: \(top.name)")
                             .font(AppTypography.chalkboard(15, relativeTo: .subheadline))
-                            .foregroundColor(theme.onPrimaryText.opacity(0.75))
+                            .foregroundColor(theme.secondaryOnPrimaryText)
 
                         Text(selectedMetric.subtitle)
                             .font(.caption)
-                            .foregroundColor(theme.onPrimaryText.opacity(0.55))
+                            .foregroundColor(theme.secondaryOnPrimaryText)
                     }
 
                     Spacer()
@@ -211,10 +234,10 @@ struct TopExerciseChartCard: View {
                 if top.history.count < 2 {
                     Text("Log more sessions to see progress")
                         .font(.caption)
-                        .foregroundColor(theme.onPrimaryText.opacity(0.5))
+                        .foregroundColor(theme.disabledOnPrimaryText)
                         .frame(maxWidth: .infinity, minHeight: 100, alignment: .center)
                 } else {
-                    ExerciseLineChart(history: top.history, metric: selectedMetric, theme: theme, height: 160)
+                    ExerciseLineChart(history: top.history, metric: selectedMetric, unit: weightUnit, theme: theme, height: 160)
                 }
             }
             .padding()
@@ -230,40 +253,39 @@ struct TopExerciseChartCard: View {
 struct ExerciseLineChart: View {
     let history: [ExerciseHistoryPoint]
     let metric: ExerciseChartMetric
+    let unit: WeightUnit
     let theme: AppTheme
     let height: CGFloat
 
-    // Light theme keeps existing accent-on-card-background style; all others use primaryColor on white.
-    private var isLight: Bool { theme == .light }
-    private var lineColor: Color { isLight ? theme.accentColor : theme.primaryColor }
-    private var fillColor: Color { isLight ? theme.accentColor.opacity(0.15) : theme.primaryColor.opacity(0.22) }
-    private var axisColor: Color { isLight ? theme.onPrimaryText.opacity(0.6) : Color(white: 0.45) }
+    private var lineColor: Color { theme.chartLineColor }
+    private var fillColor: Color { theme.chartLineColor.opacity(0.2) }
+    private var axisColor: Color { theme.chartAxisColor }
 
     var body: some View {
         Chart(history) { point in
             LineMark(
                 x: .value("Session", point.session),
-                y: .value(metric.axisLabel, metric.value(for: point))
+                y: .value(metric.axisLabel, metric.value(for: point, unit: unit))
             )
             .interpolationMethod(.linear)
             .foregroundStyle(lineColor)
 
             AreaMark(
                 x: .value("Session", point.session),
-                y: .value(metric.axisLabel, metric.value(for: point))
+                y: .value(metric.axisLabel, metric.value(for: point, unit: unit))
             )
             .interpolationMethod(.linear)
             .foregroundStyle(fillColor)
 
             PointMark(
                 x: .value("Session", point.session),
-                y: .value(metric.axisLabel, metric.value(for: point))
+                y: .value(metric.axisLabel, metric.value(for: point, unit: unit))
             )
             .foregroundStyle(lineColor)
         }
         .frame(height: height)
         .padding()
-        .background(isLight ? Color.clear : Color.white)
+        .background(theme.chartSurfaceColor)
         .cornerRadius(14)
         .chartXAxis {
             AxisMarks(values: .automatic) { _ in
@@ -272,7 +294,7 @@ struct ExerciseLineChart: View {
         }
         .chartYAxis {
             AxisMarks { value in
-                AxisGridLine().foregroundStyle(isLight ? Color(white: 0.75) : Color(white: 0.3))
+                AxisGridLine().foregroundStyle(theme.chartGridColor)
                 AxisValueLabel {
                     if let metricValue = value.as(Double.self) {
                         Text(formattedAxisValue(metricValue))
@@ -290,15 +312,15 @@ struct ExerciseLineChart: View {
     private func formattedAxisValue(_ value: Double) -> String {
         switch metric {
         case .volume:
-            return value.abbreviatedVolume
+            return "\(value.abbreviatedVolume) \(unit.volumeSymbol)"
         case .topSet, .estimatedOneRepMax:
-            return String(format: "%.0f", value)
+            return "\(WeightFormatter.numberString(value, maximumFractionDigits: 0)) \(unit.symbol)"
         }
     }
 
     private var chartAccessibilityValue: String {
         guard let latest = history.last else { return "No sessions recorded." }
-        return "\(history.count) sessions. Latest session: \(metric.formattedValue(for: latest)) on \(latest.date.formatted(date: .abbreviated, time: .omitted))."
+        return "\(history.count) sessions. Latest session: \(metric.formattedValue(for: latest, unit: unit)) on \(latest.date.formatted(date: .abbreviated, time: .omitted))."
     }
 }
 
@@ -383,6 +405,7 @@ struct ExerciseProgressView: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
     @AppStorage("preferredExerciseChartMetric") private var selectedMetricRawValue = ExerciseChartMetric.volume.rawValue
+    @AppStorage(WeightUnit.storageKey) private var weightUnit: WeightUnit = .pounds
     let exerciseId: UUID
     let exerciseName: String
     private var theme: AppTheme { themeManager.current }
@@ -413,7 +436,7 @@ struct ExerciseProgressView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if history.count < 2 {
                         Text("Log more sessions to see a progress chart.")
-                            .foregroundColor(theme.onPrimaryText.opacity(0.6))
+                            .foregroundColor(theme.secondaryOnPrimaryText)
                             .padding()
                     } else {
                         // Chart card
@@ -422,17 +445,17 @@ struct ExerciseProgressView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("\(selectedMetric.title) Over Time")
                                         .font(AppTypography.chalkboard(14, relativeTo: .subheadline))
-                                        .foregroundColor(theme.onPrimaryText.opacity(0.7))
+                                        .foregroundColor(theme.secondaryOnPrimaryText)
                                     Text(selectedMetric.subtitle)
                                         .font(.caption)
-                                        .foregroundColor(theme.onPrimaryText.opacity(0.55))
+                                        .foregroundColor(theme.secondaryOnPrimaryText)
                                 }
 
                                 Spacer()
 
                                 ExerciseChartMetricMenu(selection: selectedMetricBinding, theme: theme)
                             }
-                            ExerciseLineChart(history: history, metric: selectedMetric, theme: theme, height: 220)
+                            ExerciseLineChart(history: history, metric: selectedMetric, unit: weightUnit, theme: theme, height: 220)
                         }
                         .padding()
                         .background(theme == .light ? theme.onPrimaryText.opacity(0.08) : Color.clear)
@@ -450,9 +473,9 @@ struct ExerciseProgressView: View {
                                 Text(point.date.formatted(date: .abbreviated, time: .omitted))
                                     .foregroundColor(theme.secondaryRowText)
                                 VStack(alignment: .trailing, spacing: 2) {
-                                    Text(selectedMetric.formattedValue(for: point))
+                                    Text(selectedMetric.formattedValue(for: point, unit: weightUnit))
                                         .foregroundColor(theme.rowText)
-                                    Text("Top set: \(String(format: "%.0f", point.maxWeight)) lbs")
+                                    Text("Top set: \(WeightFormatter.string(fromPounds: point.maxWeight, unit: weightUnit, maximumFractionDigits: 0))")
                                         .font(.caption)
                                         .foregroundColor(theme.secondaryRowText)
                                 }
@@ -462,7 +485,7 @@ struct ExerciseProgressView: View {
                             .background(theme.rowBackground)
                             .accessibilityElement(children: .ignore)
                             .accessibilityLabel("Session \(point.session), \(point.date.formatted(date: .abbreviated, time: .omitted))")
-                            .accessibilityValue("\(selectedMetric.formattedValue(for: point)). Top set \(String(format: "%.0f", point.maxWeight)) pounds.")
+                            .accessibilityValue("\(selectedMetric.formattedValue(for: point, unit: weightUnit)). Top set \(WeightFormatter.accessibilityString(fromPounds: point.maxWeight, unit: weightUnit, maximumFractionDigits: 0)).")
 
                             if point.id != history.reversed().last?.id {
                                 Divider()
@@ -558,6 +581,7 @@ struct SummaryDetailView: View {
     let workout: CompletedWorkout
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
+    @AppStorage(WeightUnit.storageKey) private var weightUnit: WeightUnit = .pounds
     @Environment(\.dismiss) private var dismiss
     private var theme: AppTheme { themeManager.current }
     @State private var isEditing = false
@@ -591,7 +615,7 @@ struct SummaryDetailView: View {
                                         HStack {
                                             Text("Set \(index + 1)").font(.subheadline).foregroundColor(theme.secondaryRowText)
                                             Spacer()
-                                            Text("\(log.reps) reps @ \(String(format: "%.1f", log.weight)) lbs").font(.subheadline).foregroundColor(theme.rowText)
+                                            Text("\(log.reps) reps @ \(WeightFormatter.string(fromPounds: log.weight, unit: weightUnit))").font(.subheadline).foregroundColor(theme.rowText)
                                         }
                                     }
                                 }

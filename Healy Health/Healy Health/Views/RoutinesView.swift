@@ -6,6 +6,7 @@ struct RoutinesView: View {
     @State private var showingAddRoutine = false
     @State private var newRoutineName = ""
     @State private var pendingRoutineStartID: UUID?
+    @State private var pendingRoutineDeletionIDs: Set<UUID> = []
 
     private var theme: AppTheme { themeManager.current }
 
@@ -54,7 +55,7 @@ struct RoutinesView: View {
                                     } label: {
                                         Label("Start", systemImage: "star.fill")
                                     }
-                                .tint(.green)
+                                .tint(theme.successColor)
                             }
                         }
                         .onDelete(perform: deleteRoutine)
@@ -109,11 +110,34 @@ struct RoutinesView: View {
         } message: {
             Text(replacementMessage)
         }
+        .confirmationDialog(
+            pendingRoutineDeletionIDs.count == 1 ? "Delete Routine?" : "Delete Routines?",
+            isPresented: Binding(
+                get: { !pendingRoutineDeletionIDs.isEmpty },
+                set: { if !$0 { pendingRoutineDeletionIDs = [] } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(
+                pendingRoutineDeletionIDs.count == 1 ? "Delete Routine" : "Delete Routines",
+                role: .destructive,
+                action: deletePendingRoutines
+            )
+            Button("Cancel", role: .cancel) { pendingRoutineDeletionIDs = [] }
+        } message: {
+            Text("This permanently removes the selected routine and all of its workouts. It can’t be undone.")
+        }
     }
 
     private func deleteRoutine(offsets: IndexSet) {
-        let routineIDs = Set(offsets.compactMap { store.routines.indices.contains($0) ? store.routines[$0].id : nil })
-        store.deleteRoutines(ids: routineIDs)
+        pendingRoutineDeletionIDs = Set(offsets.compactMap {
+            store.routines.indices.contains($0) ? store.routines[$0].id : nil
+        })
+    }
+
+    private func deletePendingRoutines() {
+        store.deleteRoutines(ids: pendingRoutineDeletionIDs)
+        pendingRoutineDeletionIDs = []
     }
 
     private func moveRoutines(fromOffsets: IndexSet, toOffset: Int) {

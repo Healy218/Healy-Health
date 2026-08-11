@@ -84,11 +84,11 @@ struct WorkoutDetailView: View {
                         .foregroundColor(theme.onPrimaryText)
                     Text(count == 0 ? "Tap to add exercises" : "\(count) exercise\(count == 1 ? "" : "s")")
                         .font(AppTypography.chalkboard(14, relativeTo: .subheadline))
-                        .foregroundColor(theme.onPrimaryText.opacity(0.7))
+                        .foregroundColor(theme.secondaryOnPrimaryText)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .foregroundColor(theme.onPrimaryText.opacity(0.6))
+                    .foregroundColor(theme.secondaryOnPrimaryText)
                     .font(.system(size: 14, weight: .semibold))
             }
             .padding()

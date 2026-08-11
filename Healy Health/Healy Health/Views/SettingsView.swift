@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var showImportSuccessAlert = false
     @State private var showImportErrorAlert = false
     @State private var importErrorMessage = "The selected file could not be imported."
+    @AppStorage(WeightUnit.storageKey) private var weightUnit: WeightUnit = .pounds
 
     private var theme: AppTheme { themeManager.current }
     private var totalWorkoutsCompleted: Int { store.completedWorkouts.count }
@@ -27,6 +28,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             appearanceSection
+            unitsSection
             statsSection
             dataManagementSection
             aboutSection
@@ -107,6 +109,22 @@ struct SettingsView: View {
                 Text("\(totalWorkoutsCompleted)").foregroundColor(theme.secondaryRowText)
             }
             .listRowBackground(theme.rowBackground)
+        }
+    }
+
+    private var unitsSection: some View {
+        Section {
+            Picker("Weight Unit", selection: $weightUnit) {
+                ForEach(WeightUnit.allCases) { unit in
+                    Text(unit.displayName).tag(unit)
+                }
+            }
+            .foregroundColor(theme.rowText)
+            .listRowBackground(theme.rowBackground)
+        } header: {
+            Text("Units").foregroundColor(theme.onPrimaryText)
+        } footer: {
+            Text("Changing units only changes how weights are shown and entered. Your saved workout data remains unchanged.")
         }
     }
 
@@ -283,7 +301,7 @@ struct ThemePickerView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
                 .font(AppTypography.chalkboard(16, relativeTo: .body))
-                .foregroundColor(theme.onPrimaryText.opacity(0.75))
+                .foregroundColor(theme.secondaryOnPrimaryText)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: columns), spacing: 16) {
                 ForEach(themes, id: \.self) { t in
@@ -320,7 +338,7 @@ struct ThemePickerView: View {
                 }
                 Text(t.displayName)
                     .font(AppTypography.chalkboard(13, relativeTo: .footnote))
-                    .foregroundColor(isSelected ? theme.onPrimaryText : theme.onPrimaryText.opacity(0.65))
+                    .foregroundColor(isSelected ? theme.onPrimaryText : theme.secondaryOnPrimaryText)
             }
         }
         .buttonStyle(PlainButtonStyle())

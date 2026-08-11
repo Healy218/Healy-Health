@@ -10,15 +10,15 @@ enum ExerciseValidationError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .emptyName:
-            return "Enter an exercise name."
+            return String(localized: "Enter an exercise name.")
         case .invalidTargetSets:
-            return "Target sets must be a whole number greater than zero."
+            return String(localized: "Target sets must be a whole number greater than zero.")
         case .emptyTargetReps:
-            return "Enter a target rep range."
+            return String(localized: "Enter a target rep range.")
         case .invalidWeight:
-            return "Weight must be a finite number that is zero or greater."
+            return String(localized: "Weight must be a finite number that is zero or greater.")
         case .invalidLogReps:
-            return "Reps must be a whole number greater than zero."
+            return String(localized: "Reps must be a whole number greater than zero.")
         }
     }
 }

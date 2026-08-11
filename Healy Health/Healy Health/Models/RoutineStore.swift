@@ -9,11 +9,11 @@ enum PersistenceResource: String {
     var displayName: String {
         switch self {
         case .routines:
-            return "routines"
+            return String(localized: "routines")
         case .history:
-            return "workout history"
+            return String(localized: "workout history")
         case .exerciseLibrary:
-            return "exercise library"
+            return String(localized: "exercise library")
         }
     }
 }
@@ -36,22 +36,22 @@ struct PersistenceError: LocalizedError, Identifiable {
     var errorDescription: String? {
         switch operation {
         case .load:
-            return "Couldn’t load your \(resource.displayName)."
+            return String(format: String(localized: "Couldn’t load your %@."), resource.displayName)
         case .save:
-            return "Couldn’t save your \(resource.displayName)."
+            return String(format: String(localized: "Couldn’t save your %@."), resource.displayName)
         case .migration:
-            return "Couldn’t migrate your legacy \(resource.displayName)."
+            return String(format: String(localized: "Couldn’t migrate your legacy %@."), resource.displayName)
         }
     }
 
     var recoverySuggestion: String? {
         switch operation {
         case .load:
-            return "The existing file was left unchanged. Please keep the app open and try again after freeing storage or restoring a backup."
+            return String(localized: "The existing file was left unchanged. Please keep the app open and try again after freeing storage or restoring a backup.")
         case .save:
-            return "No existing saved file was overwritten. Please keep the app open and try again after freeing storage."
+            return String(localized: "No existing saved file was overwritten. Please keep the app open and try again after freeing storage.")
         case .migration:
-            return "Your legacy data was left unchanged. Please keep the app open and try again after freeing storage or restoring a backup."
+            return String(localized: "Your legacy data was left unchanged. Please keep the app open and try again after freeing storage or restoring a backup.")
         }
     }
 }
@@ -64,11 +64,11 @@ enum WorkoutCompletionError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .routineNotFound:
-            return "This routine is no longer available."
+            return String(localized: "This routine is no longer available.")
         case .workoutNotFound:
-            return "This workout is no longer available in the selected routine."
+            return String(localized: "This workout is no longer available in the selected routine.")
         case .alreadyCompleted:
-            return "This workout has already been completed."
+            return String(localized: "This workout has already been completed.")
         }
     }
 }
@@ -83,13 +83,13 @@ enum SetLogMutationError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .routineNotFound:
-            return "This routine is no longer available."
+            return String(localized: "This routine is no longer available.")
         case .workoutNotFound:
-            return "This workout is no longer available in the selected routine."
+            return String(localized: "This workout is no longer available in the selected routine.")
         case .exerciseNotFound:
-            return "This exercise is no longer available in the selected workout."
+            return String(localized: "This exercise is no longer available in the selected workout.")
         case .logNotFound:
-            return "This logged set is no longer available."
+            return String(localized: "This logged set is no longer available.")
         case .invalidLog(let error):
             return error.localizedDescription
         }
@@ -106,15 +106,15 @@ enum CompletedWorkoutMutationError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .workoutNotFound:
-            return "This completed workout is no longer available."
+            return String(localized: "This completed workout is no longer available.")
         case .emptyName:
-            return "Enter a workout name."
+            return String(localized: "Enter a workout name.")
         case .emptyFocus:
-            return "Enter a workout focus."
+            return String(localized: "Enter a workout focus.")
         case .invalidDate:
-            return "Enter a valid completion date."
+            return String(localized: "Enter a valid completion date.")
         case .persistenceFailed:
-            return "Couldn’t save this history change. Please try again."
+            return String(localized: "Couldn’t save this history change. Please try again.")
         }
     }
 }

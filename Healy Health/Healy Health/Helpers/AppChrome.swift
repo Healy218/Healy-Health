@@ -24,9 +24,10 @@ enum AppChrome {
         tabAppearance.configureWithOpaqueBackground()
         tabAppearance.backgroundColor = tabBgColor
         let itemAppearance = UITabBarItemAppearance()
-        itemAppearance.normal.titleTextAttributes = [.foregroundColor: tabTextColor.withAlphaComponent(0.6)]
+        let secondaryTabTextColor = UIColor(theme.secondaryOnPrimaryText)
+        itemAppearance.normal.titleTextAttributes = [.foregroundColor: secondaryTabTextColor]
         itemAppearance.selected.titleTextAttributes = [.foregroundColor: tabTextColor]
-        itemAppearance.normal.iconColor = tabTextColor.withAlphaComponent(0.6)
+        itemAppearance.normal.iconColor = secondaryTabTextColor
         itemAppearance.selected.iconColor = tabTextColor
         tabAppearance.stackedLayoutAppearance = itemAppearance
         UITabBar.appearance().standardAppearance = tabAppearance

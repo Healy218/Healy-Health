@@ -4,6 +4,7 @@ import Combine
 struct ExerciseDetailView: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
+    @AppStorage(WeightUnit.storageKey) private var weightUnit: WeightUnit = .pounds
     let routineId: UUID
     let workoutId: UUID
     let exerciseId: UUID
@@ -24,6 +25,7 @@ struct ExerciseDetailView: View {
     @Environment(\.presentationMode) var presentationMode
     @Environment(\.scenePhase) var scenePhase
     @State private var weightInput: String = ""
+    @State private var inputWeightUnit: WeightUnit = .pounds
     @State private var repsInput: String = ""
     @State private var timeRemaining: TimeInterval = 0
     @State private var timer: Publishers.Autoconnect<Timer.TimerPublisher> = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -56,7 +58,7 @@ struct ExerciseDetailView: View {
                 VStack {
                     Text(exercise.name).font(.title2).foregroundColor(theme.onPrimaryText).padding(.top)
                     Text("Target: \(exercise.targetSets) sets × \(exercise.targetReps) reps")
-                        .font(.subheadline).foregroundColor(theme.onPrimaryText.opacity(0.7))
+                        .font(.subheadline).foregroundColor(theme.secondaryOnPrimaryText)
                     List {
                         Section(header: Text("History").foregroundColor(theme.onPrimaryText)) {
                             if exercise.logs.isEmpty {
@@ -66,12 +68,12 @@ struct ExerciseDetailView: View {
                                     HStack {
                                         Text("Set \(index + 1)").fontWeight(.bold)
                                         Spacer()
-                                        Text("\(log.reps) reps @ \(String(format: "%.1f", log.weight)) lbs")
+                                        Text("\(log.reps) reps @ \(WeightFormatter.string(fromPounds: log.weight, unit: weightUnit))")
                                     }
                                     .foregroundColor(theme.rowText)
                                     .accessibilityElement(children: .combine)
                                     .accessibilityLabel("Set \(index + 1)")
-                                    .accessibilityValue("\(log.reps) reps at \(String(format: "%.1f", log.weight)) pounds")
+                                    .accessibilityValue("\(log.reps) reps at \(WeightFormatter.accessibilityString(fromPounds: log.weight, unit: weightUnit))")
                                     .accessibilityHint("Swipe up or down to edit or delete this set.")
                                     .listRowBackground(theme.rowBackground)
                                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -96,7 +98,7 @@ struct ExerciseDetailView: View {
                     let maxSets = exercise.targetSets + 5
                     if exercise.logs.count >= maxSets {
                         Text("Maximum sets reached (\(maxSets))")
-                            .font(.caption).foregroundColor(theme.onPrimaryText.opacity(0.6))
+                            .font(.caption).foregroundColor(theme.secondaryOnPrimaryText)
                             .padding(.top, 8)
                     } else if !timerActive {
                         SetInputView(setNumber: exercise.logs.count + 1, weightInput: $weightInput, repsInput: $repsInput, selectedDuration: $selectedDuration, showCustomTimerAlert: $showCustomTimerAlert, isCustomDuration: isCustomDuration, validationMessage: setLogErrorMessage, onLogSet: logSet)
@@ -108,11 +110,11 @@ struct ExerciseDetailView: View {
                     Spacer()
                     if exercise.logs.count >= exercise.targetSets {
                         Button(action: finishExercise) {
-                            Text("Finish Exercise").font(.headline).foregroundColor(.green).padding().frame(maxWidth: .infinity).background(theme.onPrimaryText).cornerRadius(10)
+                            Text("Finish Exercise").font(.headline).foregroundColor(theme.successColor).padding().frame(maxWidth: .infinity).background(theme.chartSurfaceColor).cornerRadius(10)
                         }.padding(.horizontal)
                     }
                     Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                        Text("Skip / Back").foregroundColor(theme.onPrimaryText.opacity(0.8))
+                        Text("Skip / Back").foregroundColor(theme.secondaryOnPrimaryText)
                     }.padding(.bottom)
                 }
             } else {
@@ -124,12 +126,18 @@ struct ExerciseDetailView: View {
         }
         .onAppear {
             if let ex = exercise {
-                weightInput = ex.logs.last.map { String(format: "%.0f", $0.weight) } ?? String(format: "%.0f", ex.currentWeight)
+                weightInput = ex.logs.last.map {
+                    WeightFormatter.inputString(fromPounds: $0.weight, unit: weightUnit, maximumFractionDigits: 0)
+                } ?? WeightFormatter.inputString(fromPounds: ex.currentWeight, unit: weightUnit, maximumFractionDigits: 0)
+                inputWeightUnit = weightUnit
                 repsInput = ex.logs.last.map { String(format: "%d", $0.reps) } ?? ""
             }
             updateTimerDisplay()
         }
         .onChange(of: weightInput) { _ in setLogErrorMessage = nil }
+        .onChange(of: weightUnit) { newUnit in
+            reformatWeightInput(for: newUnit)
+        }
         .onChange(of: repsInput) { _ in setLogErrorMessage = nil }
         .onReceive(timer) { _ in if timerActive { updateTimerDisplay() } }
         .onChange(of: scenePhase) { newPhase in if newPhase == .active { updateTimerDisplay() } }
@@ -185,7 +193,7 @@ struct ExerciseDetailView: View {
     var isCustomDuration: Bool { ![120.0, 150.0, 180.0].contains(selectedDuration) }
 
     func logSet() {
-        guard let weight = Double(weightInput.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+        guard let weight = WeightFormatter.pounds(fromInput: weightInput, unit: weightUnit) else {
             setLogErrorMessage = "Enter a valid weight."
             return
         }
@@ -211,6 +219,12 @@ struct ExerciseDetailView: View {
         store.saveRoutines()
         if binding.wrappedValue.logs.count < maxSets { startTimer() }
         repsInput = ""
+    }
+
+    func reformatWeightInput(for newUnit: WeightUnit) {
+        defer { inputWeightUnit = newUnit }
+        guard let pounds = WeightFormatter.pounds(fromInput: weightInput, unit: inputWeightUnit) else { return }
+        weightInput = WeightFormatter.inputString(fromPounds: pounds, unit: newUnit, maximumFractionDigits: 0)
     }
 
     func startTimer() {
@@ -322,11 +336,13 @@ struct ExerciseDetailView: View {
 private struct EditLoggedSetView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var themeManager: ThemeManager
+    @AppStorage(WeightUnit.storageKey) private var weightUnit: WeightUnit = .pounds
 
     let log: SetLog
     let onSave: (Double, Int) -> Result<Void, SetLogMutationError>
 
     @State private var weightInput: String
+    @State private var inputWeightUnit: WeightUnit = .pounds
     @State private var repsInput: String
     @State private var errorMessage: String?
 
@@ -338,7 +354,7 @@ private struct EditLoggedSetView: View {
     ) {
         self.log = log
         self.onSave = onSave
-        _weightInput = State(initialValue: String(format: "%.1f", log.weight))
+        _weightInput = State(initialValue: "")
         _repsInput = State(initialValue: String(log.reps))
     }
 
@@ -346,7 +362,7 @@ private struct EditLoggedSetView: View {
         NavigationStack {
             Form {
                 Section("Set Details") {
-                    TextField("Weight (lbs)", text: $weightInput)
+                    TextField("Weight (\(weightUnit.symbol))", text: $weightInput)
                         .keyboardType(.decimalPad)
                     TextField("Reps", text: $repsInput)
                         .keyboardType(.numberPad)
@@ -354,7 +370,7 @@ private struct EditLoggedSetView: View {
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
-                            .foregroundColor(.red)
+                            .foregroundColor(theme.destructiveColor)
                     }
                 }
             }
@@ -373,10 +389,17 @@ private struct EditLoggedSetView: View {
         }
         .onChange(of: weightInput) { _ in errorMessage = nil }
         .onChange(of: repsInput) { _ in errorMessage = nil }
+        .onAppear {
+            weightInput = WeightFormatter.inputString(fromPounds: log.weight, unit: weightUnit)
+            inputWeightUnit = weightUnit
+        }
+        .onChange(of: weightUnit) { newUnit in
+            reformatWeightInput(for: newUnit)
+        }
     }
 
     private func save() {
-        guard let weight = Double(weightInput.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+        guard let weight = WeightFormatter.pounds(fromInput: weightInput, unit: weightUnit) else {
             errorMessage = "Enter a valid weight."
             return
         }
@@ -391,5 +414,11 @@ private struct EditLoggedSetView: View {
         case .failure(let error):
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func reformatWeightInput(for newUnit: WeightUnit) {
+        defer { inputWeightUnit = newUnit }
+        guard let pounds = WeightFormatter.pounds(fromInput: weightInput, unit: inputWeightUnit) else { return }
+        weightInput = WeightFormatter.inputString(fromPounds: pounds, unit: newUnit)
     }
 }

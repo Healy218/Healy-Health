@@ -108,7 +108,7 @@ struct AddCustomExerciseView: View {
             if isDuplicate {
                 Text("An exercise with this name already exists in this workout or the library.")
                     .font(AppTypography.chalkboard(13, relativeTo: .footnote))
-                    .foregroundColor(.red)
+                    .foregroundColor(theme.destructiveColor)
                     .padding(.horizontal)
                     .padding(.bottom, 6)
             }
@@ -119,7 +119,7 @@ struct AddCustomExerciseView: View {
             if let validationMessage {
                 Text(validationMessage)
                     .font(AppTypography.chalkboard(13, relativeTo: .footnote))
-                    .foregroundColor(.red)
+                    .foregroundColor(theme.destructiveColor)
                     .padding(.horizontal)
                     .padding(.bottom, 10)
             }

@@ -37,7 +37,7 @@ struct ExerciseSelectionView: View {
                                 if !template.equipmentType.isEmpty {
                                     Text(template.equipmentType)
                                         .font(.caption).padding(.horizontal, 8).padding(.vertical, 4)
-                                        .background(Color.gray.opacity(0.1)).foregroundColor(.gray).cornerRadius(8)
+                                        .background(Color.gray.opacity(0.1)).foregroundColor(theme.secondaryRowText).cornerRadius(8)
                                 }
                             }
                         }

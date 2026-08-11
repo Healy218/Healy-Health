@@ -46,6 +46,7 @@ struct SetInputView: View {
     var validationMessage: String?
     var onLogSet: () -> Void
     @EnvironmentObject var themeManager: ThemeManager
+    @AppStorage(WeightUnit.storageKey) private var weightUnit: WeightUnit = .pounds
 
     private var theme: AppTheme { themeManager.current }
 
@@ -55,11 +56,11 @@ struct SetInputView: View {
 
             HStack(spacing: 20) {
                 VStack {
-                    Text("Weight (lbs)").foregroundColor(theme.onPrimaryText)
+                    Text("Weight (\(weightUnit.symbol))").foregroundColor(theme.onPrimaryText)
                     TextField("0", text: $weightInput)
                         .keyboardType(.decimalPad).padding()
                         .background(theme.onPrimaryText).foregroundColor(theme.accentColor).cornerRadius(10)
-                        .accessibilityLabel("Weight for set \(setNumber), pounds")
+                        .accessibilityLabel("Weight for set \(setNumber), \(weightUnit.spokenName)")
                 }
                 VStack {
                     Text("Reps").foregroundColor(theme.onPrimaryText)
@@ -104,7 +105,7 @@ struct SetInputView: View {
             if let validationMessage {
                 Text(validationMessage)
                     .font(.caption)
-                    .foregroundColor(.red)
+                    .foregroundColor(theme.onPrimaryText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
             }

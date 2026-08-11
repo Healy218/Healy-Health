@@ -8,11 +8,11 @@ enum WorkoutPlanningValidationError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .emptyRoutineName:
-            return "Enter a routine name."
+            return String(localized: "Enter a routine name.")
         case .emptyWorkoutName:
-            return "Enter a workout name."
+            return String(localized: "Enter a workout name.")
         case .duplicateExerciseName:
-            return "This workout already includes an exercise with that name."
+            return String(localized: "This workout already includes an exercise with that name.")
         }
     }
 }

@@ -24,13 +24,16 @@ enum RestTimerNotificationError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidDuration:
-            return "Enter a rest duration greater than zero seconds."
+            return String(localized: "Enter a rest duration greater than zero seconds.")
         case let .durationTooLong(maximumSeconds):
-            return "Enter a rest duration of " + String(Int(maximumSeconds / 60 / 60)) + " hours or less."
+            return String(
+                format: String(localized: "Enter a rest duration of %@ hours or less."),
+                String(Int(maximumSeconds / 60 / 60))
+            )
         case .permissionDenied:
-            return "The countdown is running, but its completion notification is turned off. You can enable notifications for Healy Health in Settings."
+            return String(localized: "The countdown is running, but its completion notification is turned off. You can enable notifications for Healy Health in Settings.")
         case .schedulingFailed:
-            return "The countdown is running, but its completion notification could not be scheduled."
+            return String(localized: "The countdown is running, but its completion notification could not be scheduled.")
         }
     }
 }

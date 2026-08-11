@@ -1,71 +1,67 @@
 # Session Handoff
 
-Last updated: 2026-08-10
+Last updated: 2026-08-11
 
 Current roadmap phase: Phase 4 — Accessibility and product polish (in progress)
 
 ## What was completed this session
 
-- Reconciled `TODO.md`, `ROADMAP.md`, and this handoff with the completed HH-402 implementation and its remaining device-verification requirement.
-- Revalidated the scoped Dynamic Type/VoiceOver changes against the iOS 26.5 SDK and `git diff --check`.
-- Prepared the focused accessibility and tracking-document commit for push. HH-401 and HH-402 remain in progress because their required simulator/device validation cannot run while CoreSimulatorService is unavailable.
+- Completed **HH-403**: theme colors now use an opaque, testable sRGB palette; semantic text/control/chart roles meet the documented WCAG targets, with regression coverage in `ThemeContrastTests`.
+- Completed **HH-405**: empty Workout and Summary states link to Routines; routine, workout, and exercise deletion require an explicit destructive confirmation explaining the removed data.
+- Completed **HH-406**: added the English `Localizable.xcstrings` catalog and a pounds/kilograms preference. Numeric workout data, history, analytics inputs, and exports remain stored in pounds; only form input and presentation convert units. Added `WeightUnitTests`.
 
 ## Next actions
 
-1. **HH-401 (P1):** Restore/launch the iOS simulator, then smoke-test core flows at accessibility text sizes—especially routine/workout lists, set logging, paired workout actions, and the timer—before closing the item.
-2. **HH-402 (P1):** With VoiceOver enabled, verify labels, values, hints, and logical focus order through the core routine/workout/session, rest timer, charts, history, and theme-selection flows. Correct any device findings before closing the item.
-3. **HH-403 (P1):** Measure theme contrast for primary, secondary, disabled, and chart colors.
+1. **HH-401 (P1):** Restore the iOS simulator, then smoke-test routine/workout lists, set logging, paired session actions, and rest timer at accessibility text sizes.
+2. **HH-402 (P1):** With VoiceOver enabled, verify labels, values, hints, and focus order for core routine/workout/session, rest timer, charts, history, and theme-selection flows.
+3. **HH-404 (P2):** Test compact iPhone, iPad, landscape, keyboard presentation, and the timer preset row for clipping or crowded targets.
+4. **HH-501 (P1):** Once device checks are complete or explicitly deferred, add clean-checkout CI build/test automation. Follow with **HH-502 (P1)** repository metadata cleanup.
 
 ## Verification
 
-Passed on 2026-08-10:
+Passed on 2026-08-11:
 
 ```sh
-xcrun swiftc -typecheck -module-cache-path /private/tmp/healy-hh402-swift-module-cache -target arm64-apple-ios16.0-simulator -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk 'Healy Health'/**/*.swift
+xcrun swiftc -typecheck -module-cache-path /private/tmp/healy-hh406-swift-module-cache -target arm64-apple-ios16.0-simulator -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk 'Healy Health'/**/*.swift
+xcrun xcstringstool compile 'Healy Health/Localizable.xcstrings' --output-directory /private/tmp/healy-hh406-localizations --language en
 git diff --check
 ```
 
-- Full app Swift typecheck against the iOS 26.5 SDK: passed.
-- `git diff --check`: passed.
+- Full app Swift typecheck passed.
+- All 138 catalog entries compiled successfully.
+- The catalog contains every extracted SwiftUI key and every `String(localized:)` key in source.
+- Whitespace/error-marker check passed.
 
-Could not run on 2026-08-10:
+Could not run on 2026-08-11:
 
 ```sh
-xcrun simctl list runtimes
-xcodebuild -project 'Healy Health.xcodeproj' -scheme 'Healy Health' -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.5' -derivedDataPath '/private/tmp/healy-hh402-derived-data' -resultBundlePath '/private/tmp/healy-hh402-verified.xcresult' test -quiet
+xcodebuild -project 'Healy Health.xcodeproj' -scheme 'Healy Health' -destination 'generic/platform=iOS Simulator' -derivedDataPath '/private/tmp/healy-hh406-derived-data' build-for-testing -quiet
 ```
 
-- `simctl` fails because CoreSimulatorService is unavailable; the XCTest command remains blocked before app compilation/testing. Restore the simulator service/runtime, then rerun the supported iPhone 17 Pro Max iOS 26.5 test command.
+- The build reaches asset-catalog compilation, then fails only because CoreSimulatorService reports no available iOS runtimes. XCTest, including the new theme/unit tests, remains unexecuted in this environment.
 
 ## Known blockers or risks
 
-- CoreSimulatorService is unavailable in this environment, so XCTest, accessibility-size smoke tests, and VoiceOver interaction checks cannot run.
-- Confirm the desired visual prominence of the Dynamic Type `.largeTitle` rest-timer readout during the large-text smoke test.
-- Confirm that chart summaries and grouped rows read naturally in VoiceOver on a device; static typechecking cannot validate focus order or spoken phrasing.
+- CoreSimulatorService is unavailable, blocking XCTest and all required device accessibility/layout verification.
+- Confirm the darker orange and pink themes visually on a simulator/device.
+- Confirm that grouped chart/history rows have natural VoiceOver phrasing and focus order.
+- The English catalog is ready for translation, but no additional language has been added yet.
 
 ## Important decisions and context
 
-- Dynamic Type changes preserve the Chalkboard design by sizing custom fonts relative to semantic text styles rather than replacing the typeface.
-- VoiceOver row grouping uses one concise name/value pair for primary navigation targets, while destructive and timer actions remain separate focusable controls with clear hints.
-- Charts announce their selected metric, session count, and latest result; the detailed per-session values remain available in the list directly below.
-- Rest timers survive ordinary navigation and relaunch; only explicit skip/finish, expiry, deletion, abandonment, or import clears them.
-- Starting a different routine/workout never replaces a live session implicitly; callers must route conflicts through the explicit abandon choice.
-- Exercise names are unique inside a planned workout (case/whitespace-insensitive); the same name is allowed in different workouts. Custom-library names remain globally unique.
-- Completed history corrections are limited to date/routine/workout/focus; completed exercise and set-log snapshots are immutable. Deleting a completed record removes its analytics contribution but never changes the source routine.
-- Import schemas 0, 1, and 2 remain supported. Schema 2 exports durable exercise tracking IDs; schemas 0 and 1 are upgraded on import. Separate historical snapshots may reuse nested IDs; future in-app snapshots do not.
-- Recovery lists only `HealyHealth_PreImport_*.json` files in Documents/Import Backups. Restore runs normal import validation and creates a fresh backup of the current state first; backups are never deleted automatically.
+- Contrast targets: 4.5:1 for normal text/chart labels; 3:1 for disabled controls, chart marks, and grid lines.
+- Weight values are canonically pounds for backward-compatible routines, history, imports, and exports. The user preference performs display/input conversion only.
+- Dynamic Type retains the Chalkboard visual language by scaling custom fonts relative to semantic text styles.
+- Import schemas 0, 1, and 2 remain supported; schema 2 supplies durable exercise tracking IDs.
 
 ## Working-tree notes
 
-The focused commit for this session contains only the HH-402 accessibility implementation and tracking documents:
+This session’s app/document changes are ready to commit:
 
-- `Healy Health/Views/ActiveWorkoutView.swift`
-- `Healy Health/Views/ExerciseDetailView.swift`
-- `Healy Health/Views/ExerciseSubviews.swift`
-- `Healy Health/Views/RoutineDetailView.swift`
-- `Healy Health/Views/RoutinesView.swift`
-- `Healy Health/Views/SettingsView.swift`
-- `Healy Health/Views/SummaryView.swift`
+- Presentation/accessibility/polish views under `Healy Health/Views/`
+- Theme, import/notification, validation, persistence, exercise, and new weight-unit helpers under `Healy Health/Helpers/` and `Healy Health/Models/`
+- `Healy Health/Localizable.xcstrings`
+- `Healy HealthTests/ThemeContrastTests.swift` and `Healy HealthTests/WeightUnitTests.swift`
 - `ROADMAP.md`, `TODO.md`, and `handoff.md`
 
 Pre-existing machine/user changes to preserve and exclude:

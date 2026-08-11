@@ -1,0 +1,1376 @@
+{
+  "sourceLanguage": "en",
+  "version": "1.0",
+  "strings": {
+    "Couldn’t load your %@.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Couldn’t load your %@."
+              }
+            }
+          }
+        },
+        "Couldn’t migrate your legacy %@.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Couldn’t migrate your legacy %@."
+              }
+            }
+          }
+        },
+        "Couldn’t save your %@.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Couldn’t save your %@."
+              }
+            }
+          }
+        },
+        "Enter a rest duration of %@ hours or less.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Enter a rest duration of %@ hours or less."
+              }
+            }
+          }
+        },
+        "This export contains invalid data: %@": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "This export contains invalid data: %@"
+              }
+            }
+          }
+        },
+        "This export uses unsupported data version %@.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "This export uses unsupported data version %@."
+              }
+            }
+          }
+        },
+    "Couldn’t save this history change. Please try again.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Couldn’t save this history change. Please try again."
+              }
+            }
+          }
+        },
+        "Enter a rest duration greater than zero seconds.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Enter a rest duration greater than zero seconds."
+              }
+            }
+          }
+        },
+        "Enter a routine name.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Enter a routine name."
+              }
+            }
+          }
+        },
+        "Enter a target rep range.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Enter a target rep range."
+              }
+            }
+          }
+        },
+        "Enter a valid completion date.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Enter a valid completion date."
+              }
+            }
+          }
+        },
+        "Enter a workout focus.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Enter a workout focus."
+              }
+            }
+          }
+        },
+        "Enter a workout name.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Enter a workout name."
+              }
+            }
+          }
+        },
+        "Enter an exercise name.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Enter an exercise name."
+              }
+            }
+          }
+        },
+        "No existing saved file was overwritten. Please keep the app open and try again after freeing storage.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "No existing saved file was overwritten. Please keep the app open and try again after freeing storage."
+              }
+            }
+          }
+        },
+        "Reps must be a whole number greater than zero.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Reps must be a whole number greater than zero."
+              }
+            }
+          }
+        },
+        "Target sets must be a whole number greater than zero.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Target sets must be a whole number greater than zero."
+              }
+            }
+          }
+        },
+        "The countdown is running, but its completion notification could not be scheduled.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "The countdown is running, but its completion notification could not be scheduled."
+              }
+            }
+          }
+        },
+        "The countdown is running, but its completion notification is turned off. You can enable notifications for Healy Health in Settings.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "The countdown is running, but its completion notification is turned off. You can enable notifications for Healy Health in Settings."
+              }
+            }
+          }
+        },
+        "The existing file was left unchanged. Please keep the app open and try again after freeing storage or restoring a backup.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "The existing file was left unchanged. Please keep the app open and try again after freeing storage or restoring a backup."
+              }
+            }
+          }
+        },
+        "The import could not be saved. Your previous data remains available in the pre-import backup.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "The import could not be saved. Your previous data remains available in the pre-import backup."
+              }
+            }
+          }
+        },
+        "The selected file could not be read or is not a Healy Health export.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "The selected file could not be read or is not a Healy Health export."
+              }
+            }
+          }
+        },
+        "This completed workout is no longer available.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "This completed workout is no longer available."
+              }
+            }
+          }
+        },
+        "This exercise is no longer available in the selected workout.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "This exercise is no longer available in the selected workout."
+              }
+            }
+          }
+        },
+        "This logged set is no longer available.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "This logged set is no longer available."
+              }
+            }
+          }
+        },
+        "This routine is no longer available.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "This routine is no longer available."
+              }
+            }
+          }
+        },
+        "This workout already includes an exercise with that name.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "This workout already includes an exercise with that name."
+              }
+            }
+          }
+        },
+        "This workout has already been completed.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "This workout has already been completed."
+              }
+            }
+          }
+        },
+        "This workout is no longer available in the selected routine.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "This workout is no longer available in the selected routine."
+              }
+            }
+          }
+        },
+        "Weight must be a finite number that is zero or greater.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Weight must be a finite number that is zero or greater."
+              }
+            }
+          }
+        },
+        "Your current data could not be backed up, so nothing was imported.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Your current data could not be backed up, so nothing was imported."
+              }
+            }
+          }
+        },
+        "Your legacy data was left unchanged. Please keep the app open and try again after freeing storage or restoring a backup.": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "Your legacy data was left unchanged. Please keep the app open and try again after freeing storage or restoring a backup."
+              }
+            }
+          }
+        },
+        "exercise library": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "exercise library"
+              }
+            }
+          }
+        },
+        "routines": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "routines"
+              }
+            }
+          }
+        },
+        "workout history": {
+          "localizations": {
+            "en": {
+              "stringUnit": {
+                "state": "translated",
+                "value": "workout history"
+              }
+            }
+          }
+        },
+    "%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@"
+          }
+        }
+      }
+    },
+    "%@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "%@ exercises": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ exercises"
+          }
+        }
+      }
+    },
+    "%@ Over Time": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Over Time"
+          }
+        }
+      }
+    },
+    "%@ reps": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ reps"
+          }
+        }
+      }
+    },
+    "%@ reps @ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ reps @ %2$@"
+          }
+        }
+      }
+    },
+    "%@ session%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ session%2$@"
+          }
+        }
+      }
+    },
+    "%@ sets • %@ reps": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ sets • %2$@ reps"
+          }
+        }
+      }
+    },
+    "%@ Workout%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ Workout%2$@"
+          }
+        }
+      }
+    },
+    "%@/%@ sets completed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@/%2$@ sets completed"
+          }
+        }
+      }
+    },
+    "+ Custom": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+ Custom"
+          }
+        }
+      }
+    },
+    "+30s": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+30s"
+          }
+        }
+      }
+    },
+    "Abandon Routine": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abandon Routine"
+          }
+        }
+      }
+    },
+    "Abandon Workout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abandon Workout"
+          }
+        }
+      }
+    },
+    "About": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About"
+          }
+        }
+      }
+    },
+    "Active Routine": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active Routine"
+          }
+        }
+      }
+    },
+    "Active Workout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active Workout"
+          }
+        }
+      }
+    },
+    "Add Exercise": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Exercise"
+          }
+        }
+      }
+    },
+    "Add Routine": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Routine"
+          }
+        }
+      }
+    },
+    "Add to Workout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to Workout"
+          }
+        }
+      }
+    },
+    "Add Workout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Workout"
+          }
+        }
+      }
+    },
+    "An exercise with this name already exists in this workout or the library.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An exercise with this name already exists in this workout or the library."
+          }
+        }
+      }
+    },
+    "Appearance": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appearance"
+          }
+        }
+      }
+    },
+    "Auto-Start Timer Duration:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-Start Timer Duration:"
+          }
+        }
+      }
+    },
+    "Back to Routine": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to Routine"
+          }
+        }
+      }
+    },
+    "Before every import, Healy Health saves your current data as a dated pre-import backup. Restore one here if an import needs to be undone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Before every import, Healy Health saves your current data as a dated pre-import backup. Restore one here if an import needs to be undone."
+          }
+        }
+      }
+    },
+    "Browse Library": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browse Library"
+          }
+        }
+      }
+    },
+    "Category": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        }
+      }
+    },
+    "Changing units only changes how weights are shown and entered. Your saved workout data remains unchanged.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changing units only changes how weights are shown and entered. Your saved workout data remains unchanged."
+          }
+        }
+      }
+    },
+    "Complete a workout to see your history and progress here.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Complete a workout to see your history and progress here."
+          }
+        }
+      }
+    },
+    "Complete Routine": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Complete Routine"
+          }
+        }
+      }
+    },
+    "Configuration for %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuration for %@"
+          }
+        }
+      }
+    },
+    "Custom": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom"
+          }
+        }
+      }
+    },
+    "Data Management": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data Management"
+          }
+        }
+      }
+    },
+    "Date": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date"
+          }
+        }
+      }
+    },
+    "Enter rest duration in seconds.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter rest duration in seconds."
+          }
+        }
+      }
+    },
+    "Every workout in \"%@\" is done. What would you like to do?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every workout in \"%@\" is done. What would you like to do?"
+          }
+        }
+      }
+    },
+    "Exercise Not Found": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exercise Not Found"
+          }
+        }
+      }
+    },
+    "Exercises": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exercises"
+          }
+        }
+      }
+    },
+    "Finish Exercise": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish Exercise"
+          }
+        }
+      }
+    },
+    "Finish Workout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish Workout"
+          }
+        }
+      }
+    },
+    "History": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History"
+          }
+        }
+      }
+    },
+    "Keeping progress leaves logged sets and workout completion status available when you resume. Resetting clears every logged set and completion status in this routine. Any active rest timer will stop.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keeping progress leaves logged sets and workout completion status available when you resume. Resetting clears every logged set and completion status in this routine. Any active rest timer will stop."
+          }
+        }
+      }
+    },
+    "kilograms": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "kilograms"
+          }
+        }
+      }
+    },
+    "Kilograms (kg)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kilograms (kg)"
+          }
+        }
+      }
+    },
+    "Log more sessions to see a progress chart.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log more sessions to see a progress chart."
+          }
+        }
+      }
+    },
+    "Log more sessions to see progress": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log more sessions to see progress"
+          }
+        }
+      }
+    },
+    "Log Set": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log Set"
+          }
+        }
+      }
+    },
+    "Maximum sets reached (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maximum sets reached (%@)"
+          }
+        }
+      }
+    },
+    "Most Trained: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Most Trained: %@"
+          }
+        }
+      }
+    },
+    "No %@ exercises yet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No %@ exercises yet."
+          }
+        }
+      }
+    },
+    "No Active Routine": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Active Routine"
+          }
+        }
+      }
+    },
+    "No exercises added yet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No exercises added yet."
+          }
+        }
+      }
+    },
+    "No exercises recorded.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No exercises recorded."
+          }
+        }
+      }
+    },
+    "No pre-import backups are available yet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No pre-import backups are available yet."
+          }
+        }
+      }
+    },
+    "No routines yet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No routines yet."
+          }
+        }
+      }
+    },
+    "No sets completed yet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No sets completed yet."
+          }
+        }
+      }
+    },
+    "No sets logged": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No sets logged"
+          }
+        }
+      }
+    },
+    "No workouts completed yet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No workouts completed yet."
+          }
+        }
+      }
+    },
+    "No workouts yet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No workouts yet."
+          }
+        }
+      }
+    },
+    "Not recorded": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not recorded"
+          }
+        }
+      }
+    },
+    "pounds": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "pounds"
+          }
+        }
+      }
+    },
+    "Pounds (lb)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pounds (lb)"
+          }
+        }
+      }
+    },
+    "Reps": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reps"
+          }
+        }
+      }
+    },
+    "Rest Timer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest Timer"
+          }
+        }
+      }
+    },
+    "Restore": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore"
+          }
+        }
+      }
+    },
+    "Restoring uses the same validation as Import Data and saves your current app state as a new backup first.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring uses the same validation as Import Data and saves your current app state as a new backup first."
+          }
+        }
+      }
+    },
+    "Routine": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Routine"
+          }
+        }
+      }
+    },
+    "Save Changes": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Changes"
+          }
+        }
+      }
+    },
+    "Select Exercise": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select Exercise"
+          }
+        }
+      }
+    },
+    "Session %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session %@"
+          }
+        }
+      }
+    },
+    "Set %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set %@"
+          }
+        }
+      }
+    },
+    "Skip / Back": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip / Back"
+          }
+        }
+      }
+    },
+    "Skip Rest & Start Set %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip Rest & Start Set %@"
+          }
+        }
+      }
+    },
+    "Starting Weight (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starting Weight (%@)"
+          }
+        }
+      }
+    },
+    "Swipe right on a routine in the Routines tab to start it here.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Swipe right on a routine in the Routines tab to start it here."
+          }
+        }
+      }
+    },
+    "Target Reps": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Target Reps"
+          }
+        }
+      }
+    },
+    "Target Sets": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Target Sets"
+          }
+        }
+      }
+    },
+    "Target: %@ sets × %@ reps": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Target: %1$@ sets × %2$@ reps"
+          }
+        }
+      }
+    },
+    "The app could not create or save the export file.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app could not create or save the export file."
+          }
+        }
+      }
+    },
+    "The selected backup is now active. Your previous app data was saved as a new pre-import backup.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The selected backup is now active. Your previous app data was saved as a new pre-import backup."
+          }
+        }
+      }
+    },
+    "Theme": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Theme"
+          }
+        }
+      }
+    },
+    "This permanently removes the selected exercise and any logged sets in this workout. It can’t be undone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This permanently removes the selected exercise and any logged sets in this workout. It can’t be undone."
+          }
+        }
+      }
+    },
+    "This permanently removes the selected routine and all of its workouts. It can’t be undone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This permanently removes the selected routine and all of its workouts. It can’t be undone."
+          }
+        }
+      }
+    },
+    "This permanently removes the selected workout and its planned exercises. It can’t be undone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This permanently removes the selected workout and its planned exercises. It can’t be undone."
+          }
+        }
+      }
+    },
+    "This permanently removes this workout and its analytics contribution. It can’t be undone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This permanently removes this workout and its analytics contribution. It can’t be undone."
+          }
+        }
+      }
+    },
+    "This removes the set from this workout. You can’t undo it.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This removes the set from this workout. You can’t undo it."
+          }
+        }
+      }
+    },
+    "This routine has no workouts yet.\nAdd some in the Routines tab.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This routine has no workouts yet.\nAdd some in the Routines tab."
+          }
+        }
+      }
+    },
+    "This workout will not be added to history. Keeping partial logs lets you resume or correct them later. Discarding clears its logged sets and completion status. Any active rest timer will stop.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This workout will not be added to history. Keeping partial logs lets you resume or correct them later. Discarding clears its logged sets and completion status. Any active rest timer will stop."
+          }
+        }
+      }
+    },
+    "Top set: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Top set: %@"
+          }
+        }
+      }
+    },
+    "Total Workouts Completed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total Workouts Completed"
+          }
+        }
+      }
+    },
+    "Units": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Units"
+          }
+        }
+      }
+    },
+    "Version": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version"
+          }
+        }
+      }
+    },
+    "Weight (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weight (%@)"
+          }
+        }
+      }
+    },
+    "Weight Unit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weight Unit"
+          }
+        }
+      }
+    },
+    "Workout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout"
+          }
+        }
+      }
+    },
+    "Workout Info": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout Info"
+          }
+        }
+      }
+    },
+    "Your active workout is still in progress. Keeping partial logs lets you resume or correct them later. Discarding clears its logged sets and completion status. Any active rest timer will stop.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your active workout is still in progress. Keeping partial logs lets you resume or correct them later. Discarding clears its logged sets and completion status. Any active rest timer will stop."
+          }
+        }
+      }
+    },
+    "Your app data has been fully restored.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your app data has been fully restored."
+          }
+        }
+      }
+    },
+    "Your current data will first be saved as a new pre-import backup. The selected backup will then replace the active app data.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your current data will first be saved as a new pre-import backup. The selected backup will then replace the active app data."
+          }
+        }
+      }
+    },
+    "Your data was exported as a JSON file. Save it to Files, ideally in iCloud Drive, so it is available on this Mac and can be imported on the new phone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your data was exported as a JSON file. Save it to Files, ideally in iCloud Drive, so it is available on this Mac and can be imported on the new phone."
+          }
+        }
+      }
+    },
+    "Your Stats": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your Stats"
+          }
+        }
+      }
+    }
+  }
+}
