@@ -14,6 +14,7 @@ struct ConfigureExerciseView: View {
     @State private var selectedCategory: ExerciseCategory = .weightlifting
     @State private var inputWeightUnit: WeightUnit = .pounds
     @AppStorage(WeightUnit.storageKey) private var weightUnit: WeightUnit = .pounds
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var theme: AppTheme { themeManager.current }
 
@@ -51,7 +52,13 @@ struct ConfigureExerciseView: View {
     var body: some View {
         Form {
             Section(header: Text("Category").foregroundColor(theme.onPrimaryText)) {
-                HStack(spacing: 0) {
+                LazyVGrid(
+                    columns: Array(
+                        repeating: GridItem(.flexible(), spacing: 0),
+                        count: dynamicTypeSize.isAccessibilitySize ? 1 : ExerciseCategory.allCases.count
+                    ),
+                    spacing: 0
+                ) {
                     ForEach(ExerciseCategory.allCases, id: \.self) { cat in
                         Button(action: { selectedCategory = cat }) {
                             VStack(spacing: 4) {

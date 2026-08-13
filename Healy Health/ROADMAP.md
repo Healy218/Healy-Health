@@ -1,6 +1,6 @@
 # Healy Health Roadmap
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 ## Product goal
 
@@ -164,6 +164,7 @@ In progress:
 - HH-403 completed the theme contrast audit. Theme colors are now expressed as testable opaque sRGB values, with WCAG AA targets enforced for primary/secondary text, row/status states, disabled controls, and chart lines, labels, and grids. Blue, orange, green, and pink were darkened while retaining their hue so white text remains readable.
 - HH-405 completed state and destructive-action polish: empty workout and summary screens now link directly to routines, validation and persistence errors remain specific and visible, and routine, workout, and exercise deletion now requires an explicit destructive confirmation that states what will be removed.
 - HH-406 completed localization and units preparation: user-facing SwiftUI and user-visible validation/persistence strings now have an English string catalog, and the new pounds/kilograms preference converts only display and input values. Persisted routines, history, analytics source values, and exports retain their compatible pounds-based numeric representation.
+- HH-404 now has a code baseline for compact layouts: set-entry controls can stack vertically, the four rest-timer presets use 44-point targets and reflow to a two-column grid, and category/planning actions reflow at accessibility text sizes. The required device and orientation smoke tests remain the exit gate.
 
 Exit criteria:
 

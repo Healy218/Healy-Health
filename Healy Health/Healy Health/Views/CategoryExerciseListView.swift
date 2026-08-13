@@ -11,6 +11,7 @@ struct CategoryExerciseListView: View {
     @State private var showingLibrary = false
     @State private var addExerciseErrorMessage: String?
     @State private var pendingExerciseDeletionIDs: Set<UUID> = []
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var theme: AppTheme { themeManager.current }
 
@@ -70,26 +71,11 @@ struct CategoryExerciseListView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            HStack(spacing: 12) {
-                Button(action: { showingAddCustom = true }) {
-                    Text("+ Custom")
-                        .font(AppTypography.chalkboard(16, relativeTo: .body))
-                        .foregroundColor(theme.accentColor)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(theme.rowBackground)
-                        .cornerRadius(12)
-                        .shadow(radius: 5)
-                }
-                Button(action: { showingLibrary = true }) {
-                    Text("Browse Library")
-                        .font(AppTypography.chalkboard(16, relativeTo: .body))
-                        .foregroundColor(theme.accentColor)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(theme.rowBackground)
-                        .cornerRadius(12)
-                        .shadow(radius: 5)
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(spacing: 12) { exerciseAdditionButtons }
+                } else {
+                    HStack(spacing: 12) { exerciseAdditionButtons }
                 }
             }
             .padding(.horizontal)
@@ -133,6 +119,30 @@ struct CategoryExerciseListView: View {
             Button("Cancel", role: .cancel) { pendingExerciseDeletionIDs = [] }
         } message: {
             Text("This permanently removes the selected exercise and any logged sets in this workout. It can’t be undone.")
+        }
+    }
+
+    @ViewBuilder
+    private var exerciseAdditionButtons: some View {
+        Button(action: { showingAddCustom = true }) {
+            Text("+ Custom")
+                .font(AppTypography.chalkboard(16, relativeTo: .body))
+                .foregroundColor(theme.accentColor)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(theme.rowBackground)
+                .cornerRadius(12)
+                .shadow(radius: 5)
+        }
+        Button(action: { showingLibrary = true }) {
+            Text("Browse Library")
+                .font(AppTypography.chalkboard(16, relativeTo: .body))
+                .foregroundColor(theme.accentColor)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(theme.rowBackground)
+                .cornerRadius(12)
+                .shadow(radius: 5)
         }
     }
 

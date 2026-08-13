@@ -15,7 +15,7 @@ struct TimerPresetButton: View {
         Button(action: { selectedDuration = duration }) {
             Text(label)
                 .font(.caption).fontWeight(.bold)
-                .padding(.vertical, 8).padding(.horizontal, 12)
+                .frame(minWidth: 62, minHeight: 44)
                 .background(isSelected ? theme.onPrimaryText : theme.primaryColor.opacity(0.5))
                 .foregroundColor(isSelected ? theme.accentColor : theme.onPrimaryText)
                 .cornerRadius(8)
@@ -31,6 +31,29 @@ struct TimerPresetButton: View {
         let seconds = Int(duration) % 60
         if seconds == 0 { return "\(minutes) minute\(minutes == 1 ? "" : "s")" }
         return "\(minutes) minutes \(seconds) seconds"
+    }
+}
+
+struct CustomTimerPresetButton: View {
+    @Binding var isPresented: Bool
+    let isSelected: Bool
+    @EnvironmentObject var themeManager: ThemeManager
+
+    private var theme: AppTheme { themeManager.current }
+
+    var body: some View {
+        Button(action: { isPresented = true }) {
+            Text("Custom")
+                .font(.caption).fontWeight(.bold)
+                .frame(minWidth: 62, minHeight: 44)
+                .background(isSelected ? theme.onPrimaryText : theme.primaryColor.opacity(0.5))
+                .foregroundColor(isSelected ? theme.accentColor : theme.onPrimaryText)
+                .cornerRadius(8)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.onPrimaryText, lineWidth: 1))
+        }
+        .accessibilityLabel("Custom rest timer duration")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityHint("Enter a duration in seconds.")
     }
 }
 
@@ -54,42 +77,17 @@ struct SetInputView: View {
         VStack(spacing: 20) {
             Text("Set \(setNumber)").font(.title).foregroundColor(theme.onPrimaryText)
 
-            HStack(spacing: 20) {
-                VStack {
-                    Text("Weight (\(weightUnit.symbol))").foregroundColor(theme.onPrimaryText)
-                    TextField("0", text: $weightInput)
-                        .keyboardType(.decimalPad).padding()
-                        .background(theme.onPrimaryText).foregroundColor(theme.accentColor).cornerRadius(10)
-                        .accessibilityLabel("Weight for set \(setNumber), \(weightUnit.spokenName)")
-                }
-                VStack {
-                    Text("Reps").foregroundColor(theme.onPrimaryText)
-                    TextField("0", text: $repsInput)
-                        .keyboardType(.numberPad).padding()
-                        .background(theme.onPrimaryText).foregroundColor(theme.accentColor).cornerRadius(10)
-                        .accessibilityLabel("Repetitions for set \(setNumber)")
-                }
+            ViewThatFits(in: .horizontal) {
+                setInputs(axis: .horizontal)
+                setInputs(axis: .vertical)
             }
             .padding(.horizontal)
 
             VStack(alignment: .leading, spacing: 10) {
                 Text("Auto-Start Timer Duration:").foregroundColor(theme.onPrimaryText).font(.caption)
-                HStack(spacing: 12) {
-                    TimerPresetButton(duration: 120, label: "2:00", selectedDuration: $selectedDuration)
-                    TimerPresetButton(duration: 150, label: "2:30", selectedDuration: $selectedDuration)
-                    TimerPresetButton(duration: 180, label: "3:00", selectedDuration: $selectedDuration)
-                    Button(action: { showCustomTimerAlert = true }) {
-                        Text("Custom")
-                            .font(.caption).fontWeight(.bold)
-                            .padding(.vertical, 8).padding(.horizontal, 12)
-                            .background(isCustomDuration ? theme.onPrimaryText : theme.primaryColor.opacity(0.5))
-                            .foregroundColor(isCustomDuration ? theme.accentColor : theme.onPrimaryText)
-                            .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.onPrimaryText, lineWidth: 1))
-                    }
-                    .accessibilityLabel("Custom rest timer duration")
-                    .accessibilityValue(isCustomDuration ? "Selected" : "Not selected")
-                    .accessibilityHint("Enter a duration in seconds.")
+                ViewThatFits(in: .horizontal) {
+                    timerPresetRow
+                    timerPresetGrid
                 }
             }
             .padding(.horizontal)
@@ -111,6 +109,57 @@ struct SetInputView: View {
             }
         }
         .padding(.vertical)
+    }
+
+    @ViewBuilder
+    private func setInputs(axis: Axis) -> some View {
+        if axis == .horizontal {
+            HStack(spacing: 20) {
+                setInput(label: "Weight (\(weightUnit.symbol))", text: $weightInput, keyboard: .decimalPad)
+                setInput(label: "Reps", text: $repsInput, keyboard: .numberPad)
+            }
+        } else {
+            VStack(spacing: 12) {
+                setInput(label: "Weight (\(weightUnit.symbol))", text: $weightInput, keyboard: .decimalPad)
+                setInput(label: "Reps", text: $repsInput, keyboard: .numberPad)
+            }
+        }
+    }
+
+    private func setInput(label: String, text: Binding<String>, keyboard: UIKeyboardType) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).foregroundColor(theme.onPrimaryText)
+            TextField("0", text: text)
+                .keyboardType(keyboard)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .background(theme.onPrimaryText)
+                .foregroundColor(theme.accentColor)
+                .cornerRadius(10)
+                .accessibilityLabel(label == "Reps" ? "Repetitions for set \(setNumber)" : "Weight for set \(setNumber), \(weightUnit.spokenName)")
+        }
+        .frame(minWidth: 132, maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var timerPresetRow: some View {
+        HStack(spacing: 8) {
+            TimerPresetButton(duration: 120, label: "2:00", selectedDuration: $selectedDuration)
+            TimerPresetButton(duration: 150, label: "2:30", selectedDuration: $selectedDuration)
+            TimerPresetButton(duration: 180, label: "3:00", selectedDuration: $selectedDuration)
+            CustomTimerPresetButton(isPresented: $showCustomTimerAlert, isSelected: isCustomDuration)
+        }
+    }
+
+    private var timerPresetGrid: some View {
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2),
+            spacing: 8
+        ) {
+            TimerPresetButton(duration: 120, label: "2:00", selectedDuration: $selectedDuration)
+            TimerPresetButton(duration: 150, label: "2:30", selectedDuration: $selectedDuration)
+            TimerPresetButton(duration: 180, label: "3:00", selectedDuration: $selectedDuration)
+            CustomTimerPresetButton(isPresented: $showCustomTimerAlert, isSelected: isCustomDuration)
+        }
     }
 }
 
@@ -134,13 +183,16 @@ struct RestTimerDisplayView: View {
                 .accessibilityValue(spokenTimeRemaining)
             Button(action: onSkip) {
                 Text("Skip Rest & Start Set \(nextSetNumber)")
-                    .foregroundColor(theme.accentColor).padding()
+                    .foregroundColor(theme.accentColor)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .background(theme.onPrimaryText).cornerRadius(10)
             }
             .accessibilityLabel("Skip rest and start set \(nextSetNumber)")
             .accessibilityHint("Stops the rest timer.")
             Button(action: onAddTime) {
-                Text("+30s").foregroundColor(theme.onPrimaryText).padding(8)
+                Text("+30s")
+                    .foregroundColor(theme.onPrimaryText)
+                    .frame(minWidth: 44, minHeight: 44)
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.onPrimaryText, lineWidth: 1))
             }
             .accessibilityLabel("Add 30 seconds to rest timer")

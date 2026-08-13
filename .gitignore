@@ -1,0 +1,6 @@
+# macOS Finder metadata
+.DS_Store
+
+# Per-user Xcode workspace state
+xcuserdata/
+*.xcuserstate

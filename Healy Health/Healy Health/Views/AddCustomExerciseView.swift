@@ -14,6 +14,7 @@ struct AddCustomExerciseView: View {
     @State private var targetReps: String = "8-12"
     @State private var selectedCategory: ExerciseCategory = .weightlifting
     @State private var libraryErrorMessage: String?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var theme: AppTheme { themeManager.current }
 
@@ -61,13 +62,16 @@ struct AddCustomExerciseView: View {
             ZStack {
                 theme.primaryColor.ignoresSafeArea()
 
-                VStack(spacing: 20) {
-                    categoryPicker
-                    fieldCard
-                    addButton
-                    Spacer()
+                ScrollView {
+                    VStack(spacing: 20) {
+                        categoryPicker
+                        fieldCard
+                        addButton
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
                 }
-                .padding()
+                .scrollDismissesKeyboard(.interactively)
             }
             .navigationTitle("New Exercise")
             .navigationBarTitleDisplayMode(.inline)
@@ -83,7 +87,13 @@ struct AddCustomExerciseView: View {
     }
 
     private var categoryPicker: some View {
-        HStack(spacing: 0) {
+        LazyVGrid(
+            columns: Array(
+                repeating: GridItem(.flexible(), spacing: 0),
+                count: dynamicTypeSize.isAccessibilitySize ? 1 : ExerciseCategory.allCases.count
+            ),
+            spacing: 0
+        ) {
             ForEach(ExerciseCategory.allCases, id: \.self) { cat in
                 Button(action: { selectedCategory = cat }) {
                     VStack(spacing: 4) {

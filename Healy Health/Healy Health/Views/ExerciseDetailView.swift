@@ -55,7 +55,8 @@ struct ExerciseDetailView: View {
         ZStack {
             theme.primaryColor.ignoresSafeArea()
             if let exercise = exercise {
-                VStack {
+                ScrollView {
+                    VStack {
                     Text(exercise.name).font(.title2).foregroundColor(theme.onPrimaryText).padding(.top)
                     Text("Target: \(exercise.targetSets) sets × \(exercise.targetReps) reps")
                         .font(.subheadline).foregroundColor(theme.secondaryOnPrimaryText)
@@ -107,7 +108,6 @@ struct ExerciseDetailView: View {
                             addRestTime()
                         })
                     }
-                    Spacer()
                     if exercise.logs.count >= exercise.targetSets {
                         Button(action: finishExercise) {
                             Text("Finish Exercise").font(.headline).foregroundColor(theme.successColor).padding().frame(maxWidth: .infinity).background(theme.chartSurfaceColor).cornerRadius(10)
@@ -116,7 +116,10 @@ struct ExerciseDetailView: View {
                     Button(action: { presentationMode.wrappedValue.dismiss() }) {
                         Text("Skip / Back").foregroundColor(theme.secondaryOnPrimaryText)
                     }.padding(.bottom)
+                    }
+                    .frame(maxWidth: .infinity)
                 }
+                .scrollDismissesKeyboard(.interactively)
             } else {
                 VStack {
                     Text("Exercise Not Found").foregroundColor(theme.onPrimaryText)

@@ -1,0 +1,51 @@
+name: iOS
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: Healy Health
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 16.2
+        run: sudo xcode-select --switch /Applications/Xcode_16.2.app/Contents/Developer
+
+      - name: Show toolchain and simulator runtimes
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes
+
+      - name: Build and test
+        run: |
+          xcodebuild test \
+            -project 'Healy Health.xcodeproj' \
+            -scheme 'Healy Health' \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.2' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -resultBundlePath "$RUNNER_TEMP/HealyHealth.xcresult" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: healy-health-xcresult
+          path: ${{ runner.temp }}/HealyHealth.xcresult
+          if-no-files-found: warn
+          retention-days: 14

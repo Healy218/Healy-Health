@@ -1,6 +1,6 @@
 # Healy Health TODO
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 This is the actionable backlog for `ROADMAP.md`. Work top-to-bottom within the active phase unless a user request changes the priority.
 
@@ -76,7 +76,7 @@ Priority legend:
 
 - [x] **HH-403 (P1) Audit theme contrast.** Replaced ad hoc theme colors and opacity-based text with a testable sRGB palette. Every theme now meets WCAG AA 4.5:1 for primary/secondary text and chart labels, plus 3:1 for disabled controls, chart marks, and grids. The palette test covers row, status, and disabled-button states so future color changes cannot silently regress contrast.
 
-- [ ] **HH-404 (P2) Test adaptive layouts.** Check small iPhone, iPad, landscape, keyboard presentation, and the four-button timer preset row for clipping or crowded targets.
+- [ ] **HH-404 (P2) Test adaptive layouts.** The set-entry controls now fall back to a vertical layout, timer presets fall back to a two-column grid with 44-point targets, and exercise planning/category actions reflow at accessibility sizes. Verify small iPhone, iPad, landscape, keyboard presentation, and the preset row on device before closing.
 
 - [x] **HH-405 (P2) Improve states and copy.** Empty workout and summary states now direct people to their routines, existing validation/save failures surface specific messages, and routine/workout/exercise deletions require an explicit destructive confirmation that explains the removed data.
 
@@ -84,9 +84,9 @@ Priority legend:
 
 ## Phase 5 — Release readiness
 
-- [ ] **HH-501 (P1) Add CI build/test automation** for a clean checkout and a pinned supported Xcode/iOS environment.
+- [ ] **HH-501 (P1) Add CI build/test automation** for a clean checkout and a pinned supported Xcode/iOS environment. Added `.github/workflows/ios.yml`: pull requests and pushes to `main` run the shared `Healy Health` scheme on GitHub-hosted macOS 15 with Xcode 16.2 and iPhone 16 Pro (iOS 18.2), preserve the `.xcresult` bundle, and disable code signing. Confirm the first hosted run before closing.
 
-- [ ] **HH-502 (P1) Clean repository metadata.** Add an appropriate `.gitignore` and stop tracking `.DS_Store`, `xcuserdata`, and `UserInterfaceState.xcuserstate` without touching user source changes.
+- [x] **HH-502 (P1) Clean repository metadata.** Added root `.gitignore` rules for Finder metadata and per-user Xcode workspace state, then removed the four tracked `.DS_Store`/`xcuserdata` artifacts from Git's index without deleting local copies. The paths are ignored and no machine-specific files remain tracked.
 
 - [ ] **HH-503 (P1) Run the release regression matrix.** Cover fresh install, upgrade/migration, import/export, interrupted saves, notification denied/allowed, background timer, device rotation, and supported iOS versions.
 
