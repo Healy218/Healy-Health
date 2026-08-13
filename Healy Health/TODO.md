@@ -72,7 +72,7 @@ Priority legend:
 
 - [ ] **HH-401 (P1) Audit Dynamic Type (in progress).** The app-wide Chalkboard font and every fixed-size custom text use semantic Dynamic Type scaling across core routine, workout, exercise, summary, settings, and planning views. Session actions now stack when horizontal space is insufficient, and the rest-timer readout scales with the preferred text size. Run the required accessibility-size device smoke test before marking complete.
 
-- [ ] **HH-402 (P1) Add VoiceOver semantics (in progress).** Core routine/workout rows now expose state as a single focused element; set rows, timer presets/countdown actions, chart controls/charts, theme selection, and the history delete icon have explicit labels, values, and hints. Verify VoiceOver focus order and spoken output on device before closing.
+- [ ] **HH-402 (P1) Add VoiceOver semantics (in progress).** Core routine/workout rows now expose state as a single focused element; set rows, timer presets/countdown actions, chart controls/charts, theme selection, history delete controls, category cards, planning controls, exercise-library rows, and configuration fields have explicit labels, values, and hints. Verify VoiceOver focus order and spoken output on device before closing.
 
 - [x] **HH-403 (P1) Audit theme contrast.** Replaced ad hoc theme colors and opacity-based text with a testable sRGB palette. Every theme now meets WCAG AA 4.5:1 for primary/secondary text and chart labels, plus 3:1 for disabled controls, chart marks, and grids. The palette test covers row, status, and disabled-button states so future color changes cannot silently regress contrast.
 

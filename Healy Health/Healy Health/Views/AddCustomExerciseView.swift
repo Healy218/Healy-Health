@@ -105,6 +105,10 @@ struct AddCustomExerciseView: View {
                     .padding(.vertical, 12)
                     .background(selectedCategory == cat ? theme.accentColor.opacity(0.08) : Color.clear)
                 }
+                .accessibilityLabel(cat.displayName)
+                .accessibilityValue(selectedCategory == cat ? "Selected" : "Not selected")
+                .accessibilityAddTraits(selectedCategory == cat ? .isSelected : [])
+                .accessibilityHint("Sets the exercise category to \(cat.displayName).")
             }
         }
         .background(theme.rowBackground)
@@ -164,6 +168,7 @@ struct AddCustomExerciseView: View {
                 .font(AppTypography.chalkboard(16, relativeTo: .body))
                 .foregroundColor(theme.rowText)
                 .frame(maxWidth: 160)
+                .accessibilityLabel(label)
         }
         .padding(.horizontal)
         .padding(.vertical, 14)

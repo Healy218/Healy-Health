@@ -67,6 +67,7 @@ struct EditExerciseView: View {
                             Text(category.displayName).tag(category)
                         }
                     }
+                    .accessibilityHint("Changes the exercise category.")
                     .foregroundColor(theme.rowText)
                     .listRowBackground(theme.rowBackground)
 
@@ -74,18 +75,21 @@ struct EditExerciseView: View {
                         Text("Target Sets").foregroundColor(theme.rowText)
                         Spacer()
                         TextField("e.g. 3", text: $targetSets).keyboardType(.numberPad).multilineTextAlignment(.trailing).foregroundColor(theme.rowText)
+                            .accessibilityLabel("Target sets")
                     }.listRowBackground(theme.rowBackground)
 
                     HStack {
                         Text("Target Reps").foregroundColor(theme.rowText)
                         Spacer()
                         TextField("e.g. 8-12", text: $targetReps).multilineTextAlignment(.trailing).foregroundColor(theme.rowText)
+                            .accessibilityLabel("Target repetitions")
                     }.listRowBackground(theme.rowBackground)
 
                     HStack {
                         Text("Starting Weight (\(weightUnit.symbol))").foregroundColor(theme.rowText)
                         Spacer()
                         TextField("e.g. 135.0", text: $startingWeight).keyboardType(.decimalPad).multilineTextAlignment(.trailing).foregroundColor(theme.rowText)
+                            .accessibilityLabel("Starting weight in \(weightUnit.spokenName)")
                     }.listRowBackground(theme.rowBackground)
 
                     if let validationMessage {

@@ -94,6 +94,12 @@ struct WorkoutDetailView: View {
             .padding()
             .background(theme.onPrimaryText.opacity(0.12))
             .cornerRadius(16)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(category.displayName)
+            .accessibilityValue("\(count) exercise\(count == 1 ? "" : "s")")
+            .accessibilityHint(count == 0
+                ? "Opens \(category.displayName) so you can add exercises."
+                : "Opens \(category.displayName) exercises.")
         }
         .buttonStyle(PlainButtonStyle())
     }

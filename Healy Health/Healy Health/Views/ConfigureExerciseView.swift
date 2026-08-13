@@ -70,6 +70,10 @@ struct ConfigureExerciseView: View {
                             .padding(.vertical, 10)
                         }
                         .buttonStyle(PlainButtonStyle())
+                        .accessibilityLabel(cat.displayName)
+                        .accessibilityValue(selectedCategory == cat ? "Selected" : "Not selected")
+                        .accessibilityAddTraits(selectedCategory == cat ? .isSelected : [])
+                        .accessibilityHint("Sets the exercise category to \(cat.displayName).")
                     }
                 }
                 .listRowBackground(theme.rowBackground)
@@ -82,6 +86,7 @@ struct ConfigureExerciseView: View {
                     Spacer()
                     TextField("e.g. 3", text: $targetSets)
                         .keyboardType(.numberPad).multilineTextAlignment(.trailing).foregroundColor(theme.rowText)
+                        .accessibilityLabel("Target sets")
                 }
                 .listRowBackground(theme.rowBackground)
 
@@ -90,6 +95,7 @@ struct ConfigureExerciseView: View {
                     Spacer()
                     TextField("e.g. 8-12", text: $targetReps)
                         .multilineTextAlignment(.trailing).foregroundColor(theme.rowText)
+                        .accessibilityLabel("Target repetitions")
                 }
                 .listRowBackground(theme.rowBackground)
 
@@ -98,6 +104,7 @@ struct ConfigureExerciseView: View {
                     Spacer()
                     TextField("e.g. 135.0", text: $startingWeight)
                         .keyboardType(.decimalPad).multilineTextAlignment(.trailing).foregroundColor(theme.rowText)
+                        .accessibilityLabel("Starting weight in \(weightUnit.spokenName)")
                 }
                 .listRowBackground(theme.rowBackground)
 

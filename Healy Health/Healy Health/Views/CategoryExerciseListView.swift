@@ -53,6 +53,10 @@ struct CategoryExerciseListView: View {
                                         .foregroundColor(theme.secondaryRowText)
                                 }
                                 .padding(.vertical, 4)
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel(exercise.name)
+                                .accessibilityValue("Target \(exercise.targetSets) sets of \(exercise.targetReps) reps.")
+                                .accessibilityHint("Opens the exercise configuration. Swipe up or down to delete this exercise.")
                             }
                             .listRowBackground(theme.rowBackground)
                         }
@@ -134,6 +138,8 @@ struct CategoryExerciseListView: View {
                 .cornerRadius(12)
                 .shadow(radius: 5)
         }
+        .accessibilityLabel("Add custom exercise")
+        .accessibilityHint("Creates a new reusable exercise in the \(category.displayName) category.")
         Button(action: { showingLibrary = true }) {
             Text("Browse Library")
                 .font(AppTypography.chalkboard(16, relativeTo: .body))
@@ -144,6 +150,8 @@ struct CategoryExerciseListView: View {
                 .cornerRadius(12)
                 .shadow(radius: 5)
         }
+        .accessibilityLabel("Browse exercise library")
+        .accessibilityHint("Choose an exercise to add to the \(category.displayName) category.")
     }
 
     private func appendExercise(_ exercise: Exercise) {

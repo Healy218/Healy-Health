@@ -36,11 +36,11 @@ final class WeightUnitTests: XCTestCase {
     func testChartMetricsUseTheSelectedDisplayUnit() {
         let point = ExerciseHistoryPoint(
             id: UUID(),
-            session: 1,
             date: Date(),
             totalVolume: 1_000,
             maxWeight: 100,
-            estimatedOneRepMax: 110
+            estimatedOneRepMax: 110,
+            session: 1
         )
 
         XCTAssertEqual(

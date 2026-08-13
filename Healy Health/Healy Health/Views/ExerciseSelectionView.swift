@@ -42,6 +42,10 @@ struct ExerciseSelectionView: View {
                             }
                         }
                         .padding(.vertical, 2)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(template.name)
+                        .accessibilityValue(templateAccessibilityValue(for: template))
+                        .accessibilityHint("Opens the exercise configuration.")
                     }
                     .listRowBackground(theme.rowBackground)
                 }
@@ -62,5 +66,11 @@ struct ExerciseSelectionView: View {
             }
             .searchable(text: $searchText, prompt: "Search exercises")
         }
+    }
+
+    private func templateAccessibilityValue(for template: ExerciseTemplate) -> String {
+        [template.primaryMuscleGroup, template.equipmentType]
+            .filter { !$0.isEmpty }
+            .joined(separator: ". ")
     }
 }
