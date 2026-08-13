@@ -36,7 +36,7 @@ jobs:
           xcodebuild test \
             -project 'Healy Health.xcodeproj' \
             -scheme 'Healy Health' \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.2' \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -resultBundlePath "$RUNNER_TEMP/HealyHealth.xcresult" \
             CODE_SIGNING_ALLOWED=NO
