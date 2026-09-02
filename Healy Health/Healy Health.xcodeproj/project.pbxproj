@@ -6,6 +6,16 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		A11EA1032F3405C700678EA4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6F6D15B12F3405C700678EA4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6F6D15B82F3405C700678EA4;
+			remoteInfo = "Healy Health";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		6F6D15B92F3405C700678EA4 /* Healy Health.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Healy Health.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A11EA1002F3405C700678EA4 /* Healy HealthTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Healy HealthTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -62,16 +72,6 @@
 		};
 /* End PBXGroup section */
 
-/* Begin PBXContainerItemProxy section */
-		A11EA1032F3405C700678EA4 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 6F6D15B12F3405C700678EA4 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 6F6D15B82F3405C700678EA4;
-			remoteInfo = "Healy Health";
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXNativeTarget section */
 		6F6D15B82F3405C700678EA4 /* Healy Health */ = {
 			isa = PBXNativeTarget;
@@ -118,14 +118,6 @@
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
-
-/* Begin PBXTargetDependency section */
-		A11EA1072F3405C700678EA4 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 6F6D15B82F3405C700678EA4 /* Healy Health */;
-			targetProxy = A11EA1032F3405C700678EA4 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		6F6D15B12F3405C700678EA4 /* Project object */ = {
@@ -190,6 +182,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A11EA1072F3405C700678EA4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6F6D15B82F3405C700678EA4 /* Healy Health */;
+			targetProxy = A11EA1032F3405C700678EA4 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		6F6D15C22F3405C700678EA4 /* Debug */ = {

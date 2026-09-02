@@ -62,6 +62,11 @@ struct ThemePalette {
     let chartLine: ThemeColor
     let chartAxis: ThemeColor
     let chartGrid: ThemeColor
+
+    var inputBackground: ThemeColor { rowBackground }
+    var inputText: ThemeColor { rowText }
+    var primaryActionBackground: ThemeColor { rowText }
+    var primaryActionText: ThemeColor { rowBackground }
 }
 
 // MARK: - Typography
@@ -160,6 +165,22 @@ enum AppTheme: String, CaseIterable, Codable {
     // Accent color used for buttons / interactive elements on row backgrounds
     var accentColor: Color {
         palette.accent.color
+    }
+
+    var inputBackgroundColor: Color {
+        palette.inputBackground.color
+    }
+
+    var inputTextColor: Color {
+        palette.inputText.color
+    }
+
+    var primaryActionBackgroundColor: Color {
+        palette.primaryActionBackground.color
+    }
+
+    var primaryActionTextColor: Color {
+        palette.primaryActionText.color
     }
 
     // Secondary / muted text inside rows

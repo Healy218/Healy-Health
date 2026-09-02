@@ -118,6 +118,7 @@ struct ExerciseDetailView: View {
                     }.padding(.bottom)
                     }
                     .frame(maxWidth: .infinity)
+                    .padding(.bottom, 96)
                 }
                 .scrollDismissesKeyboard(.interactively)
             } else {

@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject private var exerciseManager = ExerciseManager.shared
 
     private var persistenceError: PersistenceError? {
@@ -44,6 +45,9 @@ struct ContentView: View {
         .onAppear { AppChrome.applyGlobalAppearance(for: themeManager.current) }
         .onChange(of: themeManager.current) { newTheme in
             AppChrome.applyGlobalAppearance(for: newTheme)
+        }
+        .onChange(of: dynamicTypeSize) { _ in
+            AppChrome.applyGlobalAppearance(for: themeManager.current)
         }
         .alert(
             "Your data needs attention",

@@ -77,20 +77,6 @@ struct RoutineDetailView: View {
                         .scrollContentBackground(.hidden)
                     }
                 }
-            }
-            .navigationTitle(currentRoutine?.name ?? "Routine")
-            .toolbar {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    EditButton()
-                        .foregroundColor(theme.onPrimaryText)
-                    Button("Edit") {
-                        editRoutineName = currentRoutine?.name ?? ""
-                        showingEditRoutine = true
-                    }
-                    .foregroundColor(theme.onPrimaryText)
-                }
-            }
-            .safeAreaInset(edge: .bottom) {
                 Button(action: { showingAddWorkout = true }) {
                     Text("Add Workout")
                         .font(.headline)
@@ -103,6 +89,22 @@ struct RoutineDetailView: View {
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 10)
+            }
+            .navigationTitle(currentRoutine?.name ?? "Routine")
+            .toolbar {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    EditButton()
+                        .foregroundColor(theme.onPrimaryText)
+                    Button {
+                        editRoutineName = currentRoutine?.name ?? ""
+                        showingEditRoutine = true
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .foregroundColor(theme.onPrimaryText)
+                    .accessibilityLabel("Rename routine")
+                    .accessibilityHint("Edits the routine name.")
+                }
             }
             .alert("Edit Routine Name", isPresented: $showingEditRoutine) {
                 TextField("Routine Name", text: $editRoutineName)

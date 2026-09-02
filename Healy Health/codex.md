@@ -78,5 +78,6 @@ A code task is done only when:
 
 ## GitHub authentication
 
-- Do not treat `gh auth status` as a prerequisite for committing or pushing. This workspace may use Git credential-manager authentication that is separate from the GitHub CLI and can remain valid when the CLI token is expired.
-- For a user-requested commit/push, use the configured Git remote and report only an actual `git push` authentication failure. Use `gh` only when GitHub-specific work (such as creating or inspecting a pull request) is required.
+- Do not treat `gh auth status` as a prerequisite for committing or pushing. This workspace may use Git credential-manager authentication that is separate from the GitHub CLI and can remain valid when the CLI points at a different account.
+- For a user-requested commit/push, use the configured Git remote and report only an actual `git push` authentication failure. Prefer the connected GitHub integration for GitHub-specific work such as pull-request or Actions inspection.
+- The sandboxed shell can expose a stale `gh` identity that is not the user's active GitHub authentication. Do not diagnose, reauthenticate, or rely on that sandbox identity. For GitHub-specific reads and Actions inspection, use the connected GitHub integration. When a new user terminal session is available, use that terminal's GitHub authentication only if CLI access is truly required.

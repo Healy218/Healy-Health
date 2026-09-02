@@ -1,6 +1,6 @@
 # Healy Health Roadmap
 
-Last updated: 2026-08-12
+Last updated: 2026-09-02
 
 ## Product goal
 
@@ -59,9 +59,9 @@ Completed in this phase:
 
 - Centralized exercise domain validation across configure, edit, custom-exercise, set-logging, and import flows. It normalizes user-entered names/rep ranges, rejects impossible set/repetition counts and invalid weights, and gives inline feedback before data is saved.
 - Added active-session state normalization after routine load, migration, and imported-state application. Invalid routine IDs clear the session; invalid workout IDs return to the valid routine. Legacy migration only completes after persisted output succeeds, while unreadable legacy files remain intact and surface a migration-specific error for retry.
-- Made active-session restoration atomic so the property observers cannot erase the still-unread workout, start-time, or rest-timer fields. Added a shared scheme containing `Healy HealthTests`; all 40 unit tests pass on iPhone 17 Pro Max, iOS 26.5.
+- Made active-session restoration atomic so the property observers cannot erase the still-unread workout, start-time, or rest-timer fields. Added a shared scheme containing `Healy HealthTests`; a historical run passed all 40 unit tests.
 
-Verification note: `xcodebuild test` passed all 40 unit tests on iPhone 17 Pro Max, iOS 26.5. The iOS 26.2 simulator runtime aborts while deallocating the test host, so iOS 26.5 is the supported local test destination.
+Verification note: a historical `xcodebuild test` run passed all 40 unit tests. The sole approved local simulator destination is iPhone 17 Pro, iOS 26.5. This machine has storage for only one device/runtime, so do not create or switch to other simulator destinations for validation.
 
 Exit criteria:
 
@@ -69,7 +69,7 @@ Exit criteria:
 - [x] Deleting or importing data cannot leave dangling active IDs.
 - [x] Critical persistence and mutation paths have automated tests.
 - [x] Save/import failures reach the UI with an actionable message.
-- [x] The app passes a clean build and the Phase 1 regression checklist on the supported iOS 26.5 simulator runtime.
+- [x] The app passes a clean build and the Phase 1 regression checklist.
 
 ## Phase 2 — Complete the core workout experience
 
@@ -144,7 +144,7 @@ Exit criteria:
 
 ## Phase 4 — Accessibility and product polish
 
-Status: In progress
+Status: In progress — remaining verification is environment-blocked
 
 Outcome: The app is readable, navigable, and visually consistent across supported devices, themes, and accessibility settings.
 
@@ -159,23 +159,29 @@ Scope:
 
 In progress:
 
-- HH-401 established a Dynamic Type baseline: the app-wide custom font and all fixed-size custom text in core routine, workout, exercise, summary, settings, and planning screens now scale relative to semantic text styles. The paired workout-session actions fall back to a vertical layout when needed, and the rest-timer readout now scales with Dynamic Type. Visual accessibility-size smoke testing remains before this item can close.
+- HH-401 completed the Dynamic Type audit: the app-wide custom font and all fixed-size custom text in core routine, workout, exercise, summary, settings, and planning screens scale relative to semantic text styles. The iPhone 17 Pro/iOS 26.5 maximum-text pass covered routine navigation, set logging, timer presets, the rest countdown and +30/skip actions, and adaptive workout actions in portrait and landscape. The pass also replaced unreadable Light/Dark set-entry and timer-control color pairings with the tested row-surface contrast pair.
 - HH-402 established a VoiceOver semantics baseline: core routine, workout, exercise, history, summary, exercise-library, and category rows are grouped into concise labels and values; workout state is no longer conveyed only by icons; rest-timer and planning controls describe their state and effect; configuration fields expose their input purpose and unit; charts announce their metric and latest result; and icon-only deletion/theme controls have explicit names. Device VoiceOver verification remains before this item can close.
 - HH-403 completed the theme contrast audit. Theme colors are now expressed as testable opaque sRGB values, with WCAG AA targets enforced for primary/secondary text, row/status states, disabled controls, and chart lines, labels, and grids. Blue, orange, green, and pink were darkened while retaining their hue so white text remains readable.
 - HH-405 completed state and destructive-action polish: empty workout and summary screens now link directly to routines, validation and persistence errors remain specific and visible, and routine, workout, and exercise deletion now requires an explicit destructive confirmation that states what will be removed.
 - HH-406 completed localization and units preparation: user-facing SwiftUI and user-visible validation/persistence strings now have an English string catalog, and the new pounds/kilograms preference converts only display and input values. Persisted routines, history, analytics source values, and exports retain their compatible pounds-based numeric representation.
-- HH-404 now has a code baseline for compact layouts: set-entry controls can stack vertically, the four rest-timer presets use 44-point targets and reflow to a two-column grid, and category/planning actions reflow at accessibility text sizes. The required device and orientation smoke tests remain the exit gate.
+- HH-404 now has a code baseline for compact layouts: set-entry controls can stack vertically, the four rest-timer presets use 44-point targets and reflow to a two-column grid, and category/planning actions reflow at accessibility text sizes. On iPhone 17 Pro/iOS 26.5, keyboard-presented routine/workout alerts, exercise create/edit forms, set entry, and the custom timer dialog keep their fields and primary actions visible. Compact-iPhone and iPad checks remain unavailable under the one-device/runtime storage constraint, so the supported-device exit gate remains open.
+- The iPhone 17 Pro/iOS 26.5 maximum-text pass found a Routine Detail regression: duplicated Edit controls crowded the title and the fixed Add Workout action covered list content in landscape. The rename action is now an accessible pencil control, and Add Workout is part of the vertical layout so the list receives the remaining scrollable space. The corrected portrait and landscape layouts were visually rechecked.
+
+Validation context:
+
+- Phase 4 UI validation is established on the iPhone 17 Pro, iOS 26.5 Simulator. It is the only simulator device/runtime supported on this storage-constrained machine; run the remaining Dynamic Type, VoiceOver, and adaptive-layout smoke tests there and do not create or switch to other destinations.
+- Phase 5 work may proceed while HH-402 spoken-VoiceOver verification and HH-404 compact-iPhone/iPad coverage remain blocked. Both gaps remain release gates and are not considered complete.
 
 Exit criteria:
 
-- [ ] Core flows work at accessibility text sizes without clipping.
+- [x] Core flows work at accessibility text sizes without clipping.
 - [ ] Core flows are usable with VoiceOver.
 - [x] Theme colors meet the chosen contrast target.
 - [ ] Supported device/orientation smoke tests pass.
 
 ## Phase 5 — Release readiness and deployment
 
-Status: Planned
+Status: In progress
 
 Outcome: Produce a tested, supportable App Store/TestFlight candidate.
 
@@ -187,6 +193,11 @@ Scope:
 - Finalize version/build numbers, icons and appearance variants, launch experience, App Store metadata, privacy disclosures, and support links.
 - Decide on privacy-conscious crash reporting/diagnostics before adding any third-party service.
 - Archive, distribute to TestFlight, resolve beta findings, and prepare the App Store submission.
+
+Current CI finding:
+
+- The local workflow is pinned to **macOS 26, Xcode 26.5, and iPhone 17 Pro, iOS 26.5**. Its YAML parses, Xcode recognizes the app and test targets, and the shared scheme contains `Healy HealthTests`.
+- The connected GitHub repository's `main` branch does not contain `.github/workflows/ios.yml`, so no hosted validation exists yet. The integrated local changes must be committed and pushed with user authorization before the first Actions run can be assessed through the connected GitHub integration.
 
 Exit criteria:
 

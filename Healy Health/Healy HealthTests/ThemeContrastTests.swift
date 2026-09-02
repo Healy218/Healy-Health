@@ -35,6 +35,20 @@ final class ThemeContrastTests: XCTestCase {
                 theme: theme
             )
             assertContrast(
+                palette.inputText,
+                against: palette.inputBackground,
+                minimum: 4.5,
+                role: "set-entry input text",
+                theme: theme
+            )
+            assertContrast(
+                palette.primaryActionText,
+                against: palette.primaryActionBackground,
+                minimum: 4.5,
+                role: "set-entry action label",
+                theme: theme
+            )
+            assertContrast(
                 palette.secondaryRowText,
                 against: palette.rowBackground,
                 minimum: 4.5,

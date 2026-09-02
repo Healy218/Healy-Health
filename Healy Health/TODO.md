@@ -1,6 +1,6 @@
 # Healy Health TODO
 
-Last updated: 2026-08-12
+Last updated: 2026-09-02
 
 This is the actionable backlog for `ROADMAP.md`. Work top-to-bottom within the active phase unless a user request changes the priority.
 
@@ -12,7 +12,7 @@ Priority legend:
 
 ## Phase 1 — Data safety and crash prevention
 
-- [x] **HH-100 (P0) Add automated test targets and test seams.** Added the `Healy HealthTests` unit-test target, injected store storage/defaults dependencies, and covered temporary-directory persistence without touching live app data. The shared Xcode scheme now includes the test bundle; all 40 tests passed on the iPhone 17 Pro Max iOS 26.5 simulator. UI tests are deferred because no current critical flow requires UI-only coverage.
+- [x] **HH-100 (P0) Add automated test targets and test seams.** Added the `Healy HealthTests` unit-test target, injected store storage/defaults dependencies, and covered temporary-directory persistence without touching live app data. The shared Xcode scheme now includes the test bundle; a historical run passed all 40 tests. UI tests are deferred because no current critical flow requires UI-only coverage.
   - Acceptance: tests can create fresh stores, run mutations, verify encoded data deterministically, and execute from the shared scheme on the supported simulator runtime.
 
 - [x] **HH-101 (P0) Make deletion safe and repair active state.** Replaced offset-by-offset deletion with store-owned ID deletion. Deleting an active routine clears both IDs; deleting the active workout clears its workout ID. Regression tests cover single and multi-routine deletion and active-workout deletion.
@@ -70,13 +70,13 @@ Priority legend:
 
 ## Phase 4 — Accessibility and polish
 
-- [ ] **HH-401 (P1) Audit Dynamic Type (in progress).** The app-wide Chalkboard font and every fixed-size custom text use semantic Dynamic Type scaling across core routine, workout, exercise, summary, settings, and planning views. Session actions now stack when horizontal space is insufficient, and the rest-timer readout scales with the preferred text size. Run the required accessibility-size device smoke test before marking complete.
+- [x] **HH-401 (P1) Audit Dynamic Type.** The app-wide Chalkboard font and every fixed-size custom text use semantic Dynamic Type scaling across core routine, workout, exercise, summary, settings, and planning views. The iPhone 17 Pro/iOS 26.5 maximum-text smoke test passed routine navigation, set logging, timer-preset selection, countdown extension/skip, and adaptive workout actions in portrait and landscape. The pass also corrected unreadable Light/Dark set-entry fields and timer actions by using the tested row-surface contrast pair.
 
 - [ ] **HH-402 (P1) Add VoiceOver semantics (in progress).** Core routine/workout rows now expose state as a single focused element; set rows, timer presets/countdown actions, chart controls/charts, theme selection, history delete controls, category cards, planning controls, exercise-library rows, and configuration fields have explicit labels, values, and hints. Verify VoiceOver focus order and spoken output on device before closing.
 
 - [x] **HH-403 (P1) Audit theme contrast.** Replaced ad hoc theme colors and opacity-based text with a testable sRGB palette. Every theme now meets WCAG AA 4.5:1 for primary/secondary text and chart labels, plus 3:1 for disabled controls, chart marks, and grids. The palette test covers row, status, and disabled-button states so future color changes cannot silently regress contrast.
 
-- [ ] **HH-404 (P2) Test adaptive layouts.** The set-entry controls now fall back to a vertical layout, timer presets fall back to a two-column grid with 44-point targets, and exercise planning/category actions reflow at accessibility sizes. Verify small iPhone, iPad, landscape, keyboard presentation, and the preset row on device before closing.
+- [ ] **HH-404 (P2) Test adaptive layouts (device coverage blocked).** The set-entry controls now fall back to a vertical layout, timer presets fall back to a two-column grid with 44-point targets, and exercise planning/category actions reflow at accessibility sizes. Routine Detail now gives its Add Workout action dedicated layout space, so it no longer overlays the workout list in iPhone 17 Pro landscape at maximum text size. On iPhone 17 Pro/iOS 26.5, keyboard-presented routine/workout alerts, exercise create/edit forms, set entry, and the custom timer dialog keep their fields and actions visible. Compact-iPhone and iPad validation remain unavailable because this storage-constrained machine cannot retain additional simulator devices or runtimes.
 
 - [x] **HH-405 (P2) Improve states and copy.** Empty workout and summary states now direct people to their routines, existing validation/save failures surface specific messages, and routine/workout/exercise deletions require an explicit destructive confirmation that explains the removed data.
 
@@ -84,7 +84,7 @@ Priority legend:
 
 ## Phase 5 — Release readiness
 
-- [ ] **HH-501 (P1) Add CI build/test automation** for a clean checkout and a pinned supported Xcode/iOS environment. Added `.github/workflows/ios.yml`: pull requests and pushes to `main` run the shared `Healy Health` scheme on GitHub-hosted macOS 15 with Xcode 16.2 and iPhone 16 Pro (iOS 18.2), preserve the `.xcresult` bundle, and disable code signing. Confirm the first hosted run before closing.
+- [ ] **HH-501 (P1) Add CI build/test automation (in progress).** The local `.github/workflows/ios.yml` runs the shared `Healy Health` scheme on GitHub-hosted macOS 26 with **Xcode 26.5 and iPhone 17 Pro, iOS 26.5**, preserves the `.xcresult` bundle, and disables code signing. Its YAML parses and the shared scheme includes `Healy HealthTests`, but GitHub `main` does not contain the workflow yet. Commit and push the integrated work with user authorization, then confirm a green hosted run through the connected GitHub integration. Do not use the sandboxed `gh` identity.
 
 - [x] **HH-502 (P1) Clean repository metadata.** Added root `.gitignore` rules for Finder metadata and per-user Xcode workspace state, then removed the four tracked `.DS_Store`/`xcuserdata` artifacts from Git's index without deleting local copies. The paths are ignored and no machine-specific files remain tracked.
 
@@ -97,7 +97,10 @@ Priority legend:
 ## Current baseline notes
 
 - The project contains the `Healy Health` application target and the `Healy HealthTests` XCTest target.
-- `xcodebuild test` passed all 54 `Healy HealthTests` on 2026-08-06 using iPhone 17 Pro Max, iOS 26.5. CoreSimulatorService is currently unavailable in this environment, so tests cannot run again until that runtime service is restored.
+- A historical `xcodebuild test` run passed all 54 `Healy HealthTests` on 2026-08-06. CoreSimulatorService is currently unavailable in this environment, so command-line tests cannot run again until that service is restored.
 - Active-session reload now restores all persisted fields as a unit before saving normalized state, preventing `activeWorkoutId`, start time, and timer state from being erased during load.
+- The sole established local simulator device/runtime is **iPhone 17 Pro, iOS 26.5**. This storage-constrained machine supports only that one destination; do not create or switch to other Simulator device/runtimes for local validation.
+- GitHub work is permitted. Use the connected GitHub integration for GitHub/Actions work until the user starts a new terminal session with the correct GitHub CLI identity; never use or reauthenticate the sandbox's stale `gh` identity.
+- Phase 5 is now the active implementation phase. HH-402 and HH-404 remain open as release gates, but their remaining spoken-VoiceOver and additional-device checks are blocked by the current validation environment.
 - The git root is the parent `Fitness App` directory; this app lives in its `Healy Health` subdirectory.
 - Pre-existing tracked machine files were already dirty during the audit and were not modified by the audit.

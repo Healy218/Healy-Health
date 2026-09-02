@@ -12,7 +12,7 @@ permissions:
 jobs:
   test:
     name: Build and test
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
 
     defaults:
@@ -23,8 +23,8 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16.2
-        run: sudo xcode-select --switch /Applications/Xcode_16.2.app/Contents/Developer
+      - name: Select Xcode 26.5
+        run: sudo xcode-select --switch /Applications/Xcode_26.5.app/Contents/Developer
 
       - name: Show toolchain and simulator runtimes
         run: |
@@ -36,7 +36,7 @@ jobs:
           xcodebuild test \
             -project 'Healy Health.xcodeproj' \
             -scheme 'Healy Health' \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -resultBundlePath "$RUNNER_TEMP/HealyHealth.xcresult" \
             CODE_SIGNING_ALLOWED=NO

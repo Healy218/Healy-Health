@@ -16,8 +16,8 @@ struct TimerPresetButton: View {
             Text(label)
                 .font(.caption).fontWeight(.bold)
                 .frame(minWidth: 62, minHeight: 44)
-                .background(isSelected ? theme.onPrimaryText : theme.primaryColor.opacity(0.5))
-                .foregroundColor(isSelected ? theme.accentColor : theme.onPrimaryText)
+                .background(isSelected ? theme.primaryActionBackgroundColor : theme.primaryColor.opacity(0.5))
+                .foregroundColor(isSelected ? theme.primaryActionTextColor : theme.onPrimaryText)
                 .cornerRadius(8)
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.onPrimaryText, lineWidth: 1))
         }
@@ -46,8 +46,8 @@ struct CustomTimerPresetButton: View {
             Text("Custom")
                 .font(.caption).fontWeight(.bold)
                 .frame(minWidth: 62, minHeight: 44)
-                .background(isSelected ? theme.onPrimaryText : theme.primaryColor.opacity(0.5))
-                .foregroundColor(isSelected ? theme.accentColor : theme.onPrimaryText)
+                .background(isSelected ? theme.primaryActionBackgroundColor : theme.primaryColor.opacity(0.5))
+                .foregroundColor(isSelected ? theme.primaryActionTextColor : theme.onPrimaryText)
                 .cornerRadius(8)
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.onPrimaryText, lineWidth: 1))
         }
@@ -94,8 +94,8 @@ struct SetInputView: View {
 
             Button(action: onLogSet) {
                 Text("Log Set").font(.headline)
-                    .foregroundColor(theme.accentColor).padding().frame(maxWidth: .infinity)
-                    .background(theme.onPrimaryText).cornerRadius(10)
+                    .foregroundColor(theme.primaryActionTextColor).padding().frame(maxWidth: .infinity)
+                    .background(theme.primaryActionBackgroundColor).cornerRadius(10)
             }
             .accessibilityHint("Logs set \(setNumber) and starts the selected rest timer.")
             .padding(.horizontal)
@@ -133,8 +133,8 @@ struct SetInputView: View {
                 .keyboardType(keyboard)
                 .padding(.horizontal, 12)
                 .frame(minHeight: 44)
-                .background(theme.onPrimaryText)
-                .foregroundColor(theme.accentColor)
+                .background(theme.inputBackgroundColor)
+                .foregroundColor(theme.inputTextColor)
                 .cornerRadius(10)
                 .accessibilityLabel(label == "Reps" ? "Repetitions for set \(setNumber)" : "Weight for set \(setNumber), \(weightUnit.spokenName)")
         }
@@ -183,9 +183,9 @@ struct RestTimerDisplayView: View {
                 .accessibilityValue(spokenTimeRemaining)
             Button(action: onSkip) {
                 Text("Skip Rest & Start Set \(nextSetNumber)")
-                    .foregroundColor(theme.accentColor)
+                    .foregroundColor(theme.primaryActionTextColor)
                     .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(theme.onPrimaryText).cornerRadius(10)
+                    .background(theme.primaryActionBackgroundColor).cornerRadius(10)
             }
             .accessibilityLabel("Skip rest and start set \(nextSetNumber)")
             .accessibilityHint("Stops the rest timer.")

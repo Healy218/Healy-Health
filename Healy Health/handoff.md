@@ -1,109 +1,60 @@
 # Session Handoff
 
-Last updated: 2026-08-12
+Last updated: 2026-09-02
 
-Current roadmap phase: Phase 4 — Accessibility and product polish (in progress)
+Current roadmap phase: Phase 5 — Release readiness and deployment (in progress). Phase 4's remaining HH-402 and HH-404 verification is environment-blocked but remains part of the release gate.
 
 ## What was completed this session
 
-- Ran the current source build on the already-open **iPhone 17 Pro (iOS 26.2)** simulator and advanced the on-screen accessibility audit: live accessibility output confirms concise core routine/workout rows, category-card counts and add guidance, category selection state, exercise-library summaries, and unit-aware planning fields. Fixed `WeightUnitTests` so its `ExerciseHistoryPoint` fixture matches the current initializer order.
-- Advanced **HH-402** without closing it: exercise-category cards and selections now announce their selected state and effect; exercise-library and category rows have concise summaries; and planning/configuration fields expose clear VoiceOver labels, including the selected weight unit.
-- Advanced **HH-404** without closing it: the set-entry fields now stack when horizontal space is constrained; the four rest-timer presets have 44-point targets and switch to a two-column grid when needed; rest-timer actions meet the same target size.
-- Made exercise planning more resilient at accessibility sizes: category choices become one column, the category-list add actions stack, and the custom-exercise screen scrolls with keyboard dismissal.
-- Made the exercise-detail flow scrollable so its history, set form, timer, and completion controls stay reachable in compact or keyboard-constrained layouts.
+- Reconciled `TODO.md`, `ROADMAP.md`, and this handoff under `codex.md`, moving active implementation to Phase 5 without marking the blocked Phase 4 checks complete.
+- Began **HH-501** through the connected GitHub integration. `Healy218/Healy-Health` is accessible with push permission, but its default `main` branch does not contain `.github/workflows/ios.yml`; the newest remote commit is `edd58e63b2137ad1f8a0732951eedf1032534b2d`.
+- Validated the local CI baseline: `.github/workflows/ios.yml` parses as YAML, selects macOS 26/Xcode 26.5/iPhone 17 Pro iOS 26.5, preserves its result bundle, and the shared `Healy Health` scheme includes `Healy HealthTests`.
+- Retained the completed iPhone 17 Pro/iOS 26.5 Phase 4 checks: all 60 Xcode tests passed, maximum Dynamic Type passed core workout flows in portrait and landscape, and keyboard-presented forms kept their fields/actions visible. The Simulator's temporary settings were restored.
 
 ## Next actions
 
-1. **HH-401 (P1):** Continue the iPhone 17 Pro smoke test at a visibly enlarged accessibility text size; then exercise routine/workout lists, set logging, paired session actions, and rest timer. The simulator UI works, but this session's shell-side CoreSimulator service cannot enumerate runtimes.
-2. **HH-402 (P1):** Enable VoiceOver and verify spoken output and focus order for core routine/workout/session, rest timer, charts, history, and theme-selection flows. The live accessibility tree confirms labels/values/hints and focus grouping, but spoken VoiceOver output still needs direct verification.
-3. **HH-404 (P2):** Verify the compact fallbacks on small iPhone, iPad, landscape, and with the keyboard shown. The current iPhone 17 Pro build confirms the planning/category controls; check the timer presets and remaining form controls in the other sizes/orientations.
-4. **HH-501 (P1):** Reauthenticate the local GitHub CLI with `gh auth login -h github.com`, then push `../.github/workflows/ios.yml`, open a PR, and confirm its first hosted run; it uses macOS 15, Xcode 16.2, and iPhone 16 Pro (iOS 18.2).
-5. **HH-503 (P1):** Once a simulator/device is available, run the release regression matrix, including the Phase 4 Dynamic Type, VoiceOver, and adaptive-layout checks.
+1. **HH-501 (P1):** With explicit user authorization, commit and push the integrated work so `.github/workflows/ios.yml` reaches GitHub; inspect the resulting Actions run through the connected GitHub integration and fix any hosted-only failure before closing CI.
+2. **HH-503 (P1):** Build the release regression checklist and execute every scenario supported by the current iPhone 17 Pro/iOS 26.5 environment. Record upgrade, separate-install/device, and supported-version scenarios that require another environment.
+3. **HH-504 (P1):** Audit marketing/build versions, app-icon variants, signing/archive configuration, and the missing App Store copy, screenshot, support, and privacy deliverables.
+4. **HH-402 / HH-404 (P1/P2):** Complete spoken VoiceOver focus/output and compact-iPhone/iPad validation when an environment exposing those capabilities becomes available.
+5. **HH-505 (P2):** Document a privacy-conscious diagnostics decision; do not add a third-party SDK without explicit approval.
 
 ## Verification
 
-Passed on 2026-08-12:
+Passed on 2026-09-02:
 
 ```sh
-xcrun swiftc -typecheck -module-cache-path /private/tmp/healy-hh404-swift-module-cache -target arm64-apple-ios16.0-simulator -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk 'Healy Health'/**/*.swift
-xcrun xcstringstool compile 'Healy Health/Localizable.xcstrings' --output-directory /private/tmp/healy-hh404-localizations --language en
+ruby -e "require 'yaml'; YAML.load_file('../.github/workflows/ios.yml'); puts 'YAML parsed'"
+xcodebuild -version
+xcodebuild -list -project 'Healy Health.xcodeproj'
+rg -n "Healy HealthTests|BuildableName|BlueprintName" 'Healy Health.xcodeproj/xcshareddata/xcschemes/Healy Health.xcscheme'
 git diff --check
 ```
 
-- Full app Swift typecheck passed.
-- The English string catalog compiled successfully.
-- Whitespace/error-marker check passed.
-
-Also passed after the HH-402 planning-flow update:
-
-```sh
-xcrun swiftc -typecheck -module-cache-path /private/tmp/healy-hh402-swift-module-cache -target arm64-apple-ios16.0-simulator -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk 'Healy Health'/**/*.swift
-xcrun xcstringstool compile 'Healy Health/Localizable.xcstrings' --output-directory /private/tmp/healy-hh402-localizations --language en
-git diff --check
-```
-
-Also passed after the simulator audit/test-fixture update:
-
-```sh
-xcrun swiftc -typecheck -module-cache-path /private/tmp/healy-final-swift-module-cache -target arm64-apple-ios16.0-simulator -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk 'Healy Health'/**/*.swift
-xcrun xcstringstool compile 'Healy Health/Localizable.xcstrings' --output-directory /private/tmp/healy-final-localizations --language en
-git diff --check
-```
-
-- Xcode ran the current app source successfully on the open iPhone 17 Pro (iOS 26.2) simulator.
-- A current Xcode test attempt first found and then cleared the stale `WeightUnitTests` initializer error. The subsequent test host aborted at `RoutineStoreTests.testAbandonRoutineDiscardingProgressClearsEveryWorkoutAndRestTimer`; iOS 26.2 is the previously documented runtime that aborts while deallocating the test host, so this does not replace the prior supported iOS 26.5 passing test result.
-
-Could not run on 2026-08-12:
-
-```sh
-xcrun simctl list devices available
-```
-
-- CoreSimulatorService still refuses connections and reports no available iOS runtimes. This blocks XCTest and all required device accessibility/layout verification.
+- YAML parsing passed.
+- Local Xcode is 26.6; project listing found the `Healy Health` and `Healy HealthTests` targets and the shared `Healy Health` scheme despite the known shell-side CoreSimulator warnings.
+- The shared scheme contains the test bundle in its build and test actions.
+- The connected GitHub integration confirmed repository access and confirmed `.github/workflows/ios.yml` returns `404 Not Found` on the current default branch.
+- Earlier this session, all 60 Xcode tests, full Swift typechecking, English string-catalog compilation, Dynamic Type UI smoke testing, and available adaptive-layout checks passed on iPhone 17 Pro/iOS 26.5.
 
 ## Known blockers or risks
 
-- The shell-side CoreSimulatorService is unavailable, blocking `simctl`, command-line XCTest, and install automation; the already-open Simulator UI can still run and inspect the app.
-- The Simulator UI can run and inspect the app despite the shell-side CoreSimulator service failure, but the iOS 26.2 test host still aborts during the suite; use the supported iOS 26.5 runtime for a conclusive XCTest result.
-- GitHub CLI authentication for `Healy218` has expired, blocking the HH-501 push/PR/hosted-run confirmation until `gh auth login` is completed.
-- Confirm the new scrolling behavior remains natural with the exercise-history list on a device.
-- Confirm the darker orange and pink themes visually on a simulator/device.
-- Confirm grouped chart/history rows have natural VoiceOver phrasing and focus order.
+- HH-501 cannot produce a hosted run until the local integrated work and workflow are committed and pushed; no commit or push has been authorized in this session.
+- Shell-side CoreSimulator services still cannot enumerate runtimes, blocking command-line XCTest and install automation. Xcode's live Simulator path remains usable.
+- HH-402 spoken VoiceOver output/focus remains unverified because this iOS 26.5 Settings build exposes no VoiceOver toggle.
+- HH-404 compact-iPhone and iPad coverage remains unavailable under the one-device/runtime storage constraint.
+- HH-504 will require user-owned App Store copy, support/privacy URLs, signing credentials, and final release-version decisions.
 
 ## Important decisions and context
 
-- Contrast targets: 4.5:1 for normal text/chart labels; 3:1 for disabled controls, chart marks, and grid lines.
-- Weight values are canonically pounds for backward-compatible routines, history, imports, and exports. The user preference performs display/input conversion only.
-- Dynamic Type retains the Chalkboard visual language by scaling custom fonts relative to semantic text styles.
-- Import schemas 0, 1, and 2 remain supported; schema 2 supplies durable exercise tracking IDs.
-- The adaptive-layout changes deliberately keep existing layouts at standard text sizes and use vertical/grid fallbacks only where horizontal space or accessibility text requires them.
+- Phase 5 is active because the remaining Phase 4 work is environment-blocked; HH-402 and HH-404 remain open release gates.
+- The sole approved local Simulator destination is iPhone 17 Pro, iOS 26.5. Do not create, replace, or switch to additional local devices/runtimes.
+- Use the connected GitHub integration for repository and Actions inspection. Do not inspect, diagnose, or reauthenticate the sandbox's stale `gh` identity.
+- Persisted weights remain canonically stored in pounds; import schemas 0, 1, and 2 remain supported.
+- Two 135 lb x 8 verification sets remain logged in Push Pull Legs -> Push Day -> Barbell Bench Press; notifications remain enabled from the timer-path test.
 
 ## Working-tree notes
 
-This session added uncommitted adaptive-layout changes under:
-
-- `Healy Health/Views/ExerciseSubviews.swift`
-- `Healy Health/Views/ExerciseDetailView.swift`
-- `Healy Health/Views/CategoryExerciseListView.swift`
-- `Healy Health/Views/ConfigureExerciseView.swift`
-- `Healy Health/Views/AddCustomExerciseView.swift`
-- `ROADMAP.md`, `TODO.md`, and `handoff.md`
-
-This session also added uncommitted VoiceOver semantics under:
-
-- `Healy Health/Views/CategoryExerciseListView.swift`
-- `Healy Health/Views/ExerciseSelectionView.swift`
-- `Healy Health/Views/AddCustomExerciseView.swift`
-- `Healy Health/Views/ConfigureExerciseView.swift`
-- `Healy Health/Views/EditExerciseView.swift`
-- `Healy Health/Views/WorkoutDetailView.swift`
-- `Healy HealthTests/WeightUnitTests.swift`
-
-Prior-session app/document changes are still uncommitted, including `Healy Health/Localizable.xcstrings`, the remaining Phase 4 view/model/helper/test work, and the repository/CI files under the parent directory.
-
-Pre-existing machine/user changes to preserve and exclude:
-
-- `../.DS_Store`, `../AGimports/.DS_Store`, `.DS_Store`, and `../HealyHealth/.DS_Store`
-- `../AGimports/HealyHealth_Export_2026-08-03_210413`
-- `Healy Health.xcodeproj/project.pbxproj`
-- `Healy Health.xcodeproj/project.xcworkspace/xcuserdata/healy218macbook.xcuserdatad/UserInterfaceState.xcuserstate`
+- This continuation changed only `TODO.md`, `ROADMAP.md`, and `handoff.md`; `codex.md` remains the durable session protocol and required no process change.
+- Preserve all existing uncommitted changes: `../.github/workflows/ios.yml`, `Healy Health.xcodeproj/project.pbxproj`, `Healy Health/ContentView.swift`, `Healy Health/Helpers/AppChrome.swift`, `Healy Health/Helpers/AppTheme.swift`, `Healy Health/Localizable.xcstrings`, `Healy Health/Views/ExerciseDetailView.swift`, `Healy Health/Views/ExerciseSubviews.swift`, `Healy Health/Views/RoutineDetailView.swift`, `Healy HealthTests/ThemeContrastTests.swift`, `ROADMAP.md`, `TODO.md`, `codex.md`, and `handoff.md`.
+- Preserve the untracked `../AGimports/HealyHealth_Export_2026-08-03_210413` artifact.
