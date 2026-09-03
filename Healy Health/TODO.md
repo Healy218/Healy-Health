@@ -1,6 +1,6 @@
 # Healy Health TODO
 
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 
 This is the actionable backlog for `ROADMAP.md`. Work top-to-bottom within the active phase unless a user request changes the priority.
 
@@ -84,11 +84,11 @@ Priority legend:
 
 ## Phase 5 — Release readiness
 
-- [ ] **HH-501 (P1) Add CI build/test automation (in progress).** The pushed `agent/data-safety-tests-and-deletion` branch contains `.github/workflows/ios.yml`, which runs the shared `Healy Health` scheme on GitHub-hosted macOS 26 with **Xcode 26.5 and iPhone 17 Pro, iOS 26.5**, preserves the `.xcresult` bundle, and disables code signing. Its YAML parses and the shared scheme includes `Healy HealthTests`. The workflow triggers on pull requests and pushes to `main`; no pull request exists yet, so no hosted run has started. With user authorization, open the PR and confirm a green run through the connected GitHub integration. Do not use the sandboxed `gh` identity.
+- [x] **HH-501 (P1) Add CI build/test automation.** Draft PR #1 runs `.github/workflows/ios.yml` from a clean checkout on GitHub-hosted macOS 26 with **Xcode 26.5 and iPhone 17 Pro, iOS 26.5**, preserves the `.xcresult` bundle, and disables code signing. Run `33813238544` completed successfully, including checkout, toolchain/runtime inspection, build/test, and artifact upload.
 
 - [x] **HH-502 (P1) Clean repository metadata.** Added root `.gitignore` rules for Finder metadata and per-user Xcode workspace state, then removed the four tracked `.DS_Store`/`xcuserdata` artifacts from Git's index without deleting local copies. The paths are ignored and no machine-specific files remain tracked.
 
-- [ ] **HH-503 (P1) Run the release regression matrix.** Cover fresh install, upgrade/migration, import/export, interrupted saves, notification denied/allowed, background timer, device rotation, and supported iOS versions.
+- [ ] **HH-503 (P1) Run the release regression matrix (in progress).** `RELEASE_REGRESSION.md` maps every required scenario to automated and device evidence. Added explicit fresh-install bootstrap and notification-denied regression tests. Existing tests cover migration, import/export, failed saves, and timer restoration; the available iPhone 17 Pro/iOS 26.5 rotation/maximum-text pass is recorded. Candidate lifecycle checks, prior-build upgrade, separate-install restore, minimum-iOS/compact-iPhone/iPad, and spoken VoiceOver checks remain open or environment-blocked.
 
 - [ ] **HH-504 (P1) Finalize shipping metadata.** Set marketing/build versions, verify icon light/dark/tinted variants, prepare screenshots/copy/support and privacy links, and validate signing/archive settings.
 

@@ -62,6 +62,28 @@ final class RoutineStoreTests: XCTestCase {
         XCTAssertEqual(reloadedStore.routines.map(\.id), [routine.id])
     }
 
+    func testFreshInstallCreatesAndPersistsTheDefaultRoutine() throws {
+        let store = RoutineStore(
+            documentsDirectory: storageDirectory,
+            userDefaults: defaults,
+            initialLoadBehavior: .normal,
+            exerciseTemplatesProvider: { [] },
+            cancelTimerNotification: { _ in },
+            cancelPendingTimerNotifications: { _ in }
+        )
+
+        XCTAssertEqual(store.routines.map(\.name), ["Push Pull Legs"])
+        XCTAssertEqual(store.routines.first?.workouts.count, 3)
+        XCTAssertTrue(defaults.bool(forKey: "hasMigratedToRoutines"))
+
+        let data = try Data(contentsOf: storageDirectory.appendingPathComponent("routines.json"))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let savedRoutines = try decoder.decode([Routine].self, from: data)
+        XCTAssertEqual(savedRoutines.map(\.name), ["Push Pull Legs"])
+        XCTAssertEqual(savedRoutines.first?.workouts.count, 3)
+    }
+
     func testLoadMigratesAndPersistsLegacyExerciseTrackingIDs() throws {
         let template = ExerciseTemplate(
             name: "Bench Press",
@@ -1095,6 +1117,32 @@ final class RoutineStoreTests: XCTestCase {
         }
 
         wait(for: [completed], timeout: 1)
+    }
+
+    func testRestTimerSchedulingReportsDeniedPermissionWithoutAddingNotification() {
+        var requestedAuthorization = false
+        var addedRequest = false
+        let completed = expectation(description: "timer permission denied")
+        let manager = NotificationManager(
+            authorizationStatusProvider: { completion in completion(.denied) },
+            authorizationRequester: { _ in requestedAuthorization = true },
+            requestAdder: { _, completion in
+                addedRequest = true
+                completion(nil)
+            },
+            timerCanceler: { _ in }
+        )
+
+        manager.scheduleTimer(seconds: 120) { result in
+            guard case .failure(.permissionDenied) = result else {
+                return XCTFail("Expected denied notification permission")
+            }
+            completed.fulfill()
+        }
+
+        wait(for: [completed], timeout: 1)
+        XCTAssertFalse(requestedAuthorization)
+        XCTAssertFalse(addedRequest)
     }
 
     func testCancellingTimerPreventsAnInFlightAuthorizationFromSchedulingIt() {

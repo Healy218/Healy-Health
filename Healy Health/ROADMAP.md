@@ -1,6 +1,6 @@
 # Healy Health Roadmap
 
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 
 ## Product goal
 
@@ -197,11 +197,12 @@ Scope:
 Current CI finding:
 
 - The local workflow is pinned to **macOS 26, Xcode 26.5, and iPhone 17 Pro, iOS 26.5**. Its YAML parses, Xcode recognizes the app and test targets, and the shared scheme contains `Healy HealthTests`.
-- Commit `b2eb6f7` pushed the integrated work and workflow to `agent/data-safety-tests-and-deletion`. The connected GitHub integration confirms the workflow file is present on that branch, but no pull request exists and the workflow only triggers for pull requests or pushes to `main`; therefore no hosted run has started. Opening a pull request requires user authorization and is the next HH-501 action.
+- Draft PR #1 targets `main` from `agent/data-safety-tests-and-deletion`. GitHub Actions run `33813238544` completed successfully for commit `39cf60e`; checkout, Xcode/runtime selection, build/test, and `.xcresult` upload all passed. HH-501 is complete.
+- `RELEASE_REGRESSION.md` is now the candidate checklist and evidence record for HH-503. Automated coverage includes fresh install, migration, import/export, failed saves, notification authorization outcomes, and timer restoration. Prior-build upgrade, separate-install restore, minimum-iOS/device coverage, candidate lifecycle checks, and spoken VoiceOver verification remain release gates.
 
 Exit criteria:
 
-- [ ] CI is green from a clean checkout.
+- [x] CI is green from a clean checkout.
 - [ ] No open P0 or P1 defects remain.
 - [ ] Exported data has been restored successfully on a separate install/device.
 - [ ] TestFlight regression sign-off is complete.
