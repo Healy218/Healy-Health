@@ -7,13 +7,14 @@ Current roadmap phase: Phase 5 — Release readiness and deployment (in progress
 ## What was completed this session
 
 - Reconciled `TODO.md`, `ROADMAP.md`, and this handoff under `codex.md`, moving active implementation to Phase 5 without marking the blocked Phase 4 checks complete.
-- Began **HH-501** through the connected GitHub integration. `Healy218/Healy-Health` is accessible with push permission, but its default `main` branch does not contain `.github/workflows/ios.yml`; the newest remote commit is `edd58e63b2137ad1f8a0732951eedf1032534b2d`.
+- Advanced **HH-501** through the connected GitHub integration. Commit `b2eb6f7` (`Prepare Healy Health for release validation`) contains the 14 tracked app, test, workflow, and documentation changes and was pushed to `agent/data-safety-tests-and-deletion`; the untracked workout export was excluded.
+- Confirmed the pushed branch contains `.github/workflows/ios.yml`. No pull request exists for the branch and the workflow triggers only on pull requests or pushes to `main`, so the branch push correctly produced no Actions run.
 - Validated the local CI baseline: `.github/workflows/ios.yml` parses as YAML, selects macOS 26/Xcode 26.5/iPhone 17 Pro iOS 26.5, preserves its result bundle, and the shared `Healy Health` scheme includes `Healy HealthTests`.
 - Retained the completed iPhone 17 Pro/iOS 26.5 Phase 4 checks: all 60 Xcode tests passed, maximum Dynamic Type passed core workout flows in portrait and landscape, and keyboard-presented forms kept their fields/actions visible. The Simulator's temporary settings were restored.
 
 ## Next actions
 
-1. **HH-501 (P1):** With explicit user authorization, commit and push the integrated work so `.github/workflows/ios.yml` reaches GitHub; inspect the resulting Actions run through the connected GitHub integration and fix any hosted-only failure before closing CI.
+1. **HH-501 (P1):** With explicit user authorization, open a pull request from `agent/data-safety-tests-and-deletion` to `main`; inspect the resulting Actions run through the connected GitHub integration and fix any hosted-only failure before closing CI.
 2. **HH-503 (P1):** Build the release regression checklist and execute every scenario supported by the current iPhone 17 Pro/iOS 26.5 environment. Record upgrade, separate-install/device, and supported-version scenarios that require another environment.
 3. **HH-504 (P1):** Audit marketing/build versions, app-icon variants, signing/archive configuration, and the missing App Store copy, screenshot, support, and privacy deliverables.
 4. **HH-402 / HH-404 (P1/P2):** Complete spoken VoiceOver focus/output and compact-iPhone/iPad validation when an environment exposing those capabilities becomes available.
@@ -28,18 +29,19 @@ ruby -e "require 'yaml'; YAML.load_file('../.github/workflows/ios.yml'); puts 'Y
 xcodebuild -version
 xcodebuild -list -project 'Healy Health.xcodeproj'
 rg -n "Healy HealthTests|BuildableName|BlueprintName" 'Healy Health.xcodeproj/xcshareddata/xcschemes/Healy Health.xcscheme'
+git push origin agent/data-safety-tests-and-deletion
 git diff --check
 ```
 
 - YAML parsing passed.
 - Local Xcode is 26.6; project listing found the `Healy Health` and `Healy HealthTests` targets and the shared `Healy Health` scheme despite the known shell-side CoreSimulator warnings.
 - The shared scheme contains the test bundle in its build and test actions.
-- The connected GitHub integration confirmed repository access and confirmed `.github/workflows/ios.yml` returns `404 Not Found` on the current default branch.
+- The push advanced `agent/data-safety-tests-and-deletion` from `08c52e9` to `b2eb6f7`. The connected GitHub integration confirmed the workflow is present at SHA `6cd4ebbd97317ee457fc7fe80a6b7bdeb92e9ec2` on that branch, and confirmed there is no PR or workflow run for commit `b2eb6f7`.
 - Earlier this session, all 60 Xcode tests, full Swift typechecking, English string-catalog compilation, Dynamic Type UI smoke testing, and available adaptive-layout checks passed on iPhone 17 Pro/iOS 26.5.
 
 ## Known blockers or risks
 
-- HH-501 cannot produce a hosted run until the local integrated work and workflow are committed and pushed; no commit or push has been authorized in this session.
+- HH-501 cannot produce a hosted run until a pull request is opened or the branch reaches `main`. Creating a PR is an external repository change and has not yet been authorized.
 - Shell-side CoreSimulator services still cannot enumerate runtimes, blocking command-line XCTest and install automation. Xcode's live Simulator path remains usable.
 - HH-402 spoken VoiceOver output/focus remains unverified because this iOS 26.5 Settings build exposes no VoiceOver toggle.
 - HH-404 compact-iPhone and iPad coverage remains unavailable under the one-device/runtime storage constraint.
@@ -55,6 +57,5 @@ git diff --check
 
 ## Working-tree notes
 
-- This continuation changed only `TODO.md`, `ROADMAP.md`, and `handoff.md`; `codex.md` remains the durable session protocol and required no process change.
-- Preserve all existing uncommitted changes: `../.github/workflows/ios.yml`, `Healy Health.xcodeproj/project.pbxproj`, `Healy Health/ContentView.swift`, `Healy Health/Helpers/AppChrome.swift`, `Healy Health/Helpers/AppTheme.swift`, `Healy Health/Localizable.xcstrings`, `Healy Health/Views/ExerciseDetailView.swift`, `Healy Health/Views/ExerciseSubviews.swift`, `Healy Health/Views/RoutineDetailView.swift`, `Healy HealthTests/ThemeContrastTests.swift`, `ROADMAP.md`, `TODO.md`, `codex.md`, and `handoff.md`.
+- This session's integrated app/test/workflow/documentation changes are committed and pushed on `agent/data-safety-tests-and-deletion`; the final tracking reconciliation is included in a follow-up commit on the same branch. `codex.md` remains the durable session protocol.
 - Preserve the untracked `../AGimports/HealyHealth_Export_2026-08-03_210413` artifact.

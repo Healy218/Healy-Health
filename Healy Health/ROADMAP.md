@@ -197,7 +197,7 @@ Scope:
 Current CI finding:
 
 - The local workflow is pinned to **macOS 26, Xcode 26.5, and iPhone 17 Pro, iOS 26.5**. Its YAML parses, Xcode recognizes the app and test targets, and the shared scheme contains `Healy HealthTests`.
-- The connected GitHub repository's `main` branch does not contain `.github/workflows/ios.yml`, so no hosted validation exists yet. The integrated local changes must be committed and pushed with user authorization before the first Actions run can be assessed through the connected GitHub integration.
+- Commit `b2eb6f7` pushed the integrated work and workflow to `agent/data-safety-tests-and-deletion`. The connected GitHub integration confirms the workflow file is present on that branch, but no pull request exists and the workflow only triggers for pull requests or pushes to `main`; therefore no hosted run has started. Opening a pull request requires user authorization and is the next HH-501 action.
 
 Exit criteria:
 

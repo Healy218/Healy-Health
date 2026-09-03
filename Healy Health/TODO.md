@@ -84,7 +84,7 @@ Priority legend:
 
 ## Phase 5 — Release readiness
 
-- [ ] **HH-501 (P1) Add CI build/test automation (in progress).** The local `.github/workflows/ios.yml` runs the shared `Healy Health` scheme on GitHub-hosted macOS 26 with **Xcode 26.5 and iPhone 17 Pro, iOS 26.5**, preserves the `.xcresult` bundle, and disables code signing. Its YAML parses and the shared scheme includes `Healy HealthTests`, but GitHub `main` does not contain the workflow yet. Commit and push the integrated work with user authorization, then confirm a green hosted run through the connected GitHub integration. Do not use the sandboxed `gh` identity.
+- [ ] **HH-501 (P1) Add CI build/test automation (in progress).** The pushed `agent/data-safety-tests-and-deletion` branch contains `.github/workflows/ios.yml`, which runs the shared `Healy Health` scheme on GitHub-hosted macOS 26 with **Xcode 26.5 and iPhone 17 Pro, iOS 26.5**, preserves the `.xcresult` bundle, and disables code signing. Its YAML parses and the shared scheme includes `Healy HealthTests`. The workflow triggers on pull requests and pushes to `main`; no pull request exists yet, so no hosted run has started. With user authorization, open the PR and confirm a green run through the connected GitHub integration. Do not use the sandboxed `gh` identity.
 
 - [x] **HH-502 (P1) Clean repository metadata.** Added root `.gitignore` rules for Finder metadata and per-user Xcode workspace state, then removed the four tracked `.DS_Store`/`xcuserdata` artifacts from Git's index without deleting local copies. The paths are ignored and no machine-specific files remain tracked.
 
