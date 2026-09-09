@@ -1,6 +1,6 @@
 # Healy Health Roadmap
 
-Last updated: 2026-09-03
+Last updated: 2026-09-09
 
 ## Product goal
 
@@ -198,7 +198,8 @@ Current CI finding:
 
 - The local workflow is pinned to **macOS 26, Xcode 26.5, and iPhone 17 Pro, iOS 26.5**. Its YAML parses, Xcode recognizes the app and test targets, and the shared scheme contains `Healy HealthTests`.
 - Draft PR #1 targets `main` from `agent/data-safety-tests-and-deletion`. GitHub Actions run `33813238544` completed successfully for commit `39cf60e`; checkout, Xcode/runtime selection, build/test, and `.xcresult` upload all passed. HH-501 is complete.
-- `RELEASE_REGRESSION.md` is now the candidate checklist and evidence record for HH-503. Automated coverage includes fresh install, migration, import/export, failed saves, notification authorization outcomes, and timer restoration. Prior-build upgrade, separate-install restore, minimum-iOS/device coverage, candidate lifecycle checks, and spoken VoiceOver verification remain release gates.
+- `RELEASE_REGRESSION.md` is now the candidate checklist and evidence record for HH-503. Automated coverage includes fresh install, migration, import/export, failed saves, notification authorization outcomes, and timer restoration; all 62 tests passed in hosted run `33815905256`. Prior-build upgrade, separate-install restore, minimum-iOS/device coverage, candidate lifecycle checks, and spoken VoiceOver verification remain release gates.
+- `SHIPPING_READINESS.md` records the HH-504 audit. The app now has a privacy manifest for its first-party UserDefaults and app-container file-timestamp access. Version/build approval, custom dark/tinted icon artwork, App Store copy/screenshots/categories, public support/privacy URLs, final privacy answers, and signed archive validation remain owner/environment gates.
 
 Exit criteria:
 

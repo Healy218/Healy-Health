@@ -1,6 +1,6 @@
 # Release Regression Matrix
 
-Last updated: 2026-09-03
+Last updated: 2026-09-09
 
 Use this matrix for every TestFlight or App Store candidate. A row is complete only when its automated checks pass and any listed device check has been performed on the candidate build.
 
@@ -14,7 +14,7 @@ Status meanings:
 
 | Area | Automated evidence | Device evidence | Status / remaining gate |
 | --- | --- | --- | --- |
-| Clean checkout, build, and tests | GitHub Actions `iOS` workflow; shared scheme includes the app and unit-test bundle | None required | Passed on run `33813238544`; rerun after regression-test additions |
+| Clean checkout, build, and tests | GitHub Actions `iOS` workflow; shared scheme includes the app and unit-test bundle | None required | Passed all 62 tests on run `33815905256` |
 | Fresh install | `testFreshInstallCreatesAndPersistsTheDefaultRoutine` verifies first-launch bootstrap, migration marker, and persisted defaults | Delete/install the candidate, launch it, and confirm the default Push Pull Legs routine is usable | Partial — candidate install check pending |
 | Upgrade and migration | Legacy routine/history identity migration, schema 0/1/2 decoding, corrupt-legacy retry, and active-ID repair tests | Install a prior public/beta build with representative data, upgrade in place, and verify routines, history, active state, and units | Blocked — prior-build upgrade environment unavailable |
 | Import/export and recovery | Current export round trip, legacy export decoding, graph validation, deterministic ordering, backup discovery, and failed-write preservation tests | Export from one install, import into a separate clean install/device, then restore a pre-import backup | Blocked — separate install/device unavailable |
@@ -47,5 +47,5 @@ Record the build number, device, OS, and result for each run.
 
 | Build | Date | Environment | Result | Notes |
 | --- | --- | --- | --- | --- |
-| Branch `39cf60e` | 2026-09-03 | GitHub-hosted macOS 26, Xcode 26.5, iPhone 17 Pro/iOS 26.5 | Passed | Workflow run `33813238544`; 60 tests before the two HH-503 regression additions |
+| Branch `3df13e9` | 2026-09-03 | GitHub-hosted macOS 26, Xcode 26.5, iPhone 17 Pro/iOS 26.5 | Passed | Workflow run `33815905256`; all 62 tests and result-bundle upload passed |
 | Local working tree | 2026-09-03 | Shell-side Xcode 26.6 | Blocked | CoreSimulatorService could not enumerate the established iPhone 17 Pro/iOS 26.5 destination |
