@@ -2,7 +2,7 @@
 
 Last updated: 2026-09-16
 
-This is a review-ready English (U.S.) draft for the 1.0 listing. Bracketed fields require the account owner's final legal or public URL information.
+This is the selected English (U.S.) release-candidate copy for the 1.0 listing. Bracketed fields require the account owner's final legal or public URL information.
 
 ## App information
 

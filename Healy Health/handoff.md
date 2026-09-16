@@ -26,12 +26,10 @@ Current roadmap phase: Phase 5 — Release readiness and deployment (in progress
 
 ## Remaining owner/environment gates
 
-1. Confirm marketing version `1.0` and select the upload build number.
-2. Decide whether to supply dedicated dark/tinted icon artwork.
-3. Provide final app name/subtitle, description, keywords, categories, copyright, age-rating answers, review contact/notes, screenshots, support URL, and privacy-policy URL.
-4. Install/select a valid Apple Distribution certificate and provisioning profile. `security find-identity -v -p codesigning` currently reports **0 valid identities**, so signed Organizer validation and upload cannot proceed.
-5. Complete minimum-iOS, compact-iPhone, and iPad checks in an environment with those approved destinations. Do not create or switch local devices/runtimes on this storage-constrained machine.
-6. Verify the latest pushed commit's GitHub Actions result. Unauthenticated web/Chrome access returns GitHub's not-found page for the private repository, and no connected GitHub tool is exposed in this session.
+1. Provide the legal seller/copyright and review-contact details, public support and privacy-policy URLs, final App Store privacy/age-rating answers, and required iPhone/iPad screenshots. The 1.0 build 1 value, primary-icon fallback, name/subtitle, copy, and categories are selected in the shipping documents.
+2. Install/select a valid Apple Distribution certificate and provisioning profile. `security find-identity -v -p codesigning` currently reports **0 valid identities**, so signed Organizer validation and upload cannot proceed.
+3. Complete minimum-iOS, compact-iPhone, and iPad checks in an environment with those approved destinations. Do not create or switch local devices/runtimes on this storage-constrained machine.
+4. Verify pushed commit `b4d53be`'s GitHub Actions result. Unauthenticated web/Chrome access returns GitHub's not-found page for the private repository, and no connected GitHub tool is exposed in this session.
 
 ## Verification evidence
 
@@ -63,5 +61,5 @@ git diff --check
 
 - Current intended source changes: `DIAGNOSTICS.md` and the privacy-marked `Logger` replacement in `ExportManager.swift`.
 - Current intended tracking changes: `RELEASE_REGRESSION.md`, `SHIPPING_READINESS.md`, `TODO.md`, `ROADMAP.md`, and this handoff.
-- Commit `a5b3d1a` remains the pushed branch head before these working-tree changes. The last independently confirmed hosted run is still `33815905256` at `3df13e9`.
+- Commit `b4d53be` contains the diagnostics policy, App Store metadata draft, local release-regression evidence, and archive/shipping-readiness updates. It is pushed, and both the branch and draft PR #1 head resolve to it. The last independently confirmed hosted run is still `33815905256` at `3df13e9`; the new run is not inspectable through the available private-repository access path.
 - Preserve the untracked `../AGimports/HealyHealth_Export_2026-08-03_210413` artifact.

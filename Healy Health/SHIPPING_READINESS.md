@@ -8,8 +8,8 @@ This checklist records release-owned configuration and App Store deliverables fo
 
 | Item | Current state | Release action |
 | --- | --- | --- |
-| Marketing version | `1.0` in Debug and Release | Confirm this is the intended first public version |
-| Build number | `1` in Debug and Release | Increment for every uploaded archive |
+| Marketing version | `1.0` in Debug and Release; selected for the first public candidate | Change only if the App Store Connect record requires a different version |
+| Build number | `1` in Debug and Release; selected for the first upload | Increment if build 1 has already been uploaded or for every later archive |
 | Bundle identifier | `Healy-Labs.Healy-Health` | Confirm it matches the App Store Connect record |
 | Signing | Automatic, team `3T3UWJTM4R`; no valid local code-signing identity is installed | Install/select a valid Apple Distribution identity and profile, then validate during archive upload |
 | Deployment target | iOS 16.0 | Confirm support policy and complete minimum-OS regression |
@@ -23,7 +23,7 @@ This checklist records release-owned configuration and App Store deliverables fo
 - [x] The primary icon is present at 1024×1024.
 - [x] Every pixel in the current PNG is opaque (`minAlpha = 255`), although the PNG retains an alpha channel.
 - [x] The asset catalog compiles in the hosted CI build.
-- [ ] Decide whether to ship dedicated dark and tinted artwork. The asset slots exist but currently fall back to the primary icon.
+- [x] Ship 1.0 using the opaque primary icon as the system fallback for dark and tinted appearances; dedicated variants are deferred until purpose-built artwork is available.
 - [ ] Inspect the icon on the Home Screen in default, dark, and tinted appearances before archive sign-off.
 
 ## Privacy and support
@@ -38,16 +38,16 @@ This checklist records release-owned configuration and App Store deliverables fo
 ## Store listing
 
 - [x] `APP_STORE_METADATA.md` provides a field-limit-checked English (U.S.) draft, recommended categories, age-rating assumptions, review notes, and a five-screen screenshot plan.
-- [ ] Final app name and subtitle.
-- [ ] Promotional text, description, and keywords.
-- [ ] Primary and secondary categories.
+- [x] Release-candidate name `Healy Health` and subtitle `Plan. Log. Progress.` selected.
+- [x] Release-candidate promotional text, description, and keywords are in `APP_STORE_METADATA.md` and fit Apple's field limits.
+- [x] Health & Fitness selected as primary category; Sports selected as secondary.
 - [ ] Copyright and age-rating questionnaire.
 - [ ] Review contact, notes, and any demo instructions.
 - [ ] Final screenshots for every required iPhone and iPad display class.
 
 ## Archive and distribution gate
 
-- [ ] Confirm marketing version and select the next build number.
+- [x] Select marketing version `1.0` and build `1` for the first upload; bump the build if App Store Connect already contains build 1.
 - [x] Build and structurally validate an unsigned Archive using the shared `Healy Health` scheme and Release configuration.
 - [x] Confirm the archive contains an arm64 app and dSYM, version `1.0` build `1`, iOS 16.0 minimum, bundle ID `Healy-Labs.Healy-Health`, and a valid embedded `PrivacyInfo.xcprivacy`.
 - [ ] Repeat the archive with a valid Apple Distribution identity and provisioning profile.
