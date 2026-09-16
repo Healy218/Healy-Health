@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -229,6 +230,10 @@ struct AppExportDocument: FileDocument {
 
 final class ExportManager {
     static let shared = ExportManager()
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "Healy-Labs.Healy-Health",
+        category: "Export"
+    )
 
     private init() {}
 
@@ -262,7 +267,7 @@ final class ExportManager {
         do {
             return try encoder.encode(exportData)
         } catch {
-            print("Failed to export data: \(error)")
+            Self.logger.error("Failed to encode export: \(String(describing: error), privacy: .private)")
             return nil
         }
     }

@@ -1,6 +1,6 @@
 # Healy Health TODO
 
-Last updated: 2026-09-09
+Last updated: 2026-09-16
 
 This is the actionable backlog for `ROADMAP.md`. Work top-to-bottom within the active phase unless a user request changes the priority.
 
@@ -88,16 +88,16 @@ Priority legend:
 
 - [x] **HH-502 (P1) Clean repository metadata.** Added root `.gitignore` rules for Finder metadata and per-user Xcode workspace state, then removed the four tracked `.DS_Store`/`xcuserdata` artifacts from Git's index without deleting local copies. The paths are ignored and no machine-specific files remain tracked.
 
-- [ ] **HH-503 (P1) Run the release regression matrix (in progress).** `RELEASE_REGRESSION.md` maps every required scenario to automated and device evidence. Added explicit fresh-install bootstrap and notification-denied regression tests; all 62 tests passed in hosted workflow run `33815905256`. Existing tests cover migration, import/export, failed saves, and timer restoration; the available iPhone 17 Pro/iOS 26.5 rotation/maximum-text pass is recorded. Candidate lifecycle checks, prior-build upgrade, separate-install restore, minimum-iOS/compact-iPhone/iPad, and spoken VoiceOver checks remain open or environment-blocked.
+- [ ] **HH-503 (P1) Run the release regression matrix (in progress).** All 62 tests pass in hosted run `33815905256` and locally on Xcode 26.6. On iPhone 17 Pro/iOS 26.5, fresh install, an in-place upgrade from commit `a14d676` with the 52-workout schema-1 fixture, immediate-termination persistence, expired-timer cleanup, rotation, and maximum-text checks pass. File-import/backup-restore UI, notification allowed/denied delivery, before-deadline timer relaunch, minimum-iOS/compact-iPhone/iPad, and spoken VoiceOver checks remain open or environment/permission-blocked.
 
-- [ ] **HH-504 (P1) Finalize shipping metadata (in progress).** `SHIPPING_READINESS.md` records the current version, bundle ID, signing, deployment/device/orientation, icon, privacy, listing, and archive state. Added `PrivacyInfo.xcprivacy` for the app's first-party UserDefaults and app-container timestamp access, with no tracking or collected data declared. The 1024×1024 primary icon is fully opaque and CI-compilable; dedicated dark/tinted artwork, owner-approved version/build values, store copy/screenshots/categories, public support/privacy URLs, final privacy answers, and signed archive validation remain open.
+- [ ] **HH-504 (P1) Finalize shipping metadata (in progress).** `SHIPPING_READINESS.md` records the current version, bundle ID, signing, deployment/device/orientation, icon, privacy, listing, and archive state; `APP_STORE_METADATA.md` supplies a field-limit-checked listing draft, categories, review notes, age-rating assumptions, and screenshot plan. An unsigned Release archive passed compilation and structural/store-oriented bundle validation with its arm64 app, dSYM, version metadata, iOS 16.0 minimum, icon assets, and privacy manifest. Dedicated dark/tinted artwork, owner approval of version/build/listing/legal details, public support/privacy URLs, final privacy answers, required iPhone/iPad screenshots, a valid Distribution identity/profile, signed Organizer validation, and upload remain open.
 
-- [ ] **HH-505 (P2) Decide diagnostics strategy.** Prefer privacy-conscious first-party logging; obtain explicit approval before adding a third-party crash or analytics SDK.
+- [x] **HH-505 (P2) Decide diagnostics strategy.** `DIAGNOSTICS.md` records the 1.0 decision: no third-party crash, analytics, attribution, or telemetry SDK; no automatic log upload; narrow Apple Unified Logging with private dynamic errors; and no workout data or identifiers in logs. Adding any external diagnostics service requires explicit owner approval and a renewed privacy/security/store review.
 
 ## Current baseline notes
 
 - The project contains the `Healy Health` application target and the `Healy HealthTests` XCTest target.
-- A historical `xcodebuild test` run passed all 54 `Healy HealthTests` on 2026-08-06. CoreSimulatorService is currently unavailable in this environment, so command-line tests cannot run again until that service is restored.
+- The current working tree passed all 62 tests on iPhone 17 Pro/iOS 26.5 with Xcode 26.6 on 2026-09-16. Simulator commands require access outside the filesystem sandbox; a sandboxed `simctl` failure does not mean the GUI Simulator is unavailable.
 - Active-session reload now restores all persisted fields as a unit before saving normalized state, preventing `activeWorkoutId`, start time, and timer state from being erased during load.
 - The sole established local simulator device/runtime is **iPhone 17 Pro, iOS 26.5**. This storage-constrained machine supports only that one destination; do not create or switch to other Simulator device/runtimes for local validation.
 - GitHub work is permitted. Use the connected GitHub integration for GitHub/Actions work until the user starts a new terminal session with the correct GitHub CLI identity; never use or reauthenticate the sandbox's stale `gh` identity.
