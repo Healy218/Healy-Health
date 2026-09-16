@@ -15,12 +15,13 @@ Current roadmap phase: Phase 5 — Release readiness and deployment (in progress
 - Passed an in-place upgrade from commit `a14d676` (2026-05-11). The prior build was seeded with the retained schema-1 export and the current build was installed over it without uninstalling. All 5 routines, 15 workouts, 68 planned exercises, 33 logs, 52 completed workouts, and 18 exercise-library entries survived; every routine/history exercise received a tracking ID.
 - Built and validated the unsigned Release archive `/tmp/HealyHealth-1.0-1-unsigned.xcarchive`. It contains an arm64 app and dSYM, version `1.0` build `1`, minimum iOS 16.0, bundle ID `Healy-Labs.Healy-Health`, and a valid embedded privacy manifest. Xcode's store-oriented bundle validation passed with signing disabled.
 - Completed **HH-505** with `DIAGNOSTICS.md`: no third-party crash/analytics/telemetry SDK for 1.0, no automatic telemetry upload, private-by-default Apple Unified Logging, and no workout data or identifiers in logs. Replaced the lone export `print` with privacy-marked `Logger` output.
+- Visually verified the primary Home Screen icon in default and dark system appearances on iPhone 17 Pro/iOS 26.5, then restored light appearance. Tinted appearance remains to be checked.
 
 ## Immediate continuation point
 
 - The Simulator currently shows the system notification-permission dialog inherited from the prior-build upgrade fixture. Do not choose **Allow** or **Don't Allow** until the user confirms the requested Simulator-only permission changes.
 - After confirmation, test notification-allowed delivery, temporarily reset/deny notification permission for the denied UI path, and restore the intended final permission state.
-- Use the now-accessible Settings flow to complete clean-install file import and pre-import-backup restore checks.
+- After resolving the permission dialog, use the Settings flow to complete clean-install file import and pre-import-backup restore checks.
 - Enable VoiceOver only after confirmation, verify spoken focus/output across the core flow, then restore the accessibility setting.
 - The intended four-set working dataset has already been restored from `/tmp/HealyHealthPreFreshInstall-20260916/AppData`; its routine file and active routine/workout preferences were verified directly. Relaunch UI verification awaits resolution of the notification dialog.
 
@@ -59,7 +60,7 @@ git diff --check
 
 ## Working-tree notes
 
-- Current intended source changes: `DIAGNOSTICS.md` and the privacy-marked `Logger` replacement in `ExportManager.swift`.
-- Current intended tracking changes: `RELEASE_REGRESSION.md`, `SHIPPING_READINESS.md`, `TODO.md`, `ROADMAP.md`, and this handoff.
+- Committed source changes include `DIAGNOSTICS.md` and the privacy-marked `Logger` replacement in `ExportManager.swift`.
+- Committed tracking changes include `RELEASE_REGRESSION.md`, `SHIPPING_READINESS.md`, `TODO.md`, `ROADMAP.md`, and this handoff.
 - The latest pushed branch and draft PR #1 head contain the diagnostics policy, selected 1.0 metadata, local release-regression evidence, and archive/shipping-readiness updates. Resolve the current SHA with `git log -1`; the last independently confirmed hosted run is still `33815905256` at `3df13e9`, because newer runs are not inspectable through the available private-repository access path.
 - Preserve the untracked `../AGimports/HealyHealth_Export_2026-08-03_210413` artifact.

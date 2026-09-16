@@ -24,7 +24,7 @@ This checklist records release-owned configuration and App Store deliverables fo
 - [x] Every pixel in the current PNG is opaque (`minAlpha = 255`), although the PNG retains an alpha channel.
 - [x] The asset catalog compiles in the hosted CI build.
 - [x] Ship 1.0 using the opaque primary icon as the system fallback for dark and tinted appearances; dedicated variants are deferred until purpose-built artwork is available.
-- [ ] Inspect the icon on the Home Screen in default, dark, and tinted appearances before archive sign-off.
+- [ ] Inspect the icon on the Home Screen in default, dark, and tinted appearances before archive sign-off. Default and dark system appearances were visually verified on iPhone 17 Pro/iOS 26.5 on 2026-09-16; tinted appearance remains.
 
 ## Privacy and support
 
