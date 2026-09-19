@@ -37,11 +37,15 @@ struct ExerciseSelectionView: View {
                                 if !template.equipmentType.isEmpty {
                                     Text(template.equipmentType)
                                         .font(.caption).padding(.horizontal, 8).padding(.vertical, 4)
-                                        .background(Color.gray.opacity(0.1)).foregroundColor(.gray).cornerRadius(8)
+                                        .background(Color.gray.opacity(0.1)).foregroundColor(theme.secondaryRowText).cornerRadius(8)
                                 }
                             }
                         }
                         .padding(.vertical, 2)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(template.name)
+                        .accessibilityValue(templateAccessibilityValue(for: template))
+                        .accessibilityHint("Opens the exercise configuration.")
                     }
                     .listRowBackground(theme.rowBackground)
                 }
@@ -62,5 +66,11 @@ struct ExerciseSelectionView: View {
             }
             .searchable(text: $searchText, prompt: "Search exercises")
         }
+    }
+
+    private func templateAccessibilityValue(for template: ExerciseTemplate) -> String {
+        [template.primaryMuscleGroup, template.equipmentType]
+            .filter { !$0.isEmpty }
+            .joined(separator: ". ")
     }
 }

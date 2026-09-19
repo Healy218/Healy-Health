@@ -6,8 +6,16 @@ enum AppChrome {
         let navTextColor = UIColor(theme.onPrimaryText)
         let tabBgColor = UIColor(theme.primaryColor)
         let tabTextColor = UIColor(theme.onPrimaryText)
-        let navFont = UIFont(name: "ChalkboardSE-Regular", size: 20) ?? .systemFont(ofSize: 20)
-        let navLargeFont = UIFont(name: "ChalkboardSE-Regular", size: 34) ?? .systemFont(ofSize: 34)
+        let navFont = scaledFont(
+            named: "ChalkboardSE-Regular",
+            size: 20,
+            textStyle: .headline
+        )
+        let navLargeFont = scaledFont(
+            named: "ChalkboardSE-Regular",
+            size: 34,
+            textStyle: .largeTitle
+        )
 
         let navAppearance = UINavigationBarAppearance()
         navAppearance.configureWithOpaqueBackground()
@@ -24,13 +32,23 @@ enum AppChrome {
         tabAppearance.configureWithOpaqueBackground()
         tabAppearance.backgroundColor = tabBgColor
         let itemAppearance = UITabBarItemAppearance()
-        itemAppearance.normal.titleTextAttributes = [.foregroundColor: tabTextColor.withAlphaComponent(0.6)]
+        let secondaryTabTextColor = UIColor(theme.secondaryOnPrimaryText)
+        itemAppearance.normal.titleTextAttributes = [.foregroundColor: secondaryTabTextColor]
         itemAppearance.selected.titleTextAttributes = [.foregroundColor: tabTextColor]
-        itemAppearance.normal.iconColor = tabTextColor.withAlphaComponent(0.6)
+        itemAppearance.normal.iconColor = secondaryTabTextColor
         itemAppearance.selected.iconColor = tabTextColor
         tabAppearance.stackedLayoutAppearance = itemAppearance
         UITabBar.appearance().standardAppearance = tabAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabAppearance
+    }
+
+    private static func scaledFont(
+        named name: String,
+        size: CGFloat,
+        textStyle: UIFont.TextStyle
+    ) -> UIFont {
+        let baseFont = UIFont(name: name, size: size) ?? .systemFont(ofSize: size)
+        return UIFontMetrics(forTextStyle: textStyle).scaledFont(for: baseFont)
     }
 }
 

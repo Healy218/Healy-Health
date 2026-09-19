@@ -1,0 +1,9 @@
+# macOS Finder metadata
+.DS_Store
+
+# Per-user Xcode workspace state
+xcuserdata/
+*.xcuserstate
+
+# Keep project notes and Markdown documents local, not in Git.
+*.md

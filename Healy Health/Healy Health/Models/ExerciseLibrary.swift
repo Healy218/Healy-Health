@@ -11,44 +11,96 @@ struct ExerciseTemplate: Identifiable, Codable {
     var equipmentType: String 
 }
 
+enum ExerciseLibraryAddResult: Equatable {
+    case added
+    case invalidName
+    case duplicateName
+    case persistenceFailed
+}
+
 class ExerciseManager: ObservableObject {
     static let shared = ExerciseManager()
     
     @Published var exercises: [ExerciseTemplate] = []
+    @Published private(set) var persistenceError: PersistenceError?
     
     private let libraryFileName = "exercise_library.json"
+    private let documentsDirectory: URL
     
-    private init() {
+    init(documentsDirectory: URL? = nil) {
+        self.documentsDirectory = documentsDirectory
+            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         loadLibrary()
     }
     
     private func getDocumentsDirectory() -> URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        documentsDirectory
+    }
+
+    /// Writes an import candidate without changing the currently displayed library.
+    func persistImportCandidate(_ templates: [ExerciseTemplate]) throws {
+        let data = try JSONEncoder().encode(templates)
+        let url = getDocumentsDirectory().appendingPathComponent(libraryFileName)
+        try data.write(to: url, options: .atomic)
+    }
+
+    func applyImportedLibrary(_ templates: [ExerciseTemplate]) {
+        exercises = templates
     }
     
-    func saveLibrary() {
-        let encoder = JSONEncoder()
-        if let data = try? encoder.encode(exercises) {
+    @discardableResult
+    func saveLibrary() -> Bool {
+        do {
+            let data = try JSONEncoder().encode(exercises)
             let url = getDocumentsDirectory().appendingPathComponent(libraryFileName)
-            try? data.write(to: url)
+            try data.write(to: url, options: .atomic)
+            clearPersistenceError(for: .exerciseLibrary)
+            return true
+        } catch {
+            recordPersistenceError(operation: .save, error: error)
+            return false
         }
     }
     
     private func loadLibrary() {
         let url = getDocumentsDirectory().appendingPathComponent(libraryFileName)
-        if let data = try? Data(contentsOf: url),
-           let decoded = try? JSONDecoder().decode([ExerciseTemplate].self, from: data) {
-            exercises = decoded
-        } else {
+        guard FileManager.default.fileExists(atPath: url.path) else {
             loadDefaultExercises()
+            _ = saveLibrary()
+            return
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let decoded = try JSONDecoder().decode([ExerciseTemplate].self, from: data)
+            exercises = decoded
+        } catch {
+            recordPersistenceError(operation: .load, error: error)
         }
     }
     
-    func addExercise(_ template: ExerciseTemplate) {
-        exercises.append(template)
-        // Sort alphabetically
-        exercises.sort { $0.name < $1.name }
-        saveLibrary()
+    /// Adds a reusable custom exercise to the library. Names are normalized and unique regardless
+    /// of case or surrounding whitespace, so the library cannot accumulate accidental duplicates.
+    @discardableResult
+    func addExercise(_ template: ExerciseTemplate) -> ExerciseLibraryAddResult {
+        let normalizedName = ExerciseDomainValidation.trimmedText(template.name)
+        guard !normalizedName.isEmpty else { return .invalidName }
+        guard !exercises.contains(where: {
+            ExerciseDomainValidation.trimmedText($0.name).localizedCaseInsensitiveCompare(normalizedName) == .orderedSame
+        }) else {
+            return .duplicateName
+        }
+
+        let previousExercises = exercises
+        var normalizedTemplate = template
+        normalizedTemplate.name = normalizedName
+        exercises.append(normalizedTemplate)
+        exercises.sort(by: templateNameAscending)
+        guard saveLibrary() else {
+            exercises = previousExercises
+            return .persistenceFailed
+        }
+        return .added
     }
     
     private func loadDefaultExercises() {
@@ -76,6 +128,28 @@ class ExerciseManager: ObservableObject {
             ExerciseTemplate(name: "Hill Sprints", primaryMuscleGroup: "Cardio", equipmentType: "Treadmill/Track")
         ]
         
-        exercises.sort { $0.name < $1.name }
+        exercises.sort(by: templateNameAscending)
+    }
+
+    private func templateNameAscending(_ lhs: ExerciseTemplate, _ rhs: ExerciseTemplate) -> Bool {
+        let comparison = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+        return comparison == .orderedSame ? lhs.id.uuidString < rhs.id.uuidString : comparison == .orderedAscending
+    }
+
+    func clearPersistenceError() {
+        persistenceError = nil
+    }
+
+    private func recordPersistenceError(operation: PersistenceOperation, error: Error) {
+        persistenceError = PersistenceError(
+            resource: .exerciseLibrary,
+            operation: operation,
+            underlyingErrorDescription: error.localizedDescription
+        )
+    }
+
+    private func clearPersistenceError(for resource: PersistenceResource) {
+        guard persistenceError?.resource == resource else { return }
+        persistenceError = nil
     }
 }

@@ -12,6 +12,9 @@ struct EditExerciseView: View {
     @State private var targetSets: String = ""
     @State private var targetReps: String = ""
     @State private var startingWeight: String = ""
+    @State private var selectedCategory: ExerciseCategory = .weightlifting
+    @State private var inputWeightUnit: WeightUnit = .pounds
+    @AppStorage(WeightUnit.storageKey) private var weightUnit: WeightUnit = .pounds
 
     private var theme: AppTheme { themeManager.current }
 
@@ -21,47 +24,99 @@ struct EditExerciseView: View {
             .exercises.first(where: { $0.id == exerciseId })
     }
 
-    var isFormValid: Bool { Int(targetSets) != nil && Double(startingWeight) != nil && !targetReps.isEmpty }
+    private var validatedConfiguration: Result<ValidatedExerciseConfiguration, ExerciseValidationError> {
+        guard let exercise = currentExercise else {
+            return .failure(.invalidWeight)
+        }
+        guard let sets = Int(targetSets) else {
+            return .failure(.invalidTargetSets)
+        }
+        guard let weight = WeightFormatter.pounds(fromInput: startingWeight, unit: weightUnit) else {
+            return .failure(.invalidWeight)
+        }
+        do {
+            return .success(try ExerciseDomainValidation.configuration(
+                name: exercise.name,
+                targetSets: sets,
+                targetReps: targetReps,
+                currentWeight: weight
+            ))
+        } catch let error as ExerciseValidationError {
+            return .failure(error)
+        } catch {
+            return .failure(.invalidWeight)
+        }
+    }
+
+    var isFormValid: Bool {
+        if case .success = validatedConfiguration { return true }
+        return false
+    }
+
+    private var validationMessage: String? {
+        if case .failure(let error) = validatedConfiguration { return error.localizedDescription }
+        return nil
+    }
 
     var body: some View {
         Form {
             if let exercise = currentExercise {
                 Section(header: Text("Configuration for \(exercise.name)").foregroundColor(theme.onPrimaryText)) {
+                    Picker("Category", selection: $selectedCategory) {
+                        ForEach(ExerciseCategory.allCases, id: \.self) { category in
+                            Text(category.displayName).tag(category)
+                        }
+                    }
+                    .accessibilityHint("Changes the exercise category.")
+                    .foregroundColor(theme.rowText)
+                    .listRowBackground(theme.rowBackground)
+
                     HStack {
                         Text("Target Sets").foregroundColor(theme.rowText)
                         Spacer()
                         TextField("e.g. 3", text: $targetSets).keyboardType(.numberPad).multilineTextAlignment(.trailing).foregroundColor(theme.rowText)
+                            .accessibilityLabel("Target sets")
                     }.listRowBackground(theme.rowBackground)
 
                     HStack {
                         Text("Target Reps").foregroundColor(theme.rowText)
                         Spacer()
                         TextField("e.g. 8-12", text: $targetReps).multilineTextAlignment(.trailing).foregroundColor(theme.rowText)
+                            .accessibilityLabel("Target repetitions")
                     }.listRowBackground(theme.rowBackground)
 
                     HStack {
-                        Text("Starting Weight (lbs)").foregroundColor(theme.rowText)
+                        Text("Starting Weight (\(weightUnit.symbol))").foregroundColor(theme.rowText)
                         Spacer()
                         TextField("e.g. 135.0", text: $startingWeight).keyboardType(.decimalPad).multilineTextAlignment(.trailing).foregroundColor(theme.rowText)
+                            .accessibilityLabel("Starting weight in \(weightUnit.spokenName)")
                     }.listRowBackground(theme.rowBackground)
+
+                    if let validationMessage {
+                        Text(validationMessage)
+                            .font(.caption)
+                            .foregroundColor(theme.destructiveColor)
+                            .listRowBackground(theme.rowBackground)
+                    }
                 }
 
                 Button(action: {
-                    if let sets = Int(targetSets), let weight = Double(startingWeight),
-                       let rIndex = store.routines.firstIndex(where: { $0.id == routineId }),
-                       let wIndex = store.routines[rIndex].workouts.firstIndex(where: { $0.id == workoutId }),
-                       let eIndex = store.routines[rIndex].workouts[wIndex].exercises.firstIndex(where: { $0.id == exerciseId }) {
-                        var updated = store.routines[rIndex]
-                        updated.workouts[wIndex].exercises[eIndex].targetSets = sets
-                        updated.workouts[wIndex].exercises[eIndex].targetReps = targetReps
-                        updated.workouts[wIndex].exercises[eIndex].currentWeight = weight
-                        store.updateRoutine(updated)
+                    if case .success(let configuration) = validatedConfiguration,
+                       case .success = store.updateExerciseConfiguration(
+                        routineId: routineId,
+                        workoutId: workoutId,
+                        exerciseId: exerciseId,
+                        targetSets: configuration.targetSets,
+                        targetReps: configuration.targetReps,
+                        currentWeight: configuration.currentWeight,
+                        category: selectedCategory
+                       ) {
                         dismiss()
                     }
                 }) {
                     Text("Save Changes")
-                        .font(.headline).foregroundColor(.white).frame(maxWidth: .infinity).padding()
-                        .background(isFormValid ? theme.primaryColor : Color.gray).cornerRadius(10)
+                        .font(.headline).foregroundColor(theme.onPrimaryText).frame(maxWidth: .infinity).padding()
+                        .background(isFormValid ? theme.primaryColor : theme.disabledButtonColor).cornerRadius(10)
                 }
                 .disabled(!isFormValid)
                 .padding(.vertical)
@@ -76,8 +131,19 @@ struct EditExerciseView: View {
             if let ex = currentExercise {
                 targetSets = "\(ex.targetSets)"
                 targetReps = ex.targetReps
-                startingWeight = "\(ex.currentWeight)"
+                startingWeight = WeightFormatter.inputString(fromPounds: ex.currentWeight, unit: weightUnit)
+                selectedCategory = ex.category
+                inputWeightUnit = weightUnit
             }
         }
+        .onChange(of: weightUnit) { newUnit in
+            reformatStartingWeight(for: newUnit)
+        }
+    }
+
+    private func reformatStartingWeight(for newUnit: WeightUnit) {
+        defer { inputWeightUnit = newUnit }
+        guard let pounds = WeightFormatter.pounds(fromInput: startingWeight, unit: inputWeightUnit) else { return }
+        startingWeight = WeightFormatter.inputString(fromPounds: pounds, unit: newUnit)
     }
 }
