@@ -31,7 +31,7 @@ enum RestTimerNotificationError: LocalizedError, Equatable {
                 String(Int(maximumSeconds / 60 / 60))
             )
         case .permissionDenied:
-            return String(localized: "The countdown is running, but its completion notification is turned off. You can enable notifications for Healy Health in Settings.")
+            return String(localized: "The countdown is running, but its completion notification is turned off. You can enable notifications for DERD Health in Settings.")
         case .schedulingFailed:
             return String(localized: "The countdown is running, but its completion notification could not be scheduled.")
         }

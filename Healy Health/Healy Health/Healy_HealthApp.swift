@@ -1,6 +1,6 @@
 //
 //  Healy_HealthApp.swift
-//  Healy Health
+//  DERD Health
 //
 //  Created by Matthew Healy on 2/4/26.
 //

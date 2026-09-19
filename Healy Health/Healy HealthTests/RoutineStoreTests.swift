@@ -1321,7 +1321,7 @@ final class RoutineStoreTests: XCTestCase {
         let backupsDirectory = storageDirectory.appendingPathComponent("Import Backups", isDirectory: true)
         try FileManager.default.createDirectory(at: backupsDirectory, withIntermediateDirectories: true)
         let older = backupsDirectory.appendingPathComponent("HealyHealth_PreImport_2026-08-04_100000_000.json")
-        let newer = backupsDirectory.appendingPathComponent("HealyHealth_PreImport_2026-08-04_110000_000.json")
+        let newer = backupsDirectory.appendingPathComponent("DERDHealth_PreImport_2026-08-04_110000_000.json")
         let unrelated = backupsDirectory.appendingPathComponent("notes.json")
         try Data("{}".utf8).write(to: older)
         try Data("{}".utf8).write(to: newer)
@@ -1330,6 +1330,10 @@ final class RoutineStoreTests: XCTestCase {
         let backups = ExportManager.shared.importBackups(in: storageDirectory)
 
         XCTAssertEqual(backups.map(\.url), [newer, older])
+    }
+
+    func testNewExportFilenameUsesDERDHealthBrand() {
+        XCTAssertTrue(ExportManager.shared.defaultExportFilename().hasPrefix("DERDHealth_Export_"))
     }
 
     func testFinishWorkoutResolvesTheCurrentStoredWorkoutByID() {

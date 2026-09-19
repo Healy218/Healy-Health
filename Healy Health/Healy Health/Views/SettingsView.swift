@@ -148,12 +148,21 @@ struct SettingsView: View {
         } header: {
             Text("Data Management").foregroundColor(theme.onPrimaryText)
         } footer: {
-            Text("Before every import, Healy Health saves your current data as a dated pre-import backup. Restore one here if an import needs to be undone.")
+            Text("Before every import, DERD Health saves your current data as a dated pre-import backup. Restore one here if an import needs to be undone.")
         }
     }
 
     private var aboutSection: some View {
         Section(header: Text("About").foregroundColor(theme.onPrimaryText)) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("DERD Health")
+                    .foregroundColor(theme.rowText)
+                Text("Do Everything Right Daily")
+                    .font(.footnote)
+                    .foregroundColor(theme.secondaryRowText)
+            }
+            .listRowBackground(theme.rowBackground)
+
             HStack {
                 Text("Version").foregroundColor(theme.rowText)
                 Spacer()

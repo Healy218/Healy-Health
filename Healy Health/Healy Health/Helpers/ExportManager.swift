@@ -32,7 +32,7 @@ enum ImportError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .unreadableFile:
-            return String(localized: "The selected file could not be read or is not a Healy Health export.")
+            return String(localized: "The selected file could not be read or is not a DERD Health export.")
         case .unsupportedSchema(let version):
             return String(format: String(localized: "This export uses unsupported data version %@."), String(version))
         case .invalidData(let reason):
@@ -245,7 +245,7 @@ final class ExportManager {
     func defaultExportFilename() -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd_HHmmss"
-        return "HealyHealth_Export_\(formatter.string(from: Date()))"
+        return "DERDHealth_Export_\(formatter.string(from: Date()))"
     }
 
     func generateJSONData() -> Data? {
@@ -298,7 +298,8 @@ final class ExportManager {
 
         return urls.compactMap { url in
             guard url.pathExtension.lowercased() == "json",
-                  url.lastPathComponent.hasPrefix("HealyHealth_PreImport_") else {
+                  (url.lastPathComponent.hasPrefix("DERDHealth_PreImport_") ||
+                   url.lastPathComponent.hasPrefix("HealyHealth_PreImport_")) else {
                 return nil
             }
             let values = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
@@ -375,7 +376,7 @@ final class ExportManager {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd_HHmmss_SSS"
-        let filename = "HealyHealth_PreImport_\(formatter.string(from: Date())).json"
+        let filename = "DERDHealth_PreImport_\(formatter.string(from: Date())).json"
 
         do {
             try FileManager.default.createDirectory(at: backupsDirectory, withIntermediateDirectories: true)

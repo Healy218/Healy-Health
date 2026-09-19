@@ -1,6 +1,26 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "DERD Health" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DERD Health"
+          }
+        }
+      }
+    },
+    "Do Everything Right Daily" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Do Everything Right Daily"
+          }
+        }
+      }
+    },
     "%@" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -404,12 +424,12 @@
     "Backup Restored" : {
 
     },
-    "Before every import, Healy Health saves your current data as a dated pre-import backup. Restore one here if an import needs to be undone." : {
+    "Before every import, DERD Health saves your current data as a dated pre-import backup. Restore one here if an import needs to be undone." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Before every import, Healy Health saves your current data as a dated pre-import backup. Restore one here if an import needs to be undone."
+            "value" : "Before every import, DERD Health saves your current data as a dated pre-import backup. Restore one here if an import needs to be undone."
           }
         }
       }
@@ -1609,12 +1629,12 @@
         }
       }
     },
-    "The countdown is running, but its completion notification is turned off. You can enable notifications for Healy Health in Settings." : {
+    "The countdown is running, but its completion notification is turned off. You can enable notifications for DERD Health in Settings." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The countdown is running, but its completion notification is turned off. You can enable notifications for Healy Health in Settings."
+            "value" : "The countdown is running, but its completion notification is turned off. You can enable notifications for DERD Health in Settings."
           }
         }
       }
@@ -1652,12 +1672,12 @@
         }
       }
     },
-    "The selected file could not be read or is not a Healy Health export." : {
+    "The selected file could not be read or is not a DERD Health export." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The selected file could not be read or is not a Healy Health export."
+            "value" : "The selected file could not be read or is not a DERD Health export."
           }
         }
       }
