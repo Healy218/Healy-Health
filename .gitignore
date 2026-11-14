@@ -7,3 +7,4 @@ xcuserdata/
 
 # Keep project notes and Markdown documents local, not in Git.
 *.md
+!/README.md
