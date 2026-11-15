@@ -3,6 +3,12 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ObservedObject private var exerciseManager = ExerciseManager.shared
+
+    private var persistenceError: PersistenceError? {
+        store.persistenceError ?? exerciseManager.persistenceError
+    }
 
     init() {
         // Apply saved theme before any views render so titles are colored immediately
@@ -33,12 +39,36 @@ struct ContentView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }
                 .tag(3)
         }
-        .environment(\.font, Font.custom("ChalkboardSE-Regular", size: 17))
+        .environment(\.font, AppTypography.chalkboard(17, relativeTo: .body))
         .modifier(ThemedTabChrome(theme: themeManager.current))
         .tint(themeManager.current.onPrimaryText)
         .onAppear { AppChrome.applyGlobalAppearance(for: themeManager.current) }
         .onChange(of: themeManager.current) { newTheme in
             AppChrome.applyGlobalAppearance(for: newTheme)
+        }
+        .onChange(of: dynamicTypeSize) { _ in
+            AppChrome.applyGlobalAppearance(for: themeManager.current)
+        }
+        .alert(
+            "Your data needs attention",
+            isPresented: Binding(
+                get: { persistenceError != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        store.clearPersistenceError()
+                        exerciseManager.clearPersistenceError()
+                    }
+                }
+            ),
+            presenting: persistenceError
+        ) { _ in
+            Button("OK", role: .cancel) {
+                store.clearPersistenceError()
+                exerciseManager.clearPersistenceError()
+            }
+        } message: { error in
+            let recoverySuggestion = error.recoverySuggestion ?? ""
+            Text("\(error.localizedDescription) \(recoverySuggestion)")
         }
     }
 }

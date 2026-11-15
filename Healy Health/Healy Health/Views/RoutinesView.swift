@@ -5,8 +5,14 @@ struct RoutinesView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @State private var showingAddRoutine = false
     @State private var newRoutineName = ""
+    @State private var pendingRoutineStartID: UUID?
+    @State private var pendingRoutineDeletionIDs: Set<UUID> = []
 
     private var theme: AppTheme { themeManager.current }
+
+    private var isNewRoutineNameValid: Bool {
+        (try? WorkoutPlanningValidation.routineName(newRoutineName)) != nil
+    }
 
     var body: some View {
         ZStack {
@@ -23,10 +29,10 @@ struct RoutinesView: View {
                             NavigationLink(destination: RoutineDetailView(routine: routine)) {
                                 VStack(alignment: .leading) {
                                     Text(routine.name)
-                                        .font(.custom("ChalkboardSE-Regular", size: 20))
+                                        .font(AppTypography.chalkboard(20, relativeTo: .title3))
                                         .foregroundColor(theme.rowText)
                                     Text("\(routine.workouts.count) Workout\(routine.workouts.count == 1 ? "" : "s")")
-                                        .font(.custom("ChalkboardSE-Regular", size: 14))
+                                        .font(AppTypography.chalkboard(14, relativeTo: .subheadline))
                                         .foregroundColor(theme.secondaryRowText)
                                     if store.activeRoutineId == routine.id {
                                         Text("Active Routine")
@@ -36,20 +42,24 @@ struct RoutinesView: View {
                                     }
                                 }
                                 .padding(.vertical, 4)
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel(routine.name)
+                                .accessibilityValue("\(routine.workouts.count) workout\(routine.workouts.count == 1 ? "" : "s"). \(store.activeRoutineId == routine.id ? "Active routine." : "Not active.")")
+                                .accessibilityHint("Opens the routine. Swipe up or down for actions.")
+
                             }
-                            .listRowBackground(theme.rowBackground)
-                            .swipeActions(edge: .leading) {
-                                Button {
-                                    store.activeRoutineId = routine.id
-                                    store.activeWorkoutId = nil
-                                    store.selectedTab = 1
-                                } label: {
-                                    Label("Start", systemImage: "star.fill")
-                                }
-                                .tint(.green)
+                                .listRowBackground(theme.rowBackground)
+                                .swipeActions(edge: .leading) {
+                                    Button {
+                                        requestRoutineStart(routine.id)
+                                    } label: {
+                                        Label("Start", systemImage: "star.fill")
+                                    }
+                                .tint(theme.successColor)
                             }
                         }
                         .onDelete(perform: deleteRoutine)
+                        .onMove(perform: moveRoutines)
                     }
                     .scrollContentBackground(.hidden)
                 }
@@ -72,11 +82,11 @@ struct RoutinesView: View {
                 TextField("Routine Name", text: $newRoutineName)
                 Button("Cancel", role: .cancel) { newRoutineName = "" }
                 Button("Add") {
-                    if !newRoutineName.isEmpty {
-                        store.addRoutine(Routine(name: newRoutineName, workouts: []))
+                    if case .success = store.createRoutine(named: newRoutineName) {
                         newRoutineName = ""
                     }
                 }
+                .disabled(!isNewRoutineNameValid)
             }
         }
         .navigationTitle("Routines")
@@ -86,9 +96,91 @@ struct RoutinesView: View {
                 EditButton().foregroundColor(theme.onPrimaryText)
             }
         }
+        .confirmationDialog(
+            replacementTitle,
+            isPresented: Binding(
+                get: { pendingRoutineStartID != nil },
+                set: { if !$0 { pendingRoutineStartID = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Keep Progress and Switch") { replaceActiveSession(discardProgress: false) }
+            Button("Reset Progress and Switch", role: .destructive) { replaceActiveSession(discardProgress: true) }
+            Button("Cancel", role: .cancel) { pendingRoutineStartID = nil }
+        } message: {
+            Text(replacementMessage)
+        }
+        .confirmationDialog(
+            pendingRoutineDeletionIDs.count == 1 ? "Delete Routine?" : "Delete Routines?",
+            isPresented: Binding(
+                get: { !pendingRoutineDeletionIDs.isEmpty },
+                set: { if !$0 { pendingRoutineDeletionIDs = [] } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(
+                pendingRoutineDeletionIDs.count == 1 ? "Delete Routine" : "Delete Routines",
+                role: .destructive,
+                action: deletePendingRoutines
+            )
+            Button("Cancel", role: .cancel) { pendingRoutineDeletionIDs = [] }
+        } message: {
+            Text("This permanently removes the selected routine and all of its workouts. It can’t be undone.")
+        }
     }
 
     private func deleteRoutine(offsets: IndexSet) {
-        offsets.forEach { store.deleteRoutine(store.routines[$0]) }
+        pendingRoutineDeletionIDs = Set(offsets.compactMap {
+            store.routines.indices.contains($0) ? store.routines[$0].id : nil
+        })
+    }
+
+    private func deletePendingRoutines() {
+        store.deleteRoutines(ids: pendingRoutineDeletionIDs)
+        pendingRoutineDeletionIDs = []
+    }
+
+    private func moveRoutines(fromOffsets: IndexSet, toOffset: Int) {
+        store.moveRoutines(fromOffsets: fromOffsets, toOffset: toOffset)
+    }
+
+    private func requestRoutineStart(_ routineID: UUID) {
+        if store.startRoutine(routineId: routineID) {
+            store.selectedTab = 1
+        } else {
+            pendingRoutineStartID = routineID
+        }
+    }
+
+    private var replacementTitle: String {
+        if store.activeRoutineId == pendingRoutineStartID, store.activeSessionWorkoutId != nil {
+            return "Leave Active Workout?"
+        }
+        return "Switch Active Routine?"
+    }
+
+    private var replacementMessage: String {
+        let activeName = store.activeWorkout?.name ?? store.activeRoutine?.name ?? "current session"
+        return "\"\(activeName)\" is still active. Keeping progress preserves its logged sets and workout completion status; resetting progress clears both. Any active rest timer will stop."
+    }
+
+    private func replaceActiveSession(discardProgress: Bool) {
+        guard let targetRoutineID = pendingRoutineStartID else { return }
+
+        if store.activeRoutineId == targetRoutineID,
+           let activeWorkoutID = store.activeSessionWorkoutId {
+            store.abandonWorkout(
+                routineId: targetRoutineID,
+                workoutId: activeWorkoutID,
+                discardProgress: discardProgress
+            )
+        } else if let activeRoutineID = store.activeRoutineId {
+            store.abandonRoutine(routineId: activeRoutineID, discardProgress: discardProgress)
+        }
+
+        pendingRoutineStartID = nil
+        if store.startRoutine(routineId: targetRoutineID) {
+            store.selectedTab = 1
+        }
     }
 }

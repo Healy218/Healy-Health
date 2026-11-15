@@ -3,20 +3,6 @@ import Charts
 
 // MARK: - Supporting data types
 
-struct ExerciseHistoryPoint: Identifiable {
-    let id = UUID()
-    let date: Date
-    let totalVolume: Double
-    let maxWeight: Double
-    let estimatedOneRepMax: Double
-    let session: Int
-}
-
-struct ExerciseSummary: Identifiable {
-    let id: String   // exercise name used as stable identifier
-    let count: Int
-}
-
 struct ExerciseLogData: Identifiable {
     let id: UUID; let name: String; let date: Date; let maxWeight: Double; let totalVolume: Double
 }
@@ -61,45 +47,27 @@ enum ExerciseChartMetric: String, CaseIterable, Identifiable {
         }
     }
 
-    func value(for point: ExerciseHistoryPoint) -> Double {
+    func value(for point: ExerciseHistoryPoint, unit: WeightUnit) -> Double {
         switch self {
         case .volume:
-            return point.totalVolume
+            return WeightFormatter.displayedValue(fromPounds: point.totalVolume, unit: unit)
         case .topSet:
-            return point.maxWeight
+            return WeightFormatter.displayedValue(fromPounds: point.maxWeight, unit: unit)
         case .estimatedOneRepMax:
-            return point.estimatedOneRepMax
+            return WeightFormatter.displayedValue(fromPounds: point.estimatedOneRepMax, unit: unit)
         }
     }
 
-    func formattedValue(for point: ExerciseHistoryPoint) -> String {
+    func formattedValue(for point: ExerciseHistoryPoint, unit: WeightUnit) -> String {
         switch self {
         case .volume:
-            return "\(point.totalVolume.abbreviatedVolume) lb-reps"
+            let displayedVolume = value(for: point, unit: unit)
+            return "\(WeightFormatter.numberString(displayedVolume, maximumFractionDigits: displayedVolume >= 1000 ? 0 : 1)) \(unit.volumeSymbol)"
         case .topSet:
-            return "\(String(format: "%.0f", point.maxWeight)) lbs"
+            return WeightFormatter.string(fromPounds: point.maxWeight, unit: unit, maximumFractionDigits: 0)
         case .estimatedOneRepMax:
-            return "\(String(format: "%.0f", point.estimatedOneRepMax)) lbs"
+            return WeightFormatter.string(fromPounds: point.estimatedOneRepMax, unit: unit, maximumFractionDigits: 0)
         }
-    }
-}
-
-private extension Exercise {
-    var totalVolume: Double {
-        logs.reduce(0) { partialResult, log in
-            partialResult + (log.weight * Double(log.reps))
-        }
-    }
-
-    var maxLoggedWeight: Double {
-        logs.map(\.weight).max() ?? 0
-    }
-
-    var estimatedOneRepMax: Double {
-        logs.map { log in
-            log.weight * (1 + (Double(log.reps) / 30.0))
-        }
-        .max() ?? 0
     }
 }
 
@@ -119,16 +87,39 @@ struct SummaryView: View {
     @EnvironmentObject var themeManager: ThemeManager
     private var theme: AppTheme { themeManager.current }
 
-    private var lastWorkout: CompletedWorkout? { store.completedWorkouts.first }
+    private var lastWorkout: CompletedWorkout? {
+        store.completedWorkouts.sorted(by: CompletedWorkout.newestFirst).first
+    }
 
     var body: some View {
         ZStack {
             theme.primaryColor.ignoresSafeArea()
 
             if store.completedWorkouts.isEmpty {
-                Text("No workouts completed yet.")
-                    .foregroundColor(theme.onPrimaryText)
-                    .padding()
+                VStack(spacing: 14) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.system(size: 48))
+                        .foregroundColor(theme.disabledOnPrimaryText)
+                        .accessibilityHidden(true)
+                    Text("No workouts completed yet.")
+                        .font(AppTypography.chalkboard(20, relativeTo: .title3))
+                        .foregroundColor(theme.onPrimaryText)
+                    Text("Complete a workout to see your history and progress here.")
+                        .font(AppTypography.chalkboard(16, relativeTo: .body))
+                        .foregroundColor(theme.secondaryOnPrimaryText)
+                        .multilineTextAlignment(.center)
+                    Button("Browse Routines") {
+                        store.selectedTab = 0
+                    }
+                    .font(AppTypography.chalkboard(17, relativeTo: .body))
+                    .foregroundColor(theme.accentColor)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(theme.rowBackground)
+                    .cornerRadius(12)
+                    .accessibilityHint("Opens the Routines tab so you can start a workout.")
+                }
+                .padding()
             } else {
                 ScrollView {
                     VStack(spacing: 16) {
@@ -145,7 +136,7 @@ struct SummaryView: View {
                         // Last workout / history button
                         NavigationLink(destination: WorkoutHistoryView()) {
                             SummaryNavButton(
-                                label: lastWorkout.map { "Last: \($0.dayName)" } ?? "Workout History",
+                                label: lastWorkout.map { "Last: \($0.workoutName)" } ?? "Workout History",
                                 icon: "calendar",
                                 theme: theme
                             )
@@ -173,17 +164,22 @@ struct SummaryNavButton: View {
             Image(systemName: icon)
                 .font(.system(size: 18))
                 .frame(width: 28)
+                .accessibilityHidden(true)
             Text(label)
-                .font(.custom("ChalkboardSE-Regular", size: 17))
+                .font(AppTypography.chalkboard(17, relativeTo: .body))
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .opacity(0.5)
+                .accessibilityHidden(true)
         }
         .foregroundColor(theme.rowText)
         .padding()
         .background(theme.rowBackground)
         .cornerRadius(14)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityHint("Opens \(label).")
     }
 }
 
@@ -193,17 +189,15 @@ struct TopExerciseChartCard: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
     @AppStorage("preferredExerciseChartMetric") private var selectedMetricRawValue = ExerciseChartMetric.volume.rawValue
+    @AppStorage(WeightUnit.storageKey) private var weightUnit: WeightUnit = .pounds
     private var theme: AppTheme { themeManager.current }
 
     private var topData: (name: String, history: [ExerciseHistoryPoint])? {
-        var counts: [String: Int] = [:]
-        for workout in store.completedWorkouts {
-            for exercise in workout.exercises where !exercise.logs.isEmpty {
-                counts[exercise.name, default: 0] += 1
-            }
+        let sessions = ExerciseAnalytics.trainedSessions(from: store.completedWorkouts)
+        guard let topExercise = ExerciseAnalytics.summaries(from: sessions).first else {
+            return nil
         }
-        guard let topName = counts.max(by: { $0.value < $1.value })?.key else { return nil }
-        return (topName, historyFor(topName))
+        return (topExercise.name, ExerciseAnalytics.history(for: topExercise.id, from: sessions))
     }
 
     private var selectedMetric: ExerciseChartMetric {
@@ -224,12 +218,12 @@ struct TopExerciseChartCard: View {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Most Trained: \(top.name)")
-                            .font(.custom("ChalkboardSE-Regular", size: 15))
-                            .foregroundColor(theme.onPrimaryText.opacity(0.75))
+                            .font(AppTypography.chalkboard(15, relativeTo: .subheadline))
+                            .foregroundColor(theme.secondaryOnPrimaryText)
 
                         Text(selectedMetric.subtitle)
                             .font(.caption)
-                            .foregroundColor(theme.onPrimaryText.opacity(0.55))
+                            .foregroundColor(theme.secondaryOnPrimaryText)
                     }
 
                     Spacer()
@@ -240,10 +234,10 @@ struct TopExerciseChartCard: View {
                 if top.history.count < 2 {
                     Text("Log more sessions to see progress")
                         .font(.caption)
-                        .foregroundColor(theme.onPrimaryText.opacity(0.5))
+                        .foregroundColor(theme.disabledOnPrimaryText)
                         .frame(maxWidth: .infinity, minHeight: 100, alignment: .center)
                 } else {
-                    ExerciseLineChart(history: top.history, metric: selectedMetric, theme: theme, height: 160)
+                    ExerciseLineChart(history: top.history, metric: selectedMetric, unit: weightUnit, theme: theme, height: 160)
                 }
             }
             .padding()
@@ -252,26 +246,6 @@ struct TopExerciseChartCard: View {
         }
     }
 
-    private func historyFor(_ name: String) -> [ExerciseHistoryPoint] {
-        var points: [ExerciseHistoryPoint] = []
-        let sorted = store.completedWorkouts.sorted { $0.date < $1.date }
-        var session = 1
-        for workout in sorted {
-            for exercise in workout.exercises where exercise.name == name && !exercise.logs.isEmpty {
-                points.append(
-                    ExerciseHistoryPoint(
-                        date: workout.date,
-                        totalVolume: exercise.totalVolume,
-                        maxWeight: exercise.maxLoggedWeight,
-                        estimatedOneRepMax: exercise.estimatedOneRepMax,
-                        session: session
-                    )
-                )
-                session += 1
-            }
-        }
-        return points
-    }
 }
 
 // MARK: - Shared line chart component
@@ -279,40 +253,39 @@ struct TopExerciseChartCard: View {
 struct ExerciseLineChart: View {
     let history: [ExerciseHistoryPoint]
     let metric: ExerciseChartMetric
+    let unit: WeightUnit
     let theme: AppTheme
     let height: CGFloat
 
-    // Light theme keeps existing accent-on-card-background style; all others use primaryColor on white.
-    private var isLight: Bool { theme == .light }
-    private var lineColor: Color { isLight ? theme.accentColor : theme.primaryColor }
-    private var fillColor: Color { isLight ? theme.accentColor.opacity(0.15) : theme.primaryColor.opacity(0.22) }
-    private var axisColor: Color { isLight ? theme.onPrimaryText.opacity(0.6) : Color(white: 0.45) }
+    private var lineColor: Color { theme.chartLineColor }
+    private var fillColor: Color { theme.chartLineColor.opacity(0.2) }
+    private var axisColor: Color { theme.chartAxisColor }
 
     var body: some View {
         Chart(history) { point in
             LineMark(
                 x: .value("Session", point.session),
-                y: .value(metric.axisLabel, metric.value(for: point))
+                y: .value(metric.axisLabel, metric.value(for: point, unit: unit))
             )
-            .interpolationMethod(.catmullRom)
+            .interpolationMethod(.linear)
             .foregroundStyle(lineColor)
 
             AreaMark(
                 x: .value("Session", point.session),
-                y: .value(metric.axisLabel, metric.value(for: point))
+                y: .value(metric.axisLabel, metric.value(for: point, unit: unit))
             )
-            .interpolationMethod(.catmullRom)
+            .interpolationMethod(.linear)
             .foregroundStyle(fillColor)
 
             PointMark(
                 x: .value("Session", point.session),
-                y: .value(metric.axisLabel, metric.value(for: point))
+                y: .value(metric.axisLabel, metric.value(for: point, unit: unit))
             )
             .foregroundStyle(lineColor)
         }
         .frame(height: height)
         .padding()
-        .background(isLight ? Color.clear : Color.white)
+        .background(theme.chartSurfaceColor)
         .cornerRadius(14)
         .chartXAxis {
             AxisMarks(values: .automatic) { _ in
@@ -321,7 +294,7 @@ struct ExerciseLineChart: View {
         }
         .chartYAxis {
             AxisMarks { value in
-                AxisGridLine().foregroundStyle(isLight ? Color(white: 0.75) : Color(white: 0.3))
+                AxisGridLine().foregroundStyle(theme.chartGridColor)
                 AxisValueLabel {
                     if let metricValue = value.as(Double.self) {
                         Text(formattedAxisValue(metricValue))
@@ -330,15 +303,24 @@ struct ExerciseLineChart: View {
                 .foregroundStyle(axisColor)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(metric.title) progress chart")
+        .accessibilityValue(chartAccessibilityValue)
+        .accessibilityHint("The individual session results are listed below the chart.")
     }
 
     private func formattedAxisValue(_ value: Double) -> String {
         switch metric {
         case .volume:
-            return value.abbreviatedVolume
+            return "\(value.abbreviatedVolume) \(unit.volumeSymbol)"
         case .topSet, .estimatedOneRepMax:
-            return String(format: "%.0f", value)
+            return "\(WeightFormatter.numberString(value, maximumFractionDigits: 0)) \(unit.symbol)"
         }
+    }
+
+    private var chartAccessibilityValue: String {
+        guard let latest = history.last else { return "No sessions recorded." }
+        return "\(history.count) sessions. Latest session: \(metric.formattedValue(for: latest, unit: unit)) on \(latest.date.formatted(date: .abbreviated, time: .omitted))."
     }
 }
 
@@ -366,6 +348,9 @@ struct ExerciseChartMetricMenu: View {
             .background(theme.rowBackground)
             .cornerRadius(10)
         }
+        .accessibilityLabel("Chart metric")
+        .accessibilityValue(selection.title)
+        .accessibilityHint("Choose the metric shown in the progress chart.")
     }
 }
 
@@ -376,30 +361,34 @@ struct ExercisesListView: View {
     @EnvironmentObject var themeManager: ThemeManager
     private var theme: AppTheme { themeManager.current }
 
-    private var exercises: [ExerciseSummary] {
-        var counts: [String: Int] = [:]
-        for workout in store.completedWorkouts {
-            for exercise in workout.exercises {
-                counts[exercise.name, default: 0] += 1
+    private var exercises: [ExerciseTrainingSummary] {
+        ExerciseAnalytics.summaries(
+            from: ExerciseAnalytics.trainedSessions(from: store.completedWorkouts)
+        )
+            .sorted { lhs, rhs in
+                if lhs.count != rhs.count { return lhs.count > rhs.count }
+                let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+                return nameOrder == .orderedSame ? lhs.id.uuidString < rhs.id.uuidString : nameOrder == .orderedAscending
             }
-        }
-        return counts.map { ExerciseSummary(id: $0.key, count: $0.value) }
-            .sorted { $0.count > $1.count }
     }
 
     var body: some View {
         ZStack {
             theme.primaryColor.ignoresSafeArea()
             List(exercises) { item in
-                NavigationLink(destination: ExerciseProgressView(exerciseName: item.id)) {
+                NavigationLink(destination: ExerciseProgressView(exerciseId: item.id, exerciseName: item.name)) {
                     HStack {
-                        Text(item.id).foregroundColor(theme.rowText)
+                        Text(item.name).foregroundColor(theme.rowText)
                         Spacer()
                         Text("\(item.count) session\(item.count == 1 ? "" : "s")")
                             .font(.caption)
                             .foregroundColor(theme.secondaryRowText)
                     }
                     .padding(.vertical, 4)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(item.name)
+                    .accessibilityValue("\(item.count) session\(item.count == 1 ? "" : "s")")
+                    .accessibilityHint("Opens progress for \(item.name).")
                 }
                 .listRowBackground(theme.rowBackground)
             }
@@ -416,6 +405,8 @@ struct ExerciseProgressView: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
     @AppStorage("preferredExerciseChartMetric") private var selectedMetricRawValue = ExerciseChartMetric.volume.rawValue
+    @AppStorage(WeightUnit.storageKey) private var weightUnit: WeightUnit = .pounds
+    let exerciseId: UUID
     let exerciseName: String
     private var theme: AppTheme { themeManager.current }
 
@@ -432,24 +423,10 @@ struct ExerciseProgressView: View {
     }
 
     private var history: [ExerciseHistoryPoint] {
-        var points: [ExerciseHistoryPoint] = []
-        let sorted = store.completedWorkouts.sorted { $0.date < $1.date }
-        var session = 1
-        for workout in sorted {
-            for exercise in workout.exercises where exercise.name == exerciseName && !exercise.logs.isEmpty {
-                points.append(
-                    ExerciseHistoryPoint(
-                        date: workout.date,
-                        totalVolume: exercise.totalVolume,
-                        maxWeight: exercise.maxLoggedWeight,
-                        estimatedOneRepMax: exercise.estimatedOneRepMax,
-                        session: session
-                    )
-                )
-                session += 1
-            }
-        }
-        return points
+        ExerciseAnalytics.history(
+            for: exerciseId,
+            from: ExerciseAnalytics.trainedSessions(from: store.completedWorkouts)
+        )
     }
 
     var body: some View {
@@ -459,7 +436,7 @@ struct ExerciseProgressView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if history.count < 2 {
                         Text("Log more sessions to see a progress chart.")
-                            .foregroundColor(theme.onPrimaryText.opacity(0.6))
+                            .foregroundColor(theme.secondaryOnPrimaryText)
                             .padding()
                     } else {
                         // Chart card
@@ -467,18 +444,18 @@ struct ExerciseProgressView: View {
                             HStack(alignment: .top) {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("\(selectedMetric.title) Over Time")
-                                        .font(.custom("ChalkboardSE-Regular", size: 14))
-                                        .foregroundColor(theme.onPrimaryText.opacity(0.7))
+                                        .font(AppTypography.chalkboard(14, relativeTo: .subheadline))
+                                        .foregroundColor(theme.secondaryOnPrimaryText)
                                     Text(selectedMetric.subtitle)
                                         .font(.caption)
-                                        .foregroundColor(theme.onPrimaryText.opacity(0.55))
+                                        .foregroundColor(theme.secondaryOnPrimaryText)
                                 }
 
                                 Spacer()
 
                                 ExerciseChartMetricMenu(selection: selectedMetricBinding, theme: theme)
                             }
-                            ExerciseLineChart(history: history, metric: selectedMetric, theme: theme, height: 220)
+                            ExerciseLineChart(history: history, metric: selectedMetric, unit: weightUnit, theme: theme, height: 220)
                         }
                         .padding()
                         .background(theme == .light ? theme.onPrimaryText.opacity(0.08) : Color.clear)
@@ -496,9 +473,9 @@ struct ExerciseProgressView: View {
                                 Text(point.date.formatted(date: .abbreviated, time: .omitted))
                                     .foregroundColor(theme.secondaryRowText)
                                 VStack(alignment: .trailing, spacing: 2) {
-                                    Text(selectedMetric.formattedValue(for: point))
+                                    Text(selectedMetric.formattedValue(for: point, unit: weightUnit))
                                         .foregroundColor(theme.rowText)
-                                    Text("Top set: \(String(format: "%.0f", point.maxWeight)) lbs")
+                                    Text("Top set: \(WeightFormatter.string(fromPounds: point.maxWeight, unit: weightUnit, maximumFractionDigits: 0))")
                                         .font(.caption)
                                         .foregroundColor(theme.secondaryRowText)
                                 }
@@ -506,6 +483,9 @@ struct ExerciseProgressView: View {
                             .padding(.horizontal)
                             .padding(.vertical, 10)
                             .background(theme.rowBackground)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("Session \(point.session), \(point.date.formatted(date: .abbreviated, time: .omitted))")
+                            .accessibilityValue("\(selectedMetric.formattedValue(for: point, unit: weightUnit)). Top set \(WeightFormatter.accessibilityString(fromPounds: point.maxWeight, unit: weightUnit, maximumFractionDigits: 0)).")
 
                             if point.id != history.reversed().last?.id {
                                 Divider()
@@ -530,26 +510,68 @@ struct WorkoutHistoryView: View {
     @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
     private var theme: AppTheme { themeManager.current }
+    @State private var pendingDeletion: CompletedWorkout?
+    @State private var mutationErrorMessage: String?
 
     var body: some View {
         ZStack {
             theme.primaryColor.ignoresSafeArea()
-            List(store.completedWorkouts) { workout in
+            List(store.completedWorkouts.sorted(by: CompletedWorkout.newestFirst)) { workout in
                 NavigationLink(destination: SummaryDetailView(workout: workout)) {
                     VStack(alignment: .leading) {
                         Text(workout.date.formatted(date: .long, time: .shortened))
                             .font(.headline).foregroundColor(theme.rowText)
-                        Text(workout.dayName)
+                        Text(workout.workoutName)
                             .font(.subheadline).foregroundColor(theme.secondaryRowText)
                     }
                     .padding(.vertical, 4)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(workout.workoutName)
+                    .accessibilityValue("Completed \(workout.date.formatted(date: .long, time: .shortened)).")
+                    .accessibilityHint("Opens completed workout details. Swipe up or down to delete.")
                 }
                 .listRowBackground(theme.rowBackground)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        pendingDeletion = workout
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
             }
             .scrollContentBackground(.hidden)
         }
+        .confirmationDialog(
+            "Delete Completed Workout?",
+            isPresented: Binding(
+                get: { pendingDeletion != nil },
+                set: { if !$0 { pendingDeletion = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete Workout", role: .destructive, action: deletePendingWorkout)
+            Button("Cancel", role: .cancel) { pendingDeletion = nil }
+        } message: {
+            Text("This permanently removes this workout and its analytics contribution. It can’t be undone.")
+        }
+        .alert("Couldn’t Delete Workout", isPresented: Binding(
+            get: { mutationErrorMessage != nil },
+            set: { if !$0 { mutationErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { mutationErrorMessage = nil }
+        } message: {
+            Text(mutationErrorMessage ?? "")
+        }
         .navigationTitle("Workout History")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func deletePendingWorkout() {
+        guard let workout = pendingDeletion else { return }
+        pendingDeletion = nil
+        if case .failure(let error) = store.deleteCompletedWorkout(id: workout.id) {
+            mutationErrorMessage = error.localizedDescription
+        }
     }
 }
 
@@ -557,22 +579,33 @@ struct WorkoutHistoryView: View {
 
 struct SummaryDetailView: View {
     let workout: CompletedWorkout
+    @EnvironmentObject var store: RoutineStore
     @EnvironmentObject var themeManager: ThemeManager
+    @AppStorage(WeightUnit.storageKey) private var weightUnit: WeightUnit = .pounds
+    @Environment(\.dismiss) private var dismiss
     private var theme: AppTheme { themeManager.current }
+    @State private var isEditing = false
+    @State private var showDeleteConfirmation = false
+    @State private var mutationErrorMessage: String?
+
+    private var currentWorkout: CompletedWorkout {
+        store.completedWorkouts.first(where: { $0.id == workout.id }) ?? workout
+    }
 
     var body: some View {
         ZStack {
             theme.primaryColor.ignoresSafeArea()
             List {
                 Section(header: Text("Workout Info").foregroundColor(theme.onPrimaryText)) {
-                    HStack { Text("Routine / Workout").foregroundColor(theme.rowText); Spacer(); Text(workout.dayName).foregroundColor(theme.secondaryRowText) }.listRowBackground(theme.rowBackground)
-                    HStack { Text("Date").foregroundColor(theme.rowText); Spacer(); Text(workout.date.formatted(date: .long, time: .shortened)).foregroundColor(theme.secondaryRowText) }.listRowBackground(theme.rowBackground)
+                    HStack { Text("Routine").foregroundColor(theme.rowText); Spacer(); Text(currentWorkout.routineName ?? "Not recorded").foregroundColor(theme.secondaryRowText) }.listRowBackground(theme.rowBackground)
+                    HStack { Text("Workout").foregroundColor(theme.rowText); Spacer(); Text(currentWorkout.workoutName).foregroundColor(theme.secondaryRowText) }.listRowBackground(theme.rowBackground)
+                    HStack { Text("Date").foregroundColor(theme.rowText); Spacer(); Text(currentWorkout.date.formatted(date: .long, time: .shortened)).foregroundColor(theme.secondaryRowText) }.listRowBackground(theme.rowBackground)
                 }
                 Section(header: Text("Exercises").foregroundColor(theme.onPrimaryText)) {
-                    if workout.exercises.isEmpty {
+                    if currentWorkout.exercises.isEmpty {
                         Text("No exercises recorded.").listRowBackground(theme.rowBackground).foregroundColor(theme.secondaryRowText)
                     } else {
-                        ForEach(workout.exercises) { exercise in
+                        ForEach(currentWorkout.exercises) { exercise in
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(exercise.name).font(.headline).foregroundColor(theme.rowText)
                                 if exercise.logs.isEmpty {
@@ -582,7 +615,7 @@ struct SummaryDetailView: View {
                                         HStack {
                                             Text("Set \(index + 1)").font(.subheadline).foregroundColor(theme.secondaryRowText)
                                             Spacer()
-                                            Text("\(log.reps) reps @ \(String(format: "%.1f", log.weight)) lbs").font(.subheadline).foregroundColor(theme.rowText)
+                                            Text("\(log.reps) reps @ \(WeightFormatter.string(fromPounds: log.weight, unit: weightUnit))").font(.subheadline).foregroundColor(theme.rowText)
                                         }
                                     }
                                 }
@@ -596,5 +629,117 @@ struct SummaryDetailView: View {
         }
         .navigationTitle("Details")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Button("Edit") { isEditing = true }
+                Button(role: .destructive) { showDeleteConfirmation = true } label: {
+                    Image(systemName: "trash")
+                }
+                .accessibilityLabel("Delete completed workout")
+                .accessibilityHint("Permanently deletes this workout and its analytics contribution.")
+            }
+        }
+        .sheet(isPresented: $isEditing) {
+            EditCompletedWorkoutView(workout: currentWorkout)
+                .environmentObject(store)
+                .environmentObject(themeManager)
+        }
+        .confirmationDialog(
+            "Delete Completed Workout?",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Workout", role: .destructive, action: deleteWorkout)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently removes this workout and its analytics contribution. It can’t be undone.")
+        }
+        .alert("Couldn’t Delete Workout", isPresented: Binding(
+            get: { mutationErrorMessage != nil },
+            set: { if !$0 { mutationErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { mutationErrorMessage = nil }
+        } message: {
+            Text(mutationErrorMessage ?? "")
+        }
+    }
+
+    private func deleteWorkout() {
+        switch store.deleteCompletedWorkout(id: currentWorkout.id) {
+        case .success:
+            dismiss()
+        case .failure(let error):
+            mutationErrorMessage = error.localizedDescription
+        }
+    }
+}
+
+struct EditCompletedWorkoutView: View {
+    let workout: CompletedWorkout
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var store: RoutineStore
+    @EnvironmentObject var themeManager: ThemeManager
+    @State private var date: Date
+    @State private var routineName: String
+    @State private var workoutName: String
+    @State private var focus: String
+    @State private var mutationErrorMessage: String?
+
+    init(workout: CompletedWorkout) {
+        self.workout = workout
+        _date = State(initialValue: workout.date)
+        _routineName = State(initialValue: workout.routineName ?? "")
+        _workoutName = State(initialValue: workout.workoutName)
+        _focus = State(initialValue: workout.focus)
+    }
+
+    private var theme: AppTheme { themeManager.current }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Workout Details") {
+                    TextField("Routine name", text: $routineName)
+                    TextField("Workout name", text: $workoutName)
+                    TextField("Focus", text: $focus)
+                    DatePicker("Completed", selection: $date)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(theme.primaryColor.ignoresSafeArea())
+            .navigationTitle("Edit History")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save", action: save)
+                }
+            }
+            .alert("Couldn’t Save History", isPresented: Binding(
+                get: { mutationErrorMessage != nil },
+                set: { if !$0 { mutationErrorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { mutationErrorMessage = nil }
+            } message: {
+                Text(mutationErrorMessage ?? "")
+            }
+        }
+    }
+
+    private func save() {
+        switch store.updateCompletedWorkout(
+            id: workout.id,
+            date: date,
+            routineName: routineName,
+            workoutName: workoutName,
+            focus: focus
+        ) {
+        case .success:
+            dismiss()
+        case .failure(let error):
+            mutationErrorMessage = error.localizedDescription
+        }
     }
 }

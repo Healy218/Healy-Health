@@ -16,6 +16,10 @@ struct WorkoutDetailView: View {
         store.routines.first(where: { $0.id == routineId })?.workouts.first(where: { $0.id == workout.id })
     }
 
+    private var isEditedWorkoutNameValid: Bool {
+        (try? WorkoutPlanningValidation.workoutName(editWorkoutName)) != nil
+    }
+
     var body: some View {
         ZStack {
             theme.primaryColor.edgesIgnoringSafeArea(.all)
@@ -47,14 +51,14 @@ struct WorkoutDetailView: View {
             TextField("Focus (e.g. Legs)", text: $editWorkoutFocus)
             Button("Cancel", role: .cancel) { }
             Button("Save") {
-                guard !editWorkoutName.isEmpty,
-                      let routine = store.routines.first(where: { $0.id == routineId }),
-                      let wIndex = routine.workouts.firstIndex(where: { $0.id == workout.id }) else { return }
-                var updated = routine
-                updated.workouts[wIndex].name = editWorkoutName
-                updated.workouts[wIndex].focus = editWorkoutFocus
-                store.updateRoutine(updated)
+                _ = store.updateWorkoutDetails(
+                    routineId: routineId,
+                    workoutId: workout.id,
+                    name: editWorkoutName,
+                    focus: editWorkoutFocus
+                )
             }
+            .disabled(!isEditedWorkoutNameValid)
         }
     }
 
@@ -76,20 +80,26 @@ struct WorkoutDetailView: View {
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(category.displayName)
-                        .font(.custom("ChalkboardSE-Regular", size: 20))
+                        .font(AppTypography.chalkboard(20, relativeTo: .title3))
                         .foregroundColor(theme.onPrimaryText)
                     Text(count == 0 ? "Tap to add exercises" : "\(count) exercise\(count == 1 ? "" : "s")")
-                        .font(.custom("ChalkboardSE-Regular", size: 14))
-                        .foregroundColor(theme.onPrimaryText.opacity(0.7))
+                        .font(AppTypography.chalkboard(14, relativeTo: .subheadline))
+                        .foregroundColor(theme.secondaryOnPrimaryText)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .foregroundColor(theme.onPrimaryText.opacity(0.6))
+                    .foregroundColor(theme.secondaryOnPrimaryText)
                     .font(.system(size: 14, weight: .semibold))
             }
             .padding()
             .background(theme.onPrimaryText.opacity(0.12))
             .cornerRadius(16)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(category.displayName)
+            .accessibilityValue("\(count) exercise\(count == 1 ? "" : "s")")
+            .accessibilityHint(count == 0
+                ? "Opens \(category.displayName) so you can add exercises."
+                : "Opens \(category.displayName) exercises.")
         }
         .buttonStyle(PlainButtonStyle())
     }
